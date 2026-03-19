@@ -828,29 +828,22 @@ function closeSuggestModal() {
 }
 
 function submitSuggestion() {
-  const name = document.getElementById('s-name').value.trim();
+  var name = document.getElementById('s-name').value.trim();
   if (!name) { alert('Venue name is required.'); return; }
-  const reason = document.getElementById('s-reason').value.trim();
-  const who = document.getElementById('s-who').value.trim() || 'Someone';
-  const body = encodeURIComponent(`Hey Kerwin! ${who} is suggesting a venue for the tracker:
-
-${name}${reason ? '
-Reason: ' + reason : ''}
-
-Can you look it up and add it?`);
-  window.open('sms:+14152601538&body=' + body, '_blank');
+  var reason = document.getElementById('s-reason').value.trim();
+  var who = document.getElementById('s-who').value.trim() || 'Someone';
+  var msg = 'Hey Kerwin! ' + who + ' is suggesting a venue for the tracker:\n\n' + name;
+  if (reason) msg += '\nReason: ' + reason;
+  msg += '\n\nCan you look it up and add it?';
+  window.open('sms:+14152601538&body=' + encodeURIComponent(msg), '_blank');
   closeSuggestModal();
 }
-
 function submitRemoval() {
-  const checked = [...document.querySelectorAll('.remove-check:checked')];
+  var checked = Array.from(document.querySelectorAll('.remove-check:checked'));
   if (!checked.length) { alert('Select at least one venue.'); return; }
-  const names = checked.map(c => '- ' + c.dataset.name).join('
-');
-  const body = encodeURIComponent(`Hey Kerwin! Can you remove these venues from the tracker?
-
-${names}`);
-  window.open('sms:+14152601538&body=' + body, '_blank');
+  var names = checked.map(function(c) { return '- ' + c.dataset.name; }).join('\n');
+  var msg = 'Hey Kerwin! Can you remove these venues from the tracker?\n\n' + names;
+  window.open('sms:+14152601538&body=' + encodeURIComponent(msg), '_blank');
   closeSuggestModal();
 }
 
