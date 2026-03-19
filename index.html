@@ -925,17 +925,25 @@ function submitSuggestion() {
   if (!name) { alert('Venue name is required.'); return; }
   const reason = document.getElementById('s-reason').value.trim();
   const who = document.getElementById('s-who').value.trim() || 'Someone';
-  const msg = `Hey Kerwin — ${who} is suggesting a venue for the tracker:%0A%0A*${name}*${reason ? '%0AReason: ' + reason : ''}%0A%0ACan you look it up and add it?`;
-  window.open('https://claude.ai/new?q=' + msg, '_blank');
+  const body = encodeURIComponent(`Hey Kerwin! ${who} is suggesting a venue for the tracker:
+
+${name}${reason ? '
+Reason: ' + reason : ''}
+
+Can you look it up and add it?`);
+  window.open('sms:+14152601538&body=' + body, '_blank');
   closeSuggestModal();
 }
 
 function submitRemoval() {
   const checked = [...document.querySelectorAll('.remove-check:checked')];
   if (!checked.length) { alert('Select at least one venue.'); return; }
-  const names = checked.map(c => '- ' + c.dataset.name).join('%0A');
-  const msg = `Hey Kerwin — can you remove these venues from the tracker?%0A%0A${names}`;
-  window.open('https://claude.ai/new?q=' + msg, '_blank');
+  const names = checked.map(c => '- ' + c.dataset.name).join('
+');
+  const body = encodeURIComponent(`Hey Kerwin! Can you remove these venues from the tracker?
+
+${names}`);
+  window.open('sms:+14152601538&body=' + body, '_blank');
   closeSuggestModal();
 }
 
