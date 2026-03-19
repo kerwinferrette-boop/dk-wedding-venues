@@ -197,6 +197,11 @@ input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width:
 .modal-close { width: 100%; padding: 14px; background: var(--dark3); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; }
 
 /* ADD VENUE MODAL */
+.smart-detect-bar { display: flex; flex-direction: column; gap: 8px; background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.18); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; }
+.smart-detect-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.smart-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+.smart-chip { padding: 5px 11px; border: 1px solid rgba(201,168,76,0.35); border-radius: 8px; background: rgba(201,168,76,0.1); color: var(--gold); font-size: 12px; font-weight: 600; cursor: pointer; font-family: "DM Sans", sans-serif; transition: all 0.15s; }
+.smart-chip:hover { background: rgba(201,168,76,0.2); }
 .add-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); }
 .add-modal-overlay.open { display: flex; }
 .add-modal-sheet { background: var(--dark2); border-radius: 24px 24px 0 0; padding: 24px 20px 40px; width: 100%; max-width: 480px; border-top: 1px solid var(--border); max-height: 85vh; overflow-y: auto; animation: slideUp 0.25s ease; }
@@ -328,11 +333,18 @@ input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width:
   <div class="add-modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" style="margin-bottom:4px;">Add a Venue</div>
-    <div class="modal-sub" style="margin-bottom:20px;">Drops into the list for everyone.</div>
+    <div class="modal-sub" style="margin-bottom:16px;">Start typing — we'll figure out the rest.</div>
+
     <div class="form-group">
       <label class="form-label">Venue Name *</label>
-      <input class="form-input" id="f-name" type="text" placeholder="e.g. The Broad, Los Angeles">
+      <input class="form-input" id="f-name" type="text" placeholder="e.g. The Broad, Los Angeles" oninput="smartDetect(this.value)">
     </div>
+
+    <div class="smart-detect-bar" id="smart-bar" style="display:none;">
+      <div class="smart-detect-row" id="smart-region-row"></div>
+      <div class="smart-detect-row" id="smart-tags-row"></div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Region *</label>
       <select class="form-select" id="f-region">
@@ -832,6 +844,100 @@ async function addAiVenue(index) {
 }
 
 // ADD VENUE MODAL
+// SMART DETECTION
+const REGION_KEYWORDS = {
+  bay: ['san francisco','sf','bay area','oakland','berkeley','alameda','san jose','marin','sausalito','tiburon','mill valley','emeryville','richmond','walnut creek','palo alto','foster city','redwood city','south bay','east bay','north bay'],
+  socal: ['los angeles','la','san diego','long beach','anaheim','orange county','oc','pasadena','santa monica','malibu','beverly hills','west hollywood','downtown la','culver city','venice','burbank','glendale','escondido','la jolla','mission beach','coronado','encinitas','carlsbad','oceanside','del mar','seaport','balboa','gaslamp','liberty station','harbor island','mission valley','san juan capistrano','capistrano'],
+  monterey: ['monterey','carmel','carmel-by-the-sea','big sur','santa cruz','pebble beach','pacific grove','cannery row']
+};
+
+const TAG_KEYWORDS = {
+  aqua: ['aquarium','aquatic','shark','ocean','marine','underwater','bay','harbor','waterfront','pier','whale','fish','sea life','seaworld'],
+  arch: ['museum','concert hall','gallery','landmark','historic','architecture','architect','art deco','spanish colonial','modern','industrial','warehouse','gehry','pritzker','design','cultural','institution'],
+  planet: ['planetarium','observatory','space','science center','telescope','star','cosmos','astronomical'],
+  top: ['rooftop','iconic','premier','exclusive','luxury','world class','award']
+};
+
+function smartDetect(val) {
+  const text = val.toLowerCase();
+  if (text.length < 3) { document.getElementById('smart-bar').style.display = 'none'; return; }
+
+  // Detect region
+  let detectedRegion = null;
+  let detectedLabel = null;
+  for (const [region, keywords] of Object.entries(REGION_KEYWORDS)) {
+    for (const kw of keywords) {
+      if (text.includes(kw)) {
+        detectedRegion = region;
+        detectedLabel = kw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        break;
+      }
+    }
+    if (detectedRegion) break;
+  }
+
+  // Detect tags
+  const detectedTags = [];
+  for (const [tag, keywords] of Object.entries(TAG_KEYWORDS)) {
+    if (keywords.some(kw => text.includes(kw))) detectedTags.push(tag);
+  }
+
+  const smartBar = document.getElementById('smart-bar');
+  const regionRow = document.getElementById('smart-region-row');
+  const tagsRow = document.getElementById('smart-tags-row');
+
+  let hasDetection = false;
+
+  if (detectedRegion) {
+    hasDetection = true;
+    const regionNames = { bay: 'Bay Area', socal: 'SoCal', monterey: 'Monterey' };
+    regionRow.innerHTML = `<span class="smart-label">Detected region:</span>
+      <button class="smart-chip" onclick="applyRegion('${detectedRegion}', '${detectedLabel}')">
+        ${regionNames[detectedRegion]} — tap to apply
+      </button>`;
+    regionRow.style.display = 'flex';
+  } else {
+    regionRow.style.display = 'none';
+  }
+
+  if (detectedTags.length) {
+    hasDetection = true;
+    const tagNames = { aqua: '🦈 Aquarium', arch: '🏛 Architect', planet: '🔭 Planetarium', top: '⭐ Top Pick' };
+    tagsRow.innerHTML = `<span class="smart-label">Suggested tags:</span>` +
+      detectedTags.map(t => `<button class="smart-chip" onclick="applyTag('${t}')" id="sc-${t}">${tagNames[t]}</button>`).join('');
+    tagsRow.style.display = 'flex';
+  } else {
+    tagsRow.style.display = 'none';
+  }
+
+  smartBar.style.display = hasDetection ? 'flex' : 'none';
+}
+
+function applyRegion(region, label) {
+  document.getElementById('f-region').value = region;
+  const regionLabels = { bay: 'Bay Area', socal: 'SoCal — ', monterey: 'Monterey — ' };
+  if (!document.getElementById('f-region-label').value) {
+    document.getElementById('f-region-label').value = regionLabels[region] || '';
+  }
+  // Flash feedback
+  const btn = event.target;
+  btn.textContent = '✓ Applied';
+  btn.style.background = 'rgba(93,187,138,0.2)';
+  btn.style.borderColor = 'var(--green)';
+  btn.style.color = 'var(--green)';
+}
+
+function applyTag(tag) {
+  activeTags[tag] = true;
+  document.getElementById('t-' + tag).classList.add('on');
+  const btn = document.getElementById('sc-' + tag);
+  if (btn) {
+    btn.style.background = 'rgba(93,187,138,0.2)';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+  }
+}
+
 function openAddModal() { document.getElementById('add-modal').classList.add('open'); }
 function closeAddModal() {
   document.getElementById('add-modal').classList.remove('open');
@@ -839,6 +945,7 @@ function closeAddModal() {
   document.getElementById('f-region').value = '';
   activeTags = { top: false, aqua: false, arch: false, planet: false };
   ['t-top','t-aqua','t-arch','t-planet'].forEach(id => document.getElementById(id).classList.remove('on'));
+  document.getElementById('smart-bar').style.display = 'none';
 }
 function toggleTag(tag) {
   activeTags[tag] = !activeTags[tag];
