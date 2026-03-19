@@ -46,10 +46,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--dark); color: var(-
 
 /* SEARCH SECTION */
 .search-section { background: var(--dark2); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.add-venue-banner { display: flex; align-items: center; gap: 12px; background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.18); border-radius: var(--radius-sm); padding: 12px 14px; }
-.banner-icon { font-size: 18px; color: var(--gold); flex-shrink: 0; }
-.banner-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-.banner-sub { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.action-btn { padding: 12px 10px; font-size: 13px; font-weight: 700; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: "DM Sans", sans-serif; transition: opacity 0.15s; letter-spacing: 0.01em; }
+.action-add { background: var(--gold); color: #0E0E0E; }
+.action-remove { background: var(--dark3); color: var(--text-muted); border: 1px solid var(--border); }
+.action-add:hover, .action-remove:hover { opacity: 0.85; }
+.remove-list { display: flex; flex-direction: column; gap: 2px; max-height: 50vh; overflow-y: auto; margin-bottom: 16px; }
+.remove-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s; }
+.remove-item:hover { background: rgba(255,255,255,0.04); }
+.remove-check { width: 16px; height: 16px; accent-color: var(--pink); flex-shrink: 0; cursor: pointer; }
+.remove-name { flex: 1; font-size: 14px; color: var(--text); font-weight: 500; }
+.remove-region { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
 .search-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
 .search-mode-toggle { display: flex; background: var(--dark3); border-radius: 10px; padding: 3px; gap: 2px; }
@@ -244,15 +251,11 @@ input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width:
   </div>
 </div>
 
-<!-- ADD VENUE BANNER -->
+<!-- SUGGESTION BOX -->
 <div class="search-section">
-  <div class="add-venue-banner">
-    <div class="banner-icon">✦</div>
-    <div class="banner-text">
-      <div class="banner-title">Want to add a venue?</div>
-      <div class="banner-sub">Tell Kerwin in chat — he’ll look it up and add it here instantly.</div>
-    </div>
-    <button class="add-venue-btn" onclick="openAddModal()" style="flex-shrink:0;">+ Manual</button>
+  <div class="action-row">
+    <button class="action-btn action-add" onclick="openSuggestModal('add')">+ Add a Venue</button>
+    <button class="action-btn action-remove" onclick="openSuggestModal('remove')">− Remove a Venue</button>
   </div>
 </div>
 
@@ -305,7 +308,7 @@ input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width:
 <!-- COUNT BAR -->
 <div class="count-bar">
   <span id="count-label">Loading venues…</span>
-  <button class="add-venue-btn" onclick="openAddModal()">+ Add Venue</button>
+  
 </div>
 
 <!-- VENUE LIST -->
@@ -328,84 +331,39 @@ input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width:
   </div>
 </div>
 
-<!-- ADD VENUE MODAL -->
-<div class="add-modal-overlay" id="add-modal">
+<!-- SUGGEST MODAL -->
+<div class="add-modal-overlay" id="suggest-modal">
   <div class="add-modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" style="margin-bottom:4px;">Add a Venue</div>
-    <div class="modal-sub" style="margin-bottom:16px;">Start typing — we'll figure out the rest.</div>
 
-    <div class="form-group">
-      <label class="form-label">Venue Name *</label>
-      <input class="form-input" id="f-name" type="text" placeholder="e.g. The Broad, Los Angeles" oninput="smartDetect(this.value)">
+    <!-- ADD MODE -->
+    <div id="suggest-add-view">
+      <div class="modal-title" style="margin-bottom:4px;">Suggest a Venue</div>
+      <div class="modal-sub" style="margin-bottom:16px;">Tell us the name and any details you know. Kerwin will look it up and add it.</div>
+      <div class="form-group">
+        <label class="form-label">Venue Name *</label>
+        <input class="form-input" id="s-name" type="text" placeholder="e.g. The Broad, Los Angeles">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Why do you like it? (optional)</label>
+        <input class="form-input" id="s-reason" type="text" placeholder="e.g. Rooftop, great views, fits 300">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Suggested by</label>
+        <input class="form-input" id="s-who" type="text" placeholder="Your name">
+      </div>
+      <button class="submit-btn" onclick="submitSuggestion()">Send to Kerwin ↗</button>
+      <button class="modal-close" style="margin-top:10px;" onclick="closeSuggestModal()">Cancel</button>
     </div>
 
-    <div class="smart-detect-bar" id="smart-bar" style="display:none;">
-      <div class="smart-detect-row" id="smart-region-row"></div>
-      <div class="smart-detect-row" id="smart-tags-row"></div>
+    <!-- REMOVE MODE -->
+    <div id="suggest-remove-view" style="display:none;">
+      <div class="modal-title" style="margin-bottom:4px;">Remove Venues</div>
+      <div class="modal-sub" style="margin-bottom:16px;">Check any venues to flag for removal. Kerwin will confirm.</div>
+      <div id="remove-venue-list" class="remove-list"></div>
+      <button class="submit-btn" onclick="submitRemoval()">Send to Kerwin ↗</button>
+      <button class="modal-close" style="margin-top:10px;" onclick="closeSuggestModal()">Cancel</button>
     </div>
-
-    <div class="form-group">
-      <label class="form-label">Region *</label>
-      <select class="form-select" id="f-region">
-        <option value="">Select region</option>
-        <option value="bay">Bay Area</option>
-        <option value="socal">SoCal</option>
-        <option value="monterey">Monterey / Carmel</option>
-        <option value="other">Other</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Region Label</label>
-      <input class="form-input" id="f-region-label" type="text" placeholder="SoCal — San Diego">
-    </div>
-    <div class="form-group">
-      <label class="form-label">What makes it special</label>
-      <input class="form-input" id="f-highlight" type="text" placeholder="e.g. Rooftop ceremony, skyline views">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Note</label>
-      <input class="form-input" id="f-note" type="text" placeholder="e.g. Dani's pick">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Max Capacity</label>
-        <input class="form-input" id="f-cap" type="number" placeholder="300">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Venue Fee ($)</label>
-        <input class="form-input" id="f-fee" type="number" placeholder="5000">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Catering /pp ($)</label>
-        <input class="form-input" id="f-cat" type="number" placeholder="90">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Bar /pp ($)</label>
-        <input class="form-input" id="f-bar" type="number" placeholder="40">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Website URL</label>
-      <input class="form-input" id="f-url" type="url" placeholder="https://...">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Tags</label>
-      <div class="toggle-row">
-        <button class="toggle-pill" id="t-top" onclick="toggleTag('top')">⭐ Top Pick</button>
-        <button class="toggle-pill" id="t-aqua" onclick="toggleTag('aqua')">🦈 Aquarium</button>
-        <button class="toggle-pill" id="t-arch" onclick="toggleTag('arch')">🏛 Architect</button>
-        <button class="toggle-pill" id="t-planet" onclick="toggleTag('planet')">🔭 Planetarium</button>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Notes / Disclaimer</label>
-      <input class="form-input" id="f-disclaimer" type="text" placeholder="e.g. Required caterer, union fees">
-    </div>
-    <button class="submit-btn" onclick="submitVenue()">Add Venue</button>
-    <button class="modal-close" style="margin-top:10px;" onclick="closeAddModal()">Cancel</button>
   </div>
 </div>
 
@@ -938,15 +896,49 @@ function applyTag(tag) {
   }
 }
 
-function openAddModal() { document.getElementById('add-modal').classList.add('open'); }
-function closeAddModal() {
-  document.getElementById('add-modal').classList.remove('open');
-  ['f-name','f-region-label','f-highlight','f-note','f-cap','f-fee','f-cat','f-bar','f-url','f-disclaimer'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('f-region').value = '';
-  activeTags = { top: false, aqua: false, arch: false, planet: false };
-  ['t-top','t-aqua','t-arch','t-planet'].forEach(id => document.getElementById(id).classList.remove('on'));
-  document.getElementById('smart-bar').style.display = 'none';
+// SUGGEST MODAL
+function openSuggestModal(mode) {
+  document.getElementById('suggest-modal').classList.add('open');
+  document.getElementById('suggest-add-view').style.display = mode === 'add' ? 'block' : 'none';
+  document.getElementById('suggest-remove-view').style.display = mode === 'remove' ? 'block' : 'none';
+
+  if (mode === 'remove') {
+    const list = document.getElementById('remove-venue-list');
+    list.innerHTML = allVenues.map(v => `
+      <label class="remove-item">
+        <input type="checkbox" class="remove-check" value="${v.id}" data-name="${v.name}">
+        <span class="remove-name">${v.name}</span>
+        <span class="remove-region">${v.region_label || v.region}</span>
+      </label>
+    `).join('');
+  }
 }
+
+function closeSuggestModal() {
+  document.getElementById('suggest-modal').classList.remove('open');
+  ['s-name','s-reason','s-who'].forEach(id => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('.remove-check').forEach(c => c.checked = false);
+}
+
+function submitSuggestion() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) { alert('Venue name is required.'); return; }
+  const reason = document.getElementById('s-reason').value.trim();
+  const who = document.getElementById('s-who').value.trim() || 'Someone';
+  const msg = `Hey Kerwin — ${who} is suggesting a venue for the tracker:%0A%0A*${name}*${reason ? '%0AReason: ' + reason : ''}%0A%0ACan you look it up and add it?`;
+  window.open('https://claude.ai/new?q=' + msg, '_blank');
+  closeSuggestModal();
+}
+
+function submitRemoval() {
+  const checked = [...document.querySelectorAll('.remove-check:checked')];
+  if (!checked.length) { alert('Select at least one venue.'); return; }
+  const names = checked.map(c => '- ' + c.dataset.name).join('%0A');
+  const msg = `Hey Kerwin — can you remove these venues from the tracker?%0A%0A${names}`;
+  window.open('https://claude.ai/new?q=' + msg, '_blank');
+  closeSuggestModal();
+}
+
 function toggleTag(tag) {
   activeTags[tag] = !activeTags[tag];
   document.getElementById('t-' + tag).classList.toggle('on', activeTags[tag]);
