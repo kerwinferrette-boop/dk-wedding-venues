@@ -8,18 +8,18 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --gold: #C9A84C;
-  --gold-light: #E8C97A;
-  --pink: #E07FA0;
-  --pink-light: #F2A8C0;
-  --dark: #0E0E0E;
-  --dark2: #1A1A1A;
-  --dark3: #242424;
-  --card: #1E1E1E;
-  --border: rgba(255,255,255,0.07);
-  --text: #F0EDE8;
-  --text-muted: rgba(240,237,232,0.45);
-  --text-dim: rgba(240,237,232,0.22);
+  --gold: #A51C30;
+  --gold-light: #C9384F;
+  --pink: #2D6A4F;
+  --pink-light: #52B788;
+  --dark: #F5F0E8;
+  --dark2: #EDE8DF;
+  --dark3: #E0D9CE;
+  --card: #F9F6F1;
+  --border: rgba(0,0,0,0.08);
+  --text: #1A1208;
+  --text-muted: rgba(26,18,8,0.5);
+  --text-dim: rgba(26,18,8,0.25);
   --green: #5DBB8A;
   --red: #E07070;
   --yellow: #D4A843;
@@ -31,7 +31,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--dark); color: var(-
 
 /* HEADER */
 .header {
-  background: linear-gradient(135deg, #0E0E0E 0%, #1A1208 100%);
+  background: linear-gradient(135deg, #EDE8DF 0%, #E0D5C5 100%);
   border-bottom: 1px solid rgba(201,168,76,0.2);
   padding: 20px 16px 16px;
   position: sticky; top: 0; z-index: 100;
@@ -433,6 +433,7 @@ const SEED_VENUES = [
   { name: "Serra Plaza", region: "socal", region_label: "SoCal - San Juan Capistrano", highlight: "Spanish colonial courtyard, bubbling fountain ceremony, chandeliers under the stars - oldest neighborhood in California", note: "Added by Kerwin", max_cap: 350, venue_fee: 0, catering_pp: 95, bar_pp: 40, aqua: false, arch: true, planet: false, leader: false, quoted_price: null, url: "https://www.serraplazaevents.com/weddings", disclaimer: "Catering exclusively by Jay's Catering (required). Outdoor until 10pm, indoor until midnight. Bridal suite included. Pricing by quote only." },
   { name: "Coasterra", region: "socal", region_label: "SoCal - San Diego, Harbor Island", highlight: "25,000+ sq ft waterfront venue on San Diego Bay - Skyline Terrace, Bayview Ballroom, and a floating Harbor Float with LED video wall", note: "Sleek, modern, waterfront - strong fit", max_cap: 500, venue_fee: 0, catering_pp: 110, bar_pp: 45, aqua: false, arch: false, planet: false, leader: false, quoted_price: null, url: "https://www.coasterra.com/weddings-and-events/", disclaimer: "In-house catering by Cohn Restaurant Group (required). Modern Mexican cuisine. Pricing by quote. Harbor Float ceremony holds up to 200, Ballroom up to 500." },
   { name: "The Headquarters by Wedgewood", region: "socal", region_label: "SoCal - San Diego, Seaport Village", highlight: "1939 Art Deco police headquarters turned luxury venue - Gilded Hall with beam ceilings & chandeliers, speakeasy Velvet Lounge with circular gold bar, steps from San Diego Bay", note: "Historic industrial-glam - note 280 guest cap", max_cap: 280, venue_fee: 0, catering_pp: 140, bar_pp: 0, aqua: false, arch: true, planet: false, leader: false, quoted_price: null, url: "https://www.wedgewoodweddings.com/theheadquarters", disclaimer: "All-inclusive packages $113-$168/pp (includes catering, bar, planning, rentals, coordination). Catering & alcohol in-house only. 280 guest max - under your target count." },
+  { name: "Villa Montalvo", region: "bay", region_label: "Bay Area - Saratoga, Santa Cruz Mountains", highlight: "1912 Mediterranean landmark on 150 acres - Love Temple iron gates, Oval Garden ceremony (250 seated), Spanish Courtyard, Great Lawn, Santa Cruz Mountain views", note: "Classic Bay Area institution - feels like Italy without leaving California", max_cap: 300, venue_fee: 28975, catering_pp: 110, bar_pp: 45, aqua: false, arch: true, planet: false, leader: false, url: "https://montalvoarts.org/host/weddings/", disclaimer: "Preferred caterers and vendors required. Outdoor music ends 10pm, indoor 11pm. Dec-Apr guest max is 150. Starts at $28,975." },
   { name: "James Leary Flood Mansion", region: "bay", region_label: "Bay Area - SF Pacific Heights", highlight: "1915 Pacific Heights landmark - 140-ft Grand Hall with marble floors, Golden Gate & Alcatraz bay views, enclosed courtyard, Italian Renaissance architecture", note: "Elegant SF institution - note 299 guest cap & 10pm curfew", max_cap: 299, venue_fee: 14750, catering_pp: 0, bar_pp: 0, aqua: false, arch: true, planet: false, leader: false, quoted_price: null, url: "https://www.floodmansion.org/", disclaimer: "BYO from preferred caterer list required. Venue fee from $14,750. Events end by 10pm, vendors out by midnight. Weekends only - operates as Sacred Heart school." },
   { name: "Kohl Mansion", region: "bay", region_label: "Bay Area - Burlingame", highlight: "1914 National Historic Landmark Tudor estate - 40 acres, Great Hall with oak paneling & grand staircase, sunken English rose garden, full exclusive buyout", note: "Peninsula hidden gem - stunning architecture", max_cap: 300, venue_fee: 18750, catering_pp: 0, bar_pp: 0, aqua: false, arch: true, planet: false, leader: false, quoted_price: null, url: "https://kohlmansion.com/", disclaimer: "BYO vendors (100+ preferred vendors list). No corkage or cake cutting fee. No outdoor amplified music. Professional coordinator required. Peak $18,750 / off-peak $12,000 venue fee. Operates as Mercy High School - weekday access only for tours & rehearsals." },
   { name: "The Prado at Balboa Park", region: "socal", region_label: "SoCal - San Diego, Balboa Park", highlight: "1915 Spanish Colonial landmark - 27-ft hand-stenciled Grand Ballroom, Casa del Rey Moro Garden terraces, Fountain Courtyard, 22,000+ sq ft of Old World elegance", note: "San Diego institution - stunning architecture & gardens", max_cap: 320, venue_fee: 0, catering_pp: 150, bar_pp: 0, aqua: false, arch: true, planet: false, leader: false, quoted_price: null, url: "https://www.balboaparkweddings.com/weddings", disclaimer: "Catering by Cohn Restaurant Group (required), starting at $150/pp. Grand Ballroom seats 300, Garden terraces seat 320 for ceremony. Free parking for 3,000+ cars." }
