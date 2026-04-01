@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
+import NavBar from '../components/NavBar'
 
 const TABS = [
   { id: 'music',        label: 'Music',        table: 'musicians',          icon: '🎵' },
@@ -269,6 +270,347 @@ function TabContent({ tab, data, loading, selections, onToggle, userColor }) {
   )
 }
 
+// ─── shared modal styles ─────────────────────────────────────────────────────
+
+const MODAL_INPUT = {
+  width: '100%', padding: '10px 12px', borderRadius: 10,
+  border: '1.5px solid var(--border)',
+  background: 'var(--dark)', color: 'var(--text)',
+  fontFamily: '"DM Sans", sans-serif', fontSize: 14,
+  outline: 'none', boxSizing: 'border-box',
+}
+const MODAL_LABEL = {
+  fontFamily: '"DM Sans", sans-serif', fontSize: 12,
+  fontWeight: 600, color: 'var(--text-muted)',
+  display: 'block', marginBottom: 4,
+}
+
+function buildVendorPayload(tabId, form) {
+  if (tabId === 'music') return { name: form.name?.trim(), category: form.category || null, price_estimate: form.price_estimate ? Number(form.price_estimate) : null, hip_hop: !!form.hip_hop, instagram_url: form.instagram_url?.trim() || null, tiktok_url: form.tiktok_url?.trim() || null }
+  if (tabId === 'catering') return { name: form.name?.trim(), cuisine: form.cuisine?.trim() || null, price_pp: form.price_pp ? Number(form.price_pp) : null, status: form.status || 'considering' }
+  if (tabId === 'bar') return { provider: (form.provider || form.name)?.trim(), price_pp: form.price_pp ? Number(form.price_pp) : null, open_bar: !!form.open_bar }
+  if (tabId === 'cinema') return { name: form.name?.trim(), price: form.price ? Number(form.price) : null, drone: !!form.drone, highlight_reel: !!form.highlight_reel, confessional: !!form.confessional }
+  if (tabId === 'florals') { const tags = form.style_tags ? (Array.isArray(form.style_tags) ? form.style_tags : form.style_tags.split(',').map(t => t.trim()).filter(Boolean)) : null; return { name: form.name?.trim(), price_estimate: form.price_estimate ? Number(form.price_estimate) : null, style_tags: tags, includes_arch: !!form.includes_arch, includes_bouquet: !!form.includes_bouquet, includes_centerpieces: !!form.includes_centerpieces, includes_aisle: !!form.includes_aisle } }
+  if (tabId === 'extras') return { name: form.name?.trim(), category: form.category?.trim() || null, price_estimate: form.price_estimate ? Number(form.price_estimate) : null, pricing_type: form.pricing_type || null }
+  if (tabId === 'rehearsal') return { name: form.name?.trim(), price_estimate: form.price_estimate ? Number(form.price_estimate) : null, private_room: !!form.private_room }
+  return { name: form.name?.trim() }
+}
+
+function VendorFormFields({ tabId, form, set }) {
+  const inp = MODAL_INPUT
+  const lbl = MODAL_LABEL
+  if (tabId === 'music') return (
+    <>
+      <div><label style={lbl}>Category</label>
+        <select style={inp} value={form.category || ''} onChange={e => set('category', e.target.value)}>
+          <option value="">Select…</option>
+          <option value="DJ">DJ</option>
+          <option value="Band">Band</option>
+          <option value="Solo Artist">Solo Artist</option>
+        </select>
+      </div>
+      <div><label style={lbl}>Price Estimate ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 3500" value={form.price_estimate || ''} onChange={e => set('price_estimate', e.target.value)} />
+      </div>
+      <label style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!form.hip_hop} onChange={e => set('hip_hop', e.target.checked)} /> Hip-Hop set
+      </label>
+      <div><label style={lbl}>Instagram URL</label>
+        <input style={inp} placeholder="https://instagram.com/…" value={form.instagram_url || ''} onChange={e => set('instagram_url', e.target.value)} />
+      </div>
+      <div><label style={lbl}>TikTok URL</label>
+        <input style={inp} placeholder="https://tiktok.com/…" value={form.tiktok_url || ''} onChange={e => set('tiktok_url', e.target.value)} />
+      </div>
+    </>
+  )
+  if (tabId === 'catering') return (
+    <>
+      <div><label style={lbl}>Cuisine</label>
+        <input style={inp} placeholder="e.g. Caribbean, Mediterranean" value={form.cuisine || ''} onChange={e => set('cuisine', e.target.value)} />
+      </div>
+      <div><label style={lbl}>Price per Person ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 85" value={form.price_pp || ''} onChange={e => set('price_pp', e.target.value)} />
+      </div>
+      <div><label style={lbl}>Status</label>
+        <select style={inp} value={form.status || 'considering'} onChange={e => set('status', e.target.value)}>
+          <option value="considering">Considering</option>
+          <option value="booked">Booked</option>
+        </select>
+      </div>
+    </>
+  )
+  if (tabId === 'bar') return (
+    <>
+      <div><label style={lbl}>Price per Person ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 55" value={form.price_pp || ''} onChange={e => set('price_pp', e.target.value)} />
+      </div>
+      <label style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!form.open_bar} onChange={e => set('open_bar', e.target.checked)} /> Open Bar
+      </label>
+    </>
+  )
+  if (tabId === 'cinema') return (
+    <>
+      <div><label style={lbl}>Price ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 4500" value={form.price || ''} onChange={e => set('price', e.target.value)} />
+      </div>
+      {[['drone', 'Drone'], ['highlight_reel', 'Highlight Reel'], ['confessional', 'Confessional Cam']].map(([k, l]) => (
+        <label key={k} style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} /> {l}
+        </label>
+      ))}
+    </>
+  )
+  if (tabId === 'florals') return (
+    <>
+      <div><label style={lbl}>Price Estimate ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 8000" value={form.price_estimate || ''} onChange={e => set('price_estimate', e.target.value)} />
+      </div>
+      <div><label style={lbl}>Style Tags (comma-separated)</label>
+        <input style={inp} placeholder="garden, whimsical, lush" value={Array.isArray(form.style_tags) ? form.style_tags.join(', ') : (form.style_tags || '')} onChange={e => set('style_tags', e.target.value)} />
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {[['includes_arch', 'Arch'], ['includes_bouquet', 'Bouquet'], ['includes_centerpieces', 'Centerpieces'], ['includes_aisle', 'Aisle']].map(([k, l]) => (
+          <label key={k} style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 400 }}>
+            <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} /> {l}
+          </label>
+        ))}
+      </div>
+    </>
+  )
+  if (tabId === 'extras') return (
+    <>
+      <div><label style={lbl}>Category</label>
+        <input style={inp} placeholder="e.g. Photo Booth, Lighting" value={form.category || ''} onChange={e => set('category', e.target.value)} />
+      </div>
+      <div><label style={lbl}>Price Estimate ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 1200" value={form.price_estimate || ''} onChange={e => set('price_estimate', e.target.value)} />
+      </div>
+      <div><label style={lbl}>Pricing Type</label>
+        <select style={inp} value={form.pricing_type || ''} onChange={e => set('pricing_type', e.target.value)}>
+          <option value="">Select…</option>
+          <option value="flat">Flat rate</option>
+          <option value="per person">Per person</option>
+          <option value="per hour">Per hour</option>
+        </select>
+      </div>
+    </>
+  )
+  if (tabId === 'rehearsal') return (
+    <>
+      <div><label style={lbl}>Price Estimate ($)</label>
+        <input type="number" style={inp} placeholder="e.g. 2500" value={form.price_estimate || ''} onChange={e => set('price_estimate', e.target.value)} />
+      </div>
+      <label style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!form.private_room} onChange={e => set('private_room', e.target.checked)} /> Private Room
+      </label>
+    </>
+  )
+  return null
+}
+
+// ─── Add Vendor Modal ─────────────────────────────────────────────────────────
+
+function AddVendorModal({ tab, user, onClose, onAdded }) {
+  const userColor = USERS[user]?.color || '#A51C30'
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  function set(field, value) { setForm(f => ({ ...f, [field]: value })) }
+
+  const nameKey = tab.id === 'bar' ? 'provider' : 'name'
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!(form[nameKey] || form.name)?.trim()) return
+    setSaving(true)
+    setError('')
+    const payload = buildVendorPayload(tab.id, form)
+    const { data, error: err } = await supabase.from(tab.table).insert(payload).select().single()
+    if (err) { setError(err.message); setSaving(false); return }
+    onAdded(data || { ...payload, id: Date.now() })
+    onClose()
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,8,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <motion.div
+        initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        style={{ width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', background: 'var(--card)', borderRadius: '20px 20px 0 0', padding: '28px 24px 40px', boxShadow: '0 -8px 40px rgba(0,0,0,0.14)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+          <h2 style={{ fontFamily: '"Playfair Display", serif', fontSize: 20, fontWeight: 700, margin: 0 }}>Add {tab.label}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text-dim)', lineHeight: 1 }}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={MODAL_LABEL}>{tab.id === 'bar' ? 'Provider Name' : 'Name'} *</label>
+            <input style={MODAL_INPUT} placeholder={tab.id === 'bar' ? 'Bar / Beverage Company' : `${tab.label} name`} value={form[nameKey] || ''} onChange={e => set(nameKey, e.target.value)} required />
+          </div>
+          <VendorFormFields tabId={tab.id} form={form} set={set} />
+          {error && <p style={{ color: '#E07070', fontSize: 13, fontFamily: '"DM Sans", sans-serif', margin: 0 }}>{error}</p>}
+          <button type="submit" disabled={saving} style={{ marginTop: 4, padding: '13px 20px', borderRadius: 12, background: saving ? 'rgba(0,0,0,0.1)' : userColor, color: saving ? 'var(--text-muted)' : '#fff', fontFamily: '"Playfair Display", serif', fontSize: 15, fontWeight: 700, border: 'none', cursor: saving ? 'default' : 'pointer' }}>
+            {saving ? 'Saving…' : `Add ${tab.label}`}
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ─── Quote Scan Modal ─────────────────────────────────────────────────────────
+
+function QuoteScanModal({ tab, user, onClose, onAdded }) {
+  const userColor = USERS[user]?.color || '#A51C30'
+  const [phase, setPhase] = useState('upload')  // 'upload' | 'loading' | 'form'
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const fileRef = useRef(null)
+
+  function set(field, value) { setForm(f => ({ ...f, [field]: value })) }
+
+  function handleFileChange(file) {
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Upload a JPEG, PNG, or WebP image.'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB.'); return }
+    setError('')
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = e => setImagePreview(e.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleScan() {
+    if (!imageFile) return
+    setPhase('loading')
+    setError('')
+    const reader = new FileReader()
+    reader.onload = async e => {
+      const base64 = e.target.result.split(',')[1]
+      try {
+        const res = await fetch('/.netlify/functions/quote-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64, mimeType: imageFile.type, vendorType: tab.id }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`)
+        setForm(data)
+        setPhase('form')
+      } catch (err) {
+        setError(err.message || 'Could not read the quote.')
+        setPhase('upload')
+      }
+    }
+    reader.readAsDataURL(imageFile)
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    const nameField = tab.id === 'bar' ? (form.provider || form.name) : form.name
+    if (!nameField?.trim()) return
+    setSaving(true)
+    setError('')
+    const payload = buildVendorPayload(tab.id, form)
+    const { data, error: err } = await supabase.from(tab.table).insert(payload).select().single()
+    if (err) { setError(err.message); setSaving(false); return }
+    onAdded(data || { ...payload, id: Date.now() })
+    onClose()
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,8,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <motion.div
+        initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        style={{ width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', background: 'var(--card)', borderRadius: '20px 20px 0 0', padding: '28px 24px 40px', boxShadow: '0 -8px 40px rgba(0,0,0,0.14)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+          <h2 style={{ fontFamily: '"Playfair Display", serif', fontSize: 20, fontWeight: 700, margin: 0 }}>Scan Quote — {tab.label}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text-dim)', lineHeight: 1 }}>×</button>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {phase === 'upload' && (
+            <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 14, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                Upload a photo or screenshot of a {tab.label.toLowerCase()} quote. We'll extract the details.
+              </p>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={e => handleFileChange(e.target.files[0])} />
+              <div
+                onClick={() => fileRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); handleFileChange(e.dataTransfer.files[0]) }}
+                style={{ border: `2px dashed ${imageFile ? userColor : 'var(--border)'}`, borderRadius: 14, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: imageFile ? `${userColor}08` : 'var(--dark)', transition: 'all 0.2s' }}
+              >
+                {imagePreview
+                  ? <img src={imagePreview} alt="Quote preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, objectFit: 'contain' }} />
+                  : <>
+                      <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 28, margin: '0 0 8px' }}>📷</p>
+                      <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Tap to upload or drag & drop</p>
+                      <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }}>JPEG, PNG, or WebP · max 5MB</p>
+                    </>
+                }
+              </div>
+              {error && <p style={{ color: '#E07070', fontSize: 13, fontFamily: '"DM Sans", sans-serif', margin: 0 }}>{error}</p>}
+              <button onClick={handleScan} disabled={!imageFile} style={{ padding: '13px 20px', borderRadius: 12, background: imageFile ? userColor : 'rgba(0,0,0,0.08)', color: imageFile ? '#fff' : 'var(--text-dim)', fontFamily: '"Playfair Display", serif', fontSize: 15, fontWeight: 700, border: 'none', cursor: imageFile ? 'pointer' : 'default', transition: 'background 0.15s' }}>
+                Read the Quote →
+              </button>
+            </motion.div>
+          )}
+
+          {phase === 'loading' && (
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, gap: 24 }}>
+              <div style={{ position: 'relative', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {[0, 1, 2].map(i => (
+                  <motion.div key={i} style={{ position: 'absolute', borderRadius: '50%', border: `2px solid ${userColor}` }}
+                    animate={{ width: ['14px', '68px'], height: ['14px', '68px'], opacity: [0.8, 0] }}
+                    transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.6, ease: 'easeOut' }} />
+                ))}
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: userColor }} />
+              </div>
+              <p style={{ fontFamily: '"Playfair Display", serif', fontSize: '1.1rem', color: 'var(--text)', margin: 0 }}>Reading the quote…</p>
+            </motion.div>
+          )}
+
+          {phase === 'form' && (
+            <motion.div key="form" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
+                Review and edit the extracted details, then save.
+              </p>
+              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={MODAL_LABEL}>{tab.id === 'bar' ? 'Provider Name' : 'Name'} *</label>
+                  <input style={MODAL_INPUT} value={tab.id === 'bar' ? (form.provider || '') : (form.name || '')} onChange={e => set(tab.id === 'bar' ? 'provider' : 'name', e.target.value)} required />
+                </div>
+                <VendorFormFields tabId={tab.id} form={form} set={set} />
+                {error && <p style={{ color: '#E07070', fontSize: 13, fontFamily: '"DM Sans", sans-serif', margin: 0 }}>{error}</p>}
+                <button type="submit" disabled={saving} style={{ marginTop: 4, padding: '13px 20px', borderRadius: 12, background: saving ? 'rgba(0,0,0,0.1)' : userColor, color: saving ? 'var(--text-muted)' : '#fff', fontFamily: '"Playfair Display", serif', fontSize: 15, fontWeight: 700, border: 'none', cursor: saving ? 'default' : 'pointer' }}>
+                  {saving ? 'Saving…' : `Save ${tab.label}`}
+                </button>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export default function Vendors({ user, onSwitchUser }) {
@@ -278,6 +620,8 @@ export default function Vendors({ user, onSwitchUser }) {
   const [cache, setCache] = useState({})        // { tabId: [rows] }
   const [loadingTab, setLoadingTab] = useState(null)
   const [selections, setSelections] = useState(loadSelections)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showQuoteScan, setShowQuoteScan] = useState(false)
 
   const currentTab = TABS.find(t => t.id === activeTab)
 
@@ -321,6 +665,10 @@ export default function Vendors({ user, onSwitchUser }) {
   const data = cache[activeTab]
   const isLoading = loadingTab === activeTab
 
+  const handleAdded = useCallback((newRow) => {
+    setCache(c => ({ ...c, [activeTab]: [...(c[activeTab] || []), newRow] }))
+  }, [activeTab])
+
   return (
     <div style={PAGE_STYLE}>
       {/* Header */}
@@ -329,25 +677,23 @@ export default function Vendors({ user, onSwitchUser }) {
         background: 'var(--dark)', borderBottom: '1px solid var(--border)',
         padding: '0 24px',
       }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, height: 60 }}>
-          <button onClick={() => navigate('/dashboard')} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-muted)', fontSize: 20, padding: '4px 8px',
-            fontFamily: '"DM Sans", sans-serif',
-          }}>←</button>
-          <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: 22, fontWeight: 700, margin: 0, flex: 1 }}>
-            Vendor Board
-          </h1>
-          <span style={{
-            fontSize: 13, color: 'var(--text-dim)', fontWeight: 500,
-          }}>{selectedCount}/{TABS.length} categories locked</span>
-          <button onClick={onSwitchUser} style={{
-            background: 'none', border: '1px solid var(--border)', borderRadius: 8,
-            color: 'var(--text-muted)', fontSize: 12, padding: '5px 12px',
-            cursor: 'pointer', fontFamily: '"DM Sans", sans-serif',
-          }}>
-            <span style={{ color: userMeta.color, fontWeight: 700 }}>{userMeta.label}</span> · switch
-          </button>
+        <div style={{ maxWidth: 1100, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center' }}>
+          <NavBar user={user} onSwitchUser={onSwitchUser}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: 22, fontWeight: 700, margin: 0 }}>
+                Vendor Board
+              </h1>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 500 }}>
+                {selectedCount}/{TABS.length} categories locked
+              </span>
+              <button
+                onClick={() => setShowQuoteScan(true)}
+                style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${userMeta.color}44`, background: `${userMeta.color}0D`, color: userMeta.color, fontFamily: '"DM Sans", sans-serif', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                📄 Scan Quote
+              </button>
+            </div>
+          </NavBar>
         </div>
 
         {/* Tab bar */}
@@ -408,6 +754,47 @@ export default function Vendors({ user, onSwitchUser }) {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Add Vendor FAB */}
+      <motion.button
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={() => setShowAddModal(true)}
+        title={`Add ${currentTab?.label}`}
+        style={{
+          position: 'fixed', bottom: 28, right: 28, zIndex: 100,
+          width: 52, height: 52, borderRadius: '50%',
+          background: userMeta.color, color: '#fff',
+          border: 'none', cursor: 'pointer',
+          fontSize: 26, lineHeight: 1,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 4px 20px ${userMeta.color}55`,
+        }}
+      >
+        +
+      </motion.button>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showAddModal && currentTab && (
+          <AddVendorModal
+            tab={currentTab}
+            user={user}
+            onClose={() => setShowAddModal(false)}
+            onAdded={(row) => { handleAdded(row); setShowAddModal(false) }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showQuoteScan && currentTab && (
+          <QuoteScanModal
+            tab={currentTab}
+            user={user}
+            onClose={() => setShowQuoteScan(false)}
+            onAdded={(row) => { handleAdded(row); setShowQuoteScan(false) }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
