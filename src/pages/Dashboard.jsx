@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
 import ArchetypeBadge from '../components/ArchetypeBadge'
+import { VENUE_PACKAGES, calcOptionCost, defaultSelections } from '../lib/venuePackages'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -232,22 +233,31 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [breakdown, setBreakdown] = useState(DEFAULT_BREAKDOWN)
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [venues, setVenues] = useState([])
+  const [selectedVenueId, setSelectedVenueId] = useState(null)
+  const [guestCount, setGuestCount] = useState(150)
+  const [pkgSelections, setPkgSelections] = useState({})
+  const saveTimerRef = useRef(null)
 
-  // ── Load project_metadata ──────────────────────────────────────────────────
+  // ── Load project_metadata + venues ────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('project_metadata')
-        .select('*')
-        .eq('id', 1)
-        .single()
+      const [{ data }, { data: venueData }] = await Promise.all([
+        supabase.from('project_metadata').select('*').eq('id', 1).single(),
+        supabase.from('venues').select('id, name, venue_fee').neq('archived', true).order('name'),
+      ])
 
       if (data) {
         setMeta(data)
-        if (data.budget_breakdown && Object.keys(data.budget_breakdown).length > 0) {
-          setBreakdown({ ...DEFAULT_BREAKDOWN, ...data.budget_breakdown })
+        const bb = data.budget_breakdown || {}
+        if (Object.keys(bb).length > 0) {
+          setBreakdown({ ...DEFAULT_BREAKDOWN, ...bb })
         }
+        if (bb._venue_id) setSelectedVenueId(bb._venue_id)
+        if (bb._guests) setGuestCount(bb._guests)
+        if (bb._pkg) setPkgSelections(bb._pkg)
       }
+      setVenues(venueData || [])
       setLoaded(true)
     }
     load()
@@ -265,6 +275,10 @@ export default function Dashboard({ user, onSwitchUser }) {
           if (payload.new.budget_breakdown && Object.keys(payload.new.budget_breakdown).length > 0) {
             setBreakdown((prev) => ({ ...prev, ...payload.new.budget_breakdown }))
           }
+          const bb = payload.new.budget_breakdown || {}
+          if (bb._venue_id) setSelectedVenueId(bb._venue_id)
+          if (bb._guests) setGuestCount(bb._guests)
+          if (bb._pkg) setPkgSelections(bb._pkg)
         }
       )
       .subscribe()
@@ -272,19 +286,89 @@ export default function Dashboard({ user, onSwitchUser }) {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // ── Budget line update ─────────────────────────────────────────────────────
+  // ── Persist breakdown to Supabase (debounced) ─────────────────────────────
+  const persistBreakdown = useCallback((next) => {
+    clearTimeout(saveTimerRef.current)
+    setSaving(true)
+    saveTimerRef.current = setTimeout(async () => {
+      await supabase.from('project_metadata').update({ budget_breakdown: next }).eq('id', 1)
+      setSaving(false)
+    }, 600)
+  }, [])
+
+  // ── Compute package-driven costs from current selections + guests ──────────
+  function applyPackageCosts(pkg, selections, guests, base) {
+    const next = { ...base }
+    for (const cat of pkg.categories) {
+      const selId = selections[cat.key] ?? cat.options[0].id
+      const opt = cat.options.find(o => o.id === selId) ?? cat.options[0]
+      next[cat.budgetField] = calcOptionCost(opt, guests)
+    }
+    return next
+  }
+
+  // ── Budget line update (manual rows) ──────────────────────────────────────
   async function updateLine(field, val) {
     const next = { ...breakdown, [field]: val }
     setBreakdown(next)
-    setSaving(true)
-    await supabase
-      .from('project_metadata')
-      .update({ budget_breakdown: next })
-      .eq('id', 1)
-    setSaving(false)
+    persistBreakdown(next)
+  }
+
+  // ── Venue selection ────────────────────────────────────────────────────────
+  function selectVenue(rawId) {
+    const venueId = rawId != null && rawId !== '' ? Number(rawId) : null
+    setSelectedVenueId(venueId)
+
+    const pkg = venueId ? VENUE_PACKAGES[venueId] : null
+    let next
+
+    if (pkg) {
+      const sels = defaultSelections(pkg)
+      const guests = pkg.defaultGuests
+      setPkgSelections(sels)
+      setGuestCount(guests)
+      next = applyPackageCosts(pkg, sels, guests, {
+        ...breakdown, _venue_id: venueId, _guests: guests, _pkg: sels,
+      })
+    } else {
+      // No package — just use venue_fee from venues list
+      const venue = venues.find(v => v.id === venueId)
+      const fee = venue?.venue_fee ? Number(venue.venue_fee) : 0
+      next = { ...breakdown, venue: fee, _venue_id: venueId }
+    }
+
+    setBreakdown(next)
+    persistBreakdown(next)
+  }
+
+  // ── Package option selection ───────────────────────────────────────────────
+  function selectPkgOption(catKey, optionId) {
+    const pkg = VENUE_PACKAGES[selectedVenueId]
+    if (!pkg) return
+    const newSels = { ...pkgSelections, [catKey]: optionId }
+    setPkgSelections(newSels)
+    const next = applyPackageCosts(pkg, newSels, guestCount, {
+      ...breakdown, _pkg: newSels,
+    })
+    setBreakdown(next)
+    persistBreakdown(next)
+  }
+
+  // ── Guest count change ─────────────────────────────────────────────────────
+  function changeGuests(count) {
+    const pkg = VENUE_PACKAGES[selectedVenueId]
+    if (!pkg) return
+    const clamped = Math.max(1, Math.min(pkg.maxCap || 999, count))
+    setGuestCount(clamped)
+    const next = applyPackageCosts(pkg, pkgSelections, clamped, {
+      ...breakdown, _guests: clamped,
+    })
+    setBreakdown(next)
+    persistBreakdown(next)
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
+  const activePackage = selectedVenueId ? VENUE_PACKAGES[selectedVenueId] ?? null : null
   const multiplier = meta?.plus_plus_multiplier ?? 1.25
   const { variable, fixed, total } = calcTotal(breakdown, multiplier)
   const budget = meta?.budget_target ?? 0
@@ -319,7 +403,7 @@ export default function Dashboard({ user, onSwitchUser }) {
       <div className="w-full max-w-md mx-auto px-4 pt-10">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <div>
             <h1
               style={{
@@ -342,19 +426,6 @@ export default function Dashboard({ user, onSwitchUser }) {
               Wedding OS · {meta?.wedding_date ?? 'Date TBD'}
             </p>
           </div>
-          <button
-            onClick={onSwitchUser}
-            style={{
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.8rem',
-              color: 'var(--text-dim)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            Switch user
-          </button>
         </div>
 
         {/* ── Archetype Pair Card ────────────────────────────────────────── */}
@@ -490,35 +561,177 @@ export default function Dashboard({ user, onSwitchUser }) {
             )}
           </div>
 
+          {/* Venue selector */}
+          {venues.length > 0 && (
+            <div className="mb-4">
+              <p
+                style={{
+                  fontFamily: 'DM Sans, sans-serif',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-dim)',
+                  marginBottom: 6,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                Venue
+              </p>
+              <select
+                value={selectedVenueId || ''}
+                onChange={e => selectVenue(e.target.value ? Number(e.target.value) : null)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${selectedVenueId ? userMeta.color + '88' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontFamily: 'DM Sans, sans-serif',
+                  fontSize: '0.875rem',
+                  color: selectedVenueId ? 'var(--text)' : 'var(--text-dim)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center',
+                  paddingRight: 32,
+                }}
+              >
+                <option value="" style={{ background: '#1a1a1a' }}>Select a venue…</option>
+                {venues.map(v => (
+                  <option key={v.id} value={v.id} style={{ background: '#1a1a1a' }}>
+                    {v.name}{v.venue_fee ? ` — ${fmt(v.venue_fee)}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Variable costs (×1.25) */}
-          <p
-            style={{
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.7rem',
-              color: 'var(--text-dim)',
-              marginBottom: 4,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
+          <p style={{
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem',
+            color: 'var(--text-dim)', marginBottom: activePackage ? 8 : 4,
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+          }}>
             Variable costs (×{multiplier})
           </p>
 
-          {[
-            { field: 'venue', label: 'Venue' },
-            { field: 'catering', label: 'Catering' },
-            { field: 'bar', label: 'Bar' },
-          ].map(({ field, label }) => (
-            <BudgetRow
-              key={field}
-              field={field}
-              label={label}
-              value={breakdown[field]}
-              onChange={updateLine}
-              accent={userMeta.color}
-              isVariable
-            />
-          ))}
+          {activePackage ? (
+            /* ── Package Configurator ── */
+            <div style={{ marginBottom: 4 }}>
+              {/* Guest count stepper */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border)', marginBottom: 12,
+              }}>
+                <span style={{ fontFamily: 'DM Sans', fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>
+                  👥 Guest Count
+                </span>
+                {[[-10,'−−'],[-1,'−']].map(([d, lbl]) => (
+                  <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
+                    width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
+                    background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
+                    fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{lbl}</button>
+                ))}
+                <input
+                  type="number"
+                  value={guestCount}
+                  onChange={e => changeGuests(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: 56, textAlign: 'center', fontFamily: 'DM Sans',
+                    fontSize: 15, fontWeight: 700, color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    padding: '3px 4px', background: 'rgba(26,18,8,0.03)',
+                  }}
+                />
+                {[[1,'+'],[10,'++']].map(([d, lbl]) => (
+                  <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
+                    width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
+                    background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
+                    fontSize: 13, fontWeight: 700, color: 'var(--text)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{lbl}</button>
+                ))}
+              </div>
+
+              {/* Option cards per category */}
+              {activePackage.categories.map(cat => {
+                const selId = pkgSelections[cat.key] ?? cat.options[0].id
+                return (
+                  <div key={cat.key} style={{ marginBottom: 10 }}>
+                    <p style={{
+                      fontFamily: 'DM Sans', fontSize: '0.7rem', color: 'var(--text-dim)',
+                      marginBottom: 6, letterSpacing: '0.04em',
+                    }}>
+                      {cat.label}
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {cat.options.map(opt => {
+                        const cost = calcOptionCost(opt, guestCount)
+                        const selected = selId === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => selectPkgOption(cat.key, opt.id)}
+                            style={{
+                              flex: '1 1 140px', textAlign: 'left',
+                              padding: '10px 12px', borderRadius: 12,
+                              border: `1.5px solid ${selected ? userMeta.color : 'rgba(255,255,255,0.1)'}`,
+                              background: selected ? `${userMeta.color}18` : 'rgba(255,255,255,0.03)',
+                              cursor: 'pointer', transition: 'all 0.15s',
+                            }}
+                          >
+                            <div style={{
+                              fontFamily: 'DM Sans', fontSize: '0.8rem', fontWeight: 600,
+                              color: selected ? 'var(--text)' : 'var(--text-muted)', marginBottom: 2,
+                            }}>
+                              {opt.label}
+                            </div>
+                            <div style={{
+                              fontFamily: 'DM Sans', fontSize: '0.7rem',
+                              color: selected ? userMeta.color : 'var(--text-dim)',
+                              fontWeight: selected ? 700 : 400,
+                            }}>
+                              {cost === 0 ? 'Included' : fmt(cost)}
+                            </div>
+                            <div style={{
+                              fontFamily: 'DM Sans', fontSize: '0.65rem',
+                              color: 'var(--text-dim)', marginTop: 2, lineHeight: 1.35,
+                            }}>
+                              {opt.desc}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            /* ── Manual rows ── */
+            <>
+              {[
+                { field: 'venue', label: 'Venue' },
+                { field: 'catering', label: 'Catering' },
+                { field: 'bar', label: 'Bar' },
+              ].map(({ field, label }) => (
+                <BudgetRow
+                  key={field}
+                  field={field}
+                  label={label}
+                  value={breakdown[field]}
+                  onChange={updateLine}
+                  accent={userMeta.color}
+                  isVariable
+                />
+              ))}
+            </>
+          )}
 
           {/* Fixed costs */}
           <p
@@ -670,10 +883,10 @@ export default function Dashboard({ user, onSwitchUser }) {
         >
           <NavCard
             label="Venue Scouting"
-            desc="33 venues rated on the 40-point combine. Tandem ratings & smart inquiry."
+            desc="36 venues across SoCal, Bay Area & Monterey. Rate, compare, and build packages."
             icon="🏛"
             path="/venues"
-            available={false}
+            available={true}
             navigate={navigate}
           />
           <NavCard
@@ -693,11 +906,27 @@ export default function Dashboard({ user, onSwitchUser }) {
             navigate={navigate}
           />
           <NavCard
+            label="Style Quiz"
+            desc="10 questions to find your wedding archetype and planning style."
+            icon="🧬"
+            path="/quiz"
+            available={true}
+            navigate={navigate}
+          />
+          <NavCard
+            label="Compatibility Report"
+            desc="Your archetype match, tension points, and planning playbook."
+            icon="📊"
+            path="/results"
+            available={kerwinArchetype !== null && daniArchetype !== null}
+            navigate={navigate}
+          />
+          <NavCard
             label="Vibe Scraper"
             desc="Drop a URL. We'll analyze the visual DNA and score it against your archetype."
             icon="✨"
             path="/vibe"
-            available={false}
+            available={true}
             navigate={navigate}
           />
         </motion.div>
