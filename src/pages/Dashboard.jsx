@@ -1137,9 +1137,43 @@ export default function Dashboard({ user, onSwitchUser }) {
               className="mt-3 px-3 py-2.5 rounded-xl"
               style={{ background: `${userMeta.color}0E`, border: `1px solid ${userMeta.color}28` }}
             >
-              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, margin: '0 0 8px', lineHeight: 1.5 }}>
                 ✦ {breakdown._pricing_notes}
               </p>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => triggerAutoPricing(selectedDate, breakdown)}
+                  disabled={pricingState === 'loading'}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, border: `1px solid ${userMeta.color}50`,
+                    background: 'none', color: userMeta.color, cursor: 'pointer',
+                    fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', fontWeight: 600,
+                    opacity: pricingState === 'loading' ? 0.5 : 1,
+                  }}
+                >
+                  ↺ Re-run
+                </button>
+                <button
+                  onClick={async () => {
+                    const cleared = { ...breakdown }
+                    delete cleared._pricing_notes
+                    delete cleared._pricing_date
+                    for (const f of ['venue','catering','bar','photography','florals','music','other']) {
+                      cleared[f] = 0
+                    }
+                    setBreakdown(cleared)
+                    setPricingState('idle')
+                    persistBreakdown(cleared)
+                  }}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)',
+                    background: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                    fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem',
+                  }}
+                >
+                  ✕ Clear
+                </button>
+              </div>
             </div>
           )}
 
