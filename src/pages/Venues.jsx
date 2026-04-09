@@ -157,9 +157,10 @@ function StatPill({ icon, label, value }) {
 
 // ── VenueCard ──────────────────────────────────────────────────────────────────
 
-function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote }) {
+function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete }) {
   const userColor = USER_COLORS[user]
   const myRating  = ratings?.[user]
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const badges = []
   if (venue.leader)      badges.push({ label: '⭐ Top Pick',       color: '#C9932A' })
@@ -206,6 +207,50 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote }) {
             background: 'linear-gradient(to bottom, transparent 35%, rgba(0,0,0,0.55))',
           }} />
         )}
+
+        {/* Delete button — top left */}
+        <div style={{ position: 'absolute', top: 8, left: 10, zIndex: 2 }}>
+          {confirmDelete ? (
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => { onDelete(venue.id); setConfirmDelete(false) }}
+                style={{
+                  background: '#ef4444', color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 8px', fontSize: 11,
+                  fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', fontWeight: 700,
+                }}
+              >
+                Remove
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                style={{
+                  background: 'rgba(0,0,0,0.45)', color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 7px', fontSize: 11,
+                  fontFamily: 'DM Sans, sans-serif', cursor: 'pointer',
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              title="Remove venue"
+              style={{
+                background: 'rgba(0,0,0,0.35)', color: 'rgba(255,255,255,0.7)',
+                border: 'none', borderRadius: 6, width: 24, height: 24,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', fontSize: 14, lineHeight: 1,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseOver={e => { e.currentTarget.style.background = '#ef444488'; e.currentTarget.style.color = '#fff' }}
+              onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+            >
+              🗑
+            </button>
+          )}
+        </div>
 
         {/* Ratings dots — top right */}
         <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 2 }}>
@@ -1578,6 +1623,12 @@ export default function Venues({ user, onSwitchUser }) {
     }
   }, [user])
 
+  // ── Delete Venue ───────────────────────────────────────────────────────────
+  const deleteVenue = useCallback(async (venueId) => {
+    setVenues(prev => prev.filter(v => v.id !== venueId))
+    await supabase.from('venues').update({ archived: true }).eq('id', venueId)
+  }, [])
+
   // ── Filtered & Sorted Venues ───────────────────────────────────────────────
   const filteredVenues = useMemo(() => {
     let list = [...venues]
@@ -1769,21 +1820,56 @@ export default function Venues({ user, onSwitchUser }) {
         </div>
       </div>
 
-      {/* ── Coming Soon ───────────────────────────────────────────────────── */}
-      <div style={{
-        maxWidth: 600, margin: '80px auto', padding: '0 24px',
-        textAlign: 'center', fontFamily: 'DM Sans, sans-serif',
-      }}>
-        <div style={{ fontSize: 48, marginBottom: 20 }}>🏛️</div>
-        <h2 style={{
-          fontFamily: 'Playfair Display, serif', fontSize: 22,
-          color: 'var(--text)', margin: '0 0 12px',
-        }}>
-          Venue Comparison Coming Soon
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-          This is where side-by-side venue comparison, pricing breakdowns, and your shortlist will live.
-        </p>
+      {/* ── Venue Grid ────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 1140, margin: '0 auto', padding: '24px' }}>
+        {filteredVenues.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            fontFamily: 'DM Sans', color: 'var(--text-muted)',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+            <p style={{ fontSize: 16, margin: '0 0 16px' }}>No venues match these filters.</p>
+            <button
+              onClick={() => {
+                setActiveRegion('all')
+                setFilterTopPicks(false)
+                setFilterHasPackage(false)
+                setMaxFee(50000)
+                setMinCap(0)
+              }}
+              style={{
+                padding: '9px 22px', borderRadius: 20,
+                border: `1.5px solid ${userColor}`,
+                background: 'transparent', color: userColor,
+                fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <motion.div layout style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+            gap: 18,
+          }}>
+            <AnimatePresence>
+              {filteredVenues.map(venue => (
+                <VenueCard
+                  key={venue.id}
+                  venue={venue}
+                  ratings={ratingsMap[venue.id]}
+                  user={user}
+                  onRate={v => setRatingVenue(v)}
+                  onPackage={v => setPackageVenue(v)}
+                  onQuote={v => setQuoteVenue(v)}
+                  onDelete={deleteVenue}
+                />
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
       </div>
 
       {/* ── Rating Modal ──────────────────────────────────────────────────── */}
