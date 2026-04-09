@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
-import NavBar from '../components/NavBar'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1647,28 +1646,26 @@ export default function Venues({ user, onSwitchUser }) {
       <div style={{
         background: 'var(--card)',
         borderBottom: '1px solid var(--border)',
-        position: 'sticky', top: 0, zIndex: 100,
+        position: 'sticky', top: 56, zIndex: 100,
       }}>
-        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '18px 24px 0' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '14px 24px 0' }}>
 
           {/* Top row */}
-          <div style={{ marginBottom: 14 }}>
-            <NavBar user={user} onSwitchUser={onSwitchUser}>
-              <div>
-                <h1 style={{
-                  fontFamily: 'Playfair Display, serif', fontWeight: 700,
-                  fontSize: 24, color: 'var(--text)', margin: 0, lineHeight: 1.2,
-                }}>
-                  Venue Scouting
-                </h1>
-                <p style={{
-                  fontFamily: 'DM Sans, sans-serif', fontSize: 12,
-                  color: 'var(--text-muted)', margin: '3px 0 0',
-                }}>
-                  {filteredVenues.length} of {venues.length} venues
-                </p>
-              </div>
-            </NavBar>
+          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div>
+              <h1 style={{
+                fontFamily: 'Playfair Display, serif', fontWeight: 700,
+                fontSize: 20, color: 'var(--text)', margin: 0, lineHeight: 1.2,
+              }}>
+                Venue Scouting
+              </h1>
+              <p style={{
+                fontFamily: 'DM Sans, sans-serif', fontSize: 12,
+                color: 'var(--text-muted)', margin: '2px 0 0',
+              }}>
+                {filteredVenues.length} of {venues.length} venues
+              </p>
+            </div>
           </div>
 
           {/* Region tabs */}

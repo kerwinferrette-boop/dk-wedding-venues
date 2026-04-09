@@ -386,7 +386,9 @@ export default function Guests({ user, onSwitchUser }) {
   const [globalPlusOne, setGlobalPlusOne] = useState(false)
   const [draggingId, setDraggingId] = useState(null)
   const [dragOver, setDragOver] = useState(null)
+  const [csvImporting, setCsvImporting] = useState(false)
   const inputRef = useRef(null)
+  const csvInputRef = useRef(null)
 
   // Focus input when adding
   useEffect(() => {
@@ -505,6 +507,50 @@ export default function Guests({ user, onSwitchUser }) {
     setDragOver(null)
   }
 
+  // ─── CSV Import ─────────────────────────────────────────────────────────────
+
+  function parseGuestCSV(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim())
+    if (!lines.length) return []
+    const firstLower = lines[0].toLowerCase()
+    const hasHeader = firstLower.includes('name') || firstLower.includes('guest')
+    const dataLines = hasHeader ? lines.slice(1) : lines
+    return dataLines.map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''))
+      const name = cols[0]
+      if (!name) return null
+      const rawStatus = cols[1]?.toLowerCase()
+      const status = ['locked', 'bubble', 'squad'].includes(rawStatus) ? rawStatus : 'bubble'
+      const plusOne = ['true', 'yes', '1'].includes(cols[2]?.toLowerCase() ?? '')
+      return { name, status, plusOne }
+    }).filter(Boolean)
+  }
+
+  async function handleCSVImport(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setCsvImporting(true)
+    const text = await file.text()
+    const rows = parseGuestCSV(text)
+    if (!rows.length) { setCsvImporting(false); return }
+
+    const newGuests = rows.map(r => makeGuest(r.name, r.status, user))
+    const withPlusOne = newGuests.map((g, i) => ({ ...g, plusOne: rows[i].plusOne }))
+    const updated = [...guests, ...withPlusOne]
+    persist(updated)
+
+    try {
+      await supabase.from('guests').insert(
+        withPlusOne.map(g => ({
+          id: g.id, name: g.name, status: g.status,
+          plus_one: g.plusOne, added_by: g.addedBy,
+        }))
+      )
+    } catch {}
+    setCsvImporting(false)
+  }
+
   // ─── Stats ──────────────────────────────────────────────────────────────────
 
   const locked = guests.filter(g => g.status === 'locked')
@@ -545,69 +591,56 @@ export default function Guests({ user, onSwitchUser }) {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div
         style={{
-          background: '#111',
+          background: 'var(--dark)',
           borderBottom: '1px solid var(--border)',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
+          padding: '12px 20px',
           position: 'sticky',
-          top: 0,
+          top: 56,
           zIndex: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}
       >
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontSize: 18,
-            padding: '0 4px',
-            display: 'flex',
-            alignItems: 'center',
-            lineHeight: 1,
-          }}
-        >
-          ←
-        </button>
-        <div style={{ flex: 1 }}>
-          <h1
-            style={{
-              fontFamily: 'Playfair Display, serif',
-              fontSize: '1.2rem',
-              color: 'var(--text)',
-              margin: 0,
-            }}
-          >
+        <div>
+          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', color: 'var(--text)', margin: 0 }}>
             Guest Draft Board
           </h1>
           <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-dim)' }}>
             {totalGuests} names · {locked.length} locked
           </p>
         </div>
-        <button
-          onClick={onSwitchUser}
-          style={{
-            background: `${userMeta.color}22`,
-            color: userMeta.color,
-            border: `1px solid ${userMeta.color}44`,
-            borderRadius: 6,
-            padding: '4px 12px',
-            fontSize: '0.75rem',
-            cursor: 'pointer',
-            fontFamily: 'DM Sans, sans-serif',
-          }}
-        >
-          {userMeta.label}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {csvImporting && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}>
+              Importing…
+            </span>
+          )}
+          <button
+            onClick={() => csvInputRef.current?.click()}
+            style={{
+              background: 'none',
+              border: '1px solid var(--border)',
+              borderRadius: 7,
+              padding: '5px 12px',
+              color: 'var(--text-muted)',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+              display: 'flex', alignItems: 'center', gap: 5,
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+            onMouseOver={e => { e.currentTarget.style.borderColor = userMeta.color; e.currentTarget.style.color = userMeta.color }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            ↑ Import CSV
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleCSVImport} />
+        </div>
       </div>
 
       {/* ── Stats bar ──────────────────────────────────────────────────────── */}
       <div
         style={{
-          background: '#111',
+          background: 'var(--card)',
           borderBottom: '1px solid var(--border)',
           padding: '10px 20px',
           display: 'flex',

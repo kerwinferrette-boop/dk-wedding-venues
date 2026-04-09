@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Kerwin & Dani — Wedding Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold: #C9A84C;
+      --pink: #E88FAB;
+      --header-bg: #111;
+      --card-bg: #fff;
+      --page-bg: #f4f4f6;
+      --text: #1a1a1a;
+      --subtext: #6b6b6b;
+      --border: #e0e0e0;
+      --nav-height: 64px;
+      --header-height: 56px;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    #app-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-height);
+      background: var(--header-bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+    }
+    #app-header .logo {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    #app-header .logo span.k { color: var(--gold); }
+    #app-header .logo span.d { color: var(--pink); }
+
+    /* ── User Selector ── */
+    #user-selector {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .user-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: #aaa;
+      transition: all 0.18s;
+    }
+    .user-btn.kerwin { border-color: #333; }
+    .user-btn.kerwin.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #111;
+    }
+    .user-btn.dani { border-color: #333; }
+    .user-btn.dani.active {
+      background: var(--pink);
+      border-color: var(--pink);
+      color: #fff;
+    }
+
+    /* ── Main Content ── */
+    #main-content {
+      padding-top: calc(var(--header-height) + 12px);
+      padding-bottom: calc(var(--nav-height) + 16px);
+      min-height: 100vh;
+    }
+
+    /* ── Tab Panels ── */
+    .tab-panel {
+      display: none;
+      padding: 12px 14px;
+      animation: fadeIn 0.18s ease;
+    }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* ── Bottom Nav ── */
+    #bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: var(--nav-height);
+      background: var(--header-bg);
+      display: flex;
+      align-items: stretch;
+      z-index: 100;
+      border-top: 1px solid #222;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #bottom-nav::-webkit-scrollbar { display: none; }
+    .nav-item {
+      flex: 0 0 auto;
+      min-width: 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 6px 8px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #666;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      transition: color 0.15s;
+      white-space: nowrap;
+    }
+    .nav-item .nav-icon { font-size: 20px; line-height: 1; }
+    .nav-item.active { color: #fff; }
+    .nav-item.active .nav-icon { filter: drop-shadow(0 0 4px rgba(201,168,76,0.6)); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 2px solid transparent;
+    }
+    .card.both-rated {
+      border-image: linear-gradient(135deg, var(--gold), var(--pink)) 1;
+      border-radius: var(--radius);
+    }
+
+    /* ── Section Headers ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--subtext);
+      margin: 16px 0 8px;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--subtext);
+      margin-bottom: 16px;
+    }
+
+    /* ── Star Rating ── */
+    .rating-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .rating-label {
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 50px;
+    }
+    .rating-label.k { color: var(--gold); }
+    .rating-label.d { color: var(--pink); }
+    .stars {
+      display: flex;
+      gap: 3px;
+    }
+    .star {
+      font-size: 18px;
+      cursor: pointer;
+      color: #ddd;
+      transition: color 0.12s, transform 0.1s;
+      user-select: none;
+    }
+    .star:hover, .star.active { color: #f5c518; transform: scale(1.1); }
+    .star.k-rated { color: var(--gold); }
+    .star.d-rated { color: var(--pink); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--gold);
+      color: #111;
+    }
+    .btn-secondary {
+      background: #f0f0f0;
+      color: var(--text);
+    }
+    .btn-pink {
+      background: var(--pink);
+      color: #fff;
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+    .btn-full { width: 100%; }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: #ccc;
+      border-radius: 13px;
+      transition: background 0.2s;
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: left 0.2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-switch input:checked ~ .toggle-track { background: var(--gold); }
+    .toggle-switch input:checked ~ .toggle-thumb { left: 21px; }
+
+    /* ── Chips / Tags ── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #eee;
+      color: var(--subtext);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: var(--gold);
+      color: #111;
+      border-color: var(--gold);
+    }
+
+    /* ── Form Elements ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--subtext);
+      margin-bottom: 5px;
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+      appearance: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .form-textarea { resize: vertical; min-height: 70px; }
+
+    /* ── Range Slider ── */
+    .slider-wrap { padding: 4px 0 8px; }
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    .slider-val {
+      font-size: 16px;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: right;
+    }
+    input[type=range] {
+      flex: 1;
+      height: 4px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    /* ── Stat / Summary Tiles ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat-tile {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      box-shadow: var(--shadow);
+    }
+    .stat-tile .stat-label { font-size: 11px; color: var(--subtext); font-weight: 600; margin-bottom: 4px; }
+    .stat-tile .stat-val { font-size: 22px; font-weight: 800; }
+    .stat-tile .stat-sub { font-size: 11px; color: var(--subtext); margin-top: 2px; }
+
+    /* ── Budget Bar ── */
+    .budget-bar-wrap {
+      margin: 14px 0;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .budget-bar-track {
+      height: 10px;
+      background: #eee;
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .budget-bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.4s ease, background 0.3s;
+      background: #4caf50;
+    }
+    .budget-bar-fill.warn { background: #f5a623; }
+    .budget-bar-fill.over { background: #e74c3c; }
+    .budget-bar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--subtext); }
+
+    /* ── Module Summary Cards (Dashboard) ── */
+    .module-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .module-card .mod-left { display: flex; align-items: center; gap: 10px; }
+    .module-card .mod-icon { font-size: 22px; }
+    .module-card .mod-name { font-size: 14px; font-weight: 600; }
+    .module-card .mod-sub { font-size: 11px; color: var(--subtext); }
+    .module-card .mod-cost { font-size: 16px; font-weight: 700; }
+    .module-card .mod-cost.set { color: var(--gold); }
+    .module-card .mod-cost.unset { color: #bbb; }
+
+    /* ── Venue / Item Card ── */
+    .item-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .item-card.both-rated {
+      border-color: transparent;
+      border-image: linear-gradient(135deg, var(--gold) 0%, var(--pink) 100%) 1;
+      border-radius: var(--radius);
+    }
+    .item-card-body { padding: 14px; }
+    .item-card-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+    .item-card-sub { font-size: 12px; color: var(--subtext); margin-bottom: 6px; }
+    .item-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #f0f0f0;
+      color: var(--subtext);
+    }
+    .tag.gold { background: #fdf4e0; color: #a07820; }
+    .tag.pink { background: #fde8ef; color: #c0507a; }
+    .tag.green { background: #e6f4ea; color: #2d7a3a; }
+
+    /* ── Link button ── */
+    .link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--subtext);
+    }
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state .empty-msg { font-size: 14px; }
+
+    /* ── Loading Spinner ── */
+    .spinner {
+      text-align: center;
+      padding: 32px;
+      color: var(--subtext);
+      font-size: 14px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--nav-height) + 12px);
+      left: 50%; transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Divider ── */
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+    /* ── Info Row ── */
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .info-row .info-key { color: var(--subtext); }
+    .info-row .info-val { font-weight: 600; }
+
+    /* ── Mobile safe area ── */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      #bottom-nav { padding-bottom: env(safe-area-inset-bottom); height: calc(var(--nav-height) + env(safe-area-inset-bottom)); }
+      #main-content { padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 16px); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="app-header">
+  <div class="logo">
+    <span class="k">K</span>&amp;<span class="d">D</span> Wedding
+  </div>
+  <div id="user-selector">
+    <button class="user-btn kerwin" onclick="setUser('kerwin')">Kerwin</button>
+    <button class="user-btn dani" onclick="setUser('dani')">Dani</button>
+  </div>
+</header>
+
+<!-- ── Main Content ── -->
+<main id="main-content">
+
+  <!-- Tab 1: Dashboard -->
+  <div class="tab-panel active" id="tab-dashboard">
+    <div class="spinner" id="dash-loading">Loading...</div>
+    <div id="dash-content" style="display:none">
+      <div class="page-title">Dashboard</div>
+      <div class="page-subtitle">Wedding command center</div>
+
+      <!-- Budget Input -->
+      <div class="card">
+        <div class="section-title">Total Budget</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <span style="font-size:20px;font-weight:700;">$</span>
+          <input type="number" class="form-input" id="budget-input" style="font-size:20px;font-weight:700;" step="1000" min="10000" max="500000" />
+          <button class="btn btn-primary btn-sm" onclick="saveBudget()">Save</button>
+        </div>
+      </div>
+
+      <!-- Guest Count -->
+      <div class="card">
+        <div class="section-title">Guest Count</div>
+        <div class="slider-wrap">
+          <div class="slider-row">
+            <input type="range" id="guest-slider" min="50" max="400" step="5" oninput="updateGuestDisplay(this.value)" onchange="saveGuests(this.value)" />
+            <span class="slider-val" id="guest-val">250</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--subtext);margin-top:2px">
+            <span>50</span><span>400</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Bar -->
+      <div class="budget-bar-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600;">Estimated Total</span>
+          <span id="budget-status-badge" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#e6f4ea;color:#2d7a3a;">ON TRACK</span>
+        </div>
+        <div class="budget-bar-track">
+          <div class="budget-bar-fill" id="budget-bar" style="width:0%"></div>
+        </div>
+        <div class="budget-bar-labels">
+          <span id="budget-spent-lbl">$0 estimated</span>
+          <span id="budget-total-lbl">of $80,000</span>
+        </div>
+      </div>
+
+      <!-- Stat Tiles -->
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">GUESTS</div>
+          <div class="stat-val" id="dash-guest-count">250</div>
+          <div class="stat-sub">invited</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">BUDGET LEFT</div>
+          <div class="stat-val" id="dash-budget-left">—</div>
+          <div class="stat-sub">remaining</div>
+        </div>
+      </div>
+
+      <!-- Module Summary -->
+      <div class="section-title">All Modules</div>
+      <div id="module-summary-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Venues -->
+  <div class="tab-panel" id="tab-venues">
+    <div class="page-title">Venues</div>
+    <div class="page-subtitle">Find your perfect space</div>
+    <div class="spinner" id="venues-loading">Loading venues...</div>
+    <div id="venues-content" style="display:none">
+      <!-- filter bar -->
+      <div class="filter-bar" id="venue-filters"></div>
+      <div id="venues-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Caterers -->
+  <div class="tab-panel" id="tab-caterers">
+    <div class="page-title">Caterers</div>
+    <div class="page-subtitle">Feed your guests well</div>
+    <div class="spinner" id="caterers-loading">Loading...</div>
+    <div id="caterers-content" style="display:none">
+      <div id="caterers-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Bar -->
+  <div class="tab-panel" id="tab-bar">
+    <div class="page-title">Bar</div>
+    <div class="page-subtitle">Drinks & spirits</div>
+    <div class="spinner" id="bar-loading">Loading...</div>
+    <div id="bar-content" style="display:none">
+      <div id="bar-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 5: Music -->
+  <div class="tab-panel" id="tab-music">
+    <div class="page-title">Music</div>
+    <div class="page-subtitle">Set the vibe</div>
+    <div class="spinner" id="music-loading">Loading...</div>
+    <div id="music-content" style="display:none">
+      <div id="music-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 6: Extras -->
+  <div class="tab-panel" id="tab-extras">
+    <div class="page-title">Extras</div>
+    <div class="page-subtitle">Special touches</div>
+    <div class="spinner" id="extras-loading">Loading...</div>
+    <div id="extras-content" style="display:none">
+      <div id="extras-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 7: Cinematography -->
+  <div class="tab-panel" id="tab-cinema">
+    <div class="page-title">Cinematography</div>
+    <div class="page-subtitle">Capture the day</div>
+    <div class="spinner" id="cinema-loading">Loading...</div>
+    <div id="cinema-content" style="display:none">
+      <div id="cinema-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 8: Rehearsal Dinner -->
+  <div class="tab-panel" id="tab-rehearsal">
+    <div class="page-title">Rehearsal Dinner</div>
+    <div class="page-subtitle">Night before the big day</div>
+    <div class="spinner" id="rehearsal-loading">Loading...</div>
+    <div id="rehearsal-content" style="display:none">
+      <div id="rehearsal-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab 9: Flowers -->
+  <div class="tab-panel" id="tab-flowers">
+    <div class="page-title">Flowers</div>
+    <div class="page-subtitle">Florals & arrangements</div>
+    <div class="spinner" id="flowers-loading">Loading...</div>
+    <div id="flowers-content" style="display:none">
+      <div id="flowers-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Bottom Nav ── -->
+<nav id="bottom-nav">
+  <button class="nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">
+    <span class="nav-icon">🏠</span>
+    <span>Dashboard</span>
+  </button>
+  <button class="nav-item" data-tab="venues" onclick="showTab('venues')">
+    <span class="nav-icon">🏛️</span>
+    <span>Venues</span>
+  </button>
+  <button class="nav-item" data-tab="caterers" onclick="showTab('caterers')">
+    <span class="nav-icon">🍽️</span>
+    <span>Caterers</span>
+  </button>
+  <button class="nav-item" data-tab="bar" onclick="showTab('bar')">
+    <span class="nav-icon">🍸</span>
+    <span>Bar</span>
+  </button>
+  <button class="nav-item" data-tab="music" onclick="showTab('music')">
+    <span class="nav-icon">🎵</span>
+    <span>Music</span>
+  </button>
+  <button class="nav-item" data-tab="extras" onclick="showTab('extras')">
+    <span class="nav-icon">✨</span>
+    <span>Extras</span>
+  </button>
+  <button class="nav-item" data-tab="cinema" onclick="showTab('cinema')">
+    <span class="nav-icon">🎬</span>
+    <span>Cinema</span>
+  </button>
+  <button class="nav-item" data-tab="rehearsal" onclick="showTab('rehearsal')">
+    <span class="nav-icon">🥂</span>
+    <span>Rehearsal</span>
+  </button>
+  <button class="nav-item" data-tab="flowers" onclick="showTab('flowers')">
+    <span class="nav-icon">🌸</span>
+    <span>Flowers</span>
+  </button>
+</nav>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<script>
+// ── Supabase Init ──
+const SUPABASE_URL = 'https://xrgzaovididcizstwswy.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_feE5EFiIqR14CGYTElCCAg_nfP3Nv8V';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── App State ──
+let currentUser = localStorage.getItem('weddingUser') || 'kerwin';
+let guestCount = 250;
+let totalBudget = 80000;
+let allRatings = {};       // { "module:item_id": { kerwin: N, dani: N } }
+let moduleCosts = {};      // { moduleName: estimatedCost }
+let initializedTabs = new Set();
+
+// ── User Management ──
+function setUser(user) {
+  currentUser = user;
+  localStorage.setItem('weddingUser', user);
+  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.user-btn.${user}`).classList.add('active');
+  toast(`Viewing as ${user === 'kerwin' ? 'Kerwin' : 'Dani'} 👋`);
+  refreshCurrentTab();
+}
+
+function initUserSelector() {
+  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.user-btn.${currentUser}`);
+  if (btn) btn.classList.add('active');
+}
+
+// ── Tab Navigation ──
+function showTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`tab-${tabId}`).classList.add('active');
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+  if (!initializedTabs.has(tabId)) {
+    initializedTabs.add(tabId);
+    loadTab(tabId);
+  }
+}
+
+function refreshCurrentTab() {
+  const active = document.querySelector('.tab-panel.active');
+  if (!active) return;
+  const tabId = active.id.replace('tab-', '');
+  initializedTabs.delete(tabId);
+  loadTab(tabId);
+}
+
+async function loadTab(tabId) {
+  switch (tabId) {
+    case 'dashboard':  return loadDashboard();
+    case 'venues':     return loadVenues();
+    case 'caterers':   return loadCaterers();
+    case 'bar':        return loadBar();
+    case 'music':      return loadMusic();
+    case 'extras':     return loadExtras();
+    case 'cinema':     return loadCinema();
+    case 'rehearsal':  return loadRehearsal();
+    case 'flowers':    return loadFlowers();
+  }
+}
+
+// ── Ratings Helpers ──
+async function fetchRatings(module, ids) {
+  if (!ids.length) return;
+  const { data } = await sb.from('ratings')
+    .select('*')
+    .eq('module', module)
+    .in('item_id', ids);
+  (data || []).forEach(r => {
+    const key = `${r.module}:${r.item_id}`;
+    if (!allRatings[key]) allRatings[key] = {};
+    allRatings[key][r.rated_by] = r.score;
+  });
+}
+
+async function saveRating(module, itemId, score) {
+  const { error } = await sb.from('ratings').upsert({
+    module, item_id: itemId, rated_by: currentUser, score
+  }, { onConflict: 'module,item_id,rated_by' });
+  if (error) { toast('Error saving rating'); return; }
+  const key = `${module}:${itemId}`;
+  if (!allRatings[key]) allRatings[key] = {};
+  allRatings[key][currentUser] = score;
+  toast(`Rated ${score}/7 ⭐`);
+}
+
+function getRating(module, itemId, user) {
+  return (allRatings[`${module}:${itemId}`] || {})[user] || 0;
+}
+
+function bothRated(module, itemId) {
+  const r = allRatings[`${module}:${itemId}`] || {};
+  return r.kerwin && r.dani;
+}
+
+function renderStars(module, itemId, reRenderFn) {
+  const kr = getRating(module, itemId, 'kerwin');
+  const dr = getRating(module, itemId, 'dani');
+  const myScore = getRating(module, itemId, currentUser);
+
+  const buildStars = (current, who) => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const n = i + 1;
+      const cls = who === 'kerwin' ? (n <= current ? 'k-rated' : '') : (n <= current ? 'd-rated' : '');
+      return `<span class="star ${cls}" data-module="${module}" data-id="${itemId}" data-n="${n}" onclick="handleStarClick('${module}',${itemId},${n},'${reRenderFn}')">${n <= current ? '★' : '☆'}</span>`;
+    }).join('');
+  };
+
+  return `
+    <div class="rating-row">
+      <span class="rating-label k">Kerwin</span>
+      <div class="stars">${buildStars(kr, 'kerwin')}</div>
+      <span style="font-size:12px;color:var(--subtext);margin-left:4px">${kr || '—'}/7</span>
+    </div>
+    <div class="rating-row">
+      <span class="rating-label d">Dani</span>
+      <div class="stars">${buildStars(dr, 'dani')}</div>
+      <span style="font-size:12px;color:var(--subtext);margin-left:4px">${dr || '—'}/7</span>
+    </div>`;
+}
+
+async function handleStarClick(module, itemId, score, reRenderFn) {
+  await saveRating(module, itemId, score);
+  if (window[reRenderFn]) window[reRenderFn]();
+  updateDashboardCosts();
+}
+
+// ── Toast ──
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── Formatters ──
+function fmt$(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + Math.round(n).toLocaleString();
+}
+
+// ── Dashboard ──
+const MODULES = [
+  { id: 'venues',    icon: '🏛️', name: 'Venue',        key: 'venue' },
+  { id: 'caterers',  icon: '🍽️', name: 'Catering',     key: 'catering' },
+  { id: 'bar',       icon: '🍸', name: 'Bar',           key: 'bar' },
+  { id: 'music',     icon: '🎵', name: 'Music',         key: 'music' },
+  { id: 'extras',    icon: '✨', name: 'Extras',        key: 'extras' },
+  { id: 'cinema',    icon: '🎬', name: 'Cinematography',key: 'cinema' },
+  { id: 'rehearsal', icon: '🥂', name: 'Rehearsal',     key: 'rehearsal' },
+  { id: 'flowers',   icon: '🌸', name: 'Flowers',       key: 'flowers' },
+];
+
+async function loadDashboard() {
+  document.getElementById('dash-loading').style.display = 'block';
+  document.getElementById('dash-content').style.display = 'none';
+
+  const { data: budgetRow } = await sb.from('budget').select('*').limit(1).single();
+  if (budgetRow) {
+    guestCount = budgetRow.guest_count;
+    totalBudget = budgetRow.total_budget;
+  }
+
+  document.getElementById('budget-input').value = totalBudget;
+  document.getElementById('guest-slider').value = guestCount;
+  document.getElementById('guest-val').textContent = guestCount;
+  document.getElementById('dash-guest-count').textContent = guestCount;
+
+  updateDashboardCosts();
+
+  document.getElementById('dash-loading').style.display = 'none';
+  document.getElementById('dash-content').style.display = 'block';
+}
+
+function updateDashboardCosts() {
+  const estimated = Object.values(moduleCosts).reduce((s, v) => s + (v || 0), 0);
+  const pct = Math.min((estimated / totalBudget) * 100, 100);
+  const bar = document.getElementById('budget-bar');
+  const badge = document.getElementById('budget-status-badge');
+  const spentLbl = document.getElementById('budget-spent-lbl');
+  const totalLbl = document.getElementById('budget-total-lbl');
+  const leftEl = document.getElementById('dash-budget-left');
+
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.className = 'budget-bar-fill' + (pct >= 100 ? ' over' : pct >= 90 ? ' warn' : '');
+  }
+  if (badge) {
+    const left = totalBudget - estimated;
+    if (pct >= 100) { badge.textContent = 'OVER BUDGET'; badge.style.cssText = 'background:#fde8e8;color:#c0392b;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px'; }
+    else if (pct >= 90) { badge.textContent = 'CLOSE'; badge.style.cssText = 'background:#fff4e0;color:#a07820;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px'; }
+    else { badge.textContent = 'ON TRACK'; badge.style.cssText = 'background:#e6f4ea;color:#2d7a3a;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px'; }
+    if (leftEl) leftEl.textContent = left >= 0 ? fmt$(left) : `(${fmt$(Math.abs(left))} over)`;
+  }
+  if (spentLbl) spentLbl.textContent = fmt$(estimated) + ' estimated';
+  if (totalLbl) totalLbl.textContent = 'of ' + fmt$(totalBudget);
+
+  // Module summary list
+  const list = document.getElementById('module-summary-list');
+  if (list) {
+    list.innerHTML = MODULES.map(m => {
+      const cost = moduleCosts[m.key];
+      const hasData = cost !== undefined && cost !== null;
+      return `<div class="module-card" onclick="showTab('${m.id}')">
+        <div class="mod-left">
+          <span class="mod-icon">${m.icon}</span>
+          <div>
+            <div class="mod-name">${m.name}</div>
+            <div class="mod-sub">Tap to view</div>
+          </div>
+        </div>
+        <div class="mod-cost ${hasData ? 'set' : 'unset'}">${hasData ? fmt$(cost) : '—'}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+async function saveBudget() {
+  const val = parseInt(document.getElementById('budget-input').value);
+  if (!val || val < 1000) { toast('Enter a valid budget'); return; }
+  totalBudget = val;
+  await sb.from('budget').update({ total_budget: val }).gt('id', 0);
+  toast('Budget saved ✓');
+  updateDashboardCosts();
+}
+
+function updateGuestDisplay(val) {
+  document.getElementById('guest-val').textContent = val;
+  document.getElementById('dash-guest-count').textContent = val;
+  guestCount = parseInt(val);
+  updateDashboardCosts();
+}
+
+async function saveGuests(val) {
+  guestCount = parseInt(val);
+  await sb.from('budget').update({ guest_count: guestCount }).gt('id', 0);
+  updateDashboardCosts();
+}
+
+// ── Placeholder loaders (filled in subsequent parts) ──
+// ── Venues ──
+let venuesData = [];
+let venueRegionFilter = 'all';
+let venueSortBy = 'name';
+let venueFormOpen = false;
+let venueSearch = '';
+let selectedVenue = JSON.parse(localStorage.getItem('selectedVenue') || 'null');
+
+// ── Per-tab search state ──
+let catererSearch = '';
+let barSearch = '';
+let musicSearch = '';
+let extraSearch = '';
+let cinemaSearch = '';
+let rehearsalSearch = '';
+let floristSearch = '';
+
+function setSelectedVenue(id) {
+  const v = venuesData.find(x => x.id === id);
+  if (!v) return;
+  selectedVenue = v;
+  localStorage.setItem('selectedVenue', JSON.stringify(v));
+  renderVenuesList();
+  // Refresh all initialized vendor tabs to apply proximity filter
+  ['caterers','bar','music','extras','cinema','rehearsal','flowers'].forEach(tab => {
+    if (initializedTabs.has(tab)) {
+      initializedTabs.delete(tab);
+      const activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab && activeTab.dataset.tab === tab) loadTab(tab);
+    }
+  });
+}
+
+function clearSelectedVenue() {
+  selectedVenue = null;
+  localStorage.removeItem('selectedVenue');
+  renderVenuesList();
+  ['caterers','bar','music','extras','cinema','rehearsal','flowers'].forEach(tab => {
+    if (initializedTabs.has(tab)) {
+      initializedTabs.delete(tab);
+      const activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab && activeTab.dataset.tab === tab) loadTab(tab);
+    }
+  });
+}
+
+function proximityBanner() {
+  if (!selectedVenue) return '';
+  return `<div style="background:linear-gradient(135deg,#fff8e7,#fff0f5);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-size:13px">
+    <span>📍 Showing vendors near <strong>${selectedVenue.name}</strong> · ${selectedVenue.region_label || selectedVenue.region}</span>
+    <button onclick="clearSelectedVenue()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#999;padding:0 4px" title="Clear venue filter">✕</button>
+  </div>`;
+}
+
+function matchesVenueProximity(locationText, region) {
+  if (!selectedVenue) return true;
+  if (region) return region === selectedVenue.region;
+  const loc = (locationText || '').toLowerCase();
+  const r = (selectedVenue.region || '').toLowerCase();
+  if (r === 'monterey') return loc.includes('monterey') || loc.includes('carmel') || loc.includes('pebble') || loc.includes('pacific grove') || loc.includes('santa cruz');
+  if (r === 'bay_area') return loc.includes('san francisco') || loc.includes('sf') || loc.includes('oakland') || loc.includes('berkeley') || loc.includes('marin') || loc.includes('bay area') || loc.includes('bay');
+  return true;
+}
+
+async function loadVenues() {
+  document.getElementById('venues-loading').style.display = 'block';
+  document.getElementById('venues-content').style.display = 'none';
+
+  const { data } = await sb.from('venues').select('*').order('name');
+  venuesData = data || [];
+
+  await fetchRatings('venue', venuesData.map(v => v.id));
+
+  renderVenueControls();
+  renderVenuesList();
+  updateVenueCost();
+
+  document.getElementById('venues-loading').style.display = 'none';
+  document.getElementById('venues-content').style.display = 'block';
+}
+
+function renderVenueControls() {
+  const el = document.getElementById('venue-filters');
+  const regions = [
+    { val: 'all', label: 'All Venues' },
+    { val: 'monterey', label: 'Monterey' },
+    { val: 'bay_area', label: 'Bay Area' }
+  ];
+  el.innerHTML = `
+    <input type="search" class="form-input" placeholder="Search venues…" value="${venueSearch.replace(/"/g,'&quot;')}"
+      oninput="filterVenuesBySearch(this.value)"
+      style="margin-bottom:8px;border-radius:20px;padding:6px 14px;font-size:13px;" />
+  ` + regions.map(r =>
+    `<button class="chip ${venueRegionFilter === r.val ? 'active' : ''}" onclick="filterVenuesByRegion('${r.val}')">${r.label}</button>`
+  ).join('') + `
+    <select class="form-select" style="width:auto;padding:4px 10px;font-size:12px;border-radius:20px;" onchange="sortVenuesBy(this.value)">
+      <option value="name" ${venueSortBy==='name'?'selected':''}>Name A→Z</option>
+      <option value="fee_low" ${venueSortBy==='fee_low'?'selected':''}>Fee: Low</option>
+      <option value="fee_high" ${venueSortBy==='fee_high'?'selected':''}>Fee: High</option>
+      <option value="cap_high" ${venueSortBy==='cap_high'?'selected':''}>Capacity ↓</option>
+    </select>`;
+}
+
+function filterVenuesBySearch(val) {
+  venueSearch = val;
+  renderVenuesList();
+}
+
+function filterVenuesByRegion(region) {
+  venueRegionFilter = region;
+  renderVenueControls();
+  renderVenuesList();
+}
+
+function sortVenuesBy(val) {
+  venueSortBy = val;
+  renderVenuesList();
+}
+
+function getFilteredVenues() {
+  let list = [...venuesData];
+  if (venueRegionFilter !== 'all') list = list.filter(v => v.region === venueRegionFilter);
+  if (venueSearch) {
+    const q = venueSearch.toLowerCase();
+    list = list.filter(v =>
+      (v.name || '').toLowerCase().includes(q) ||
+      (v.highlight || '').toLowerCase().includes(q) ||
+      (v.region_label || '').toLowerCase().includes(q)
+    );
+  }
+  switch (venueSortBy) {
+    case 'name':     list.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case 'fee_low':  list.sort((a, b) => (a.venue_fee || 0) - (b.venue_fee || 0)); break;
+    case 'fee_high': list.sort((a, b) => (b.venue_fee || 0) - (a.venue_fee || 0)); break;
+    case 'cap_high': list.sort((a, b) => (b.max_cap || 0) - (a.max_cap || 0)); break;
+  }
+  return list;
+}
+
+function renderVenuesList() {
+  const container = document.getElementById('venues-list');
+  const venues = getFilteredVenues();
+
+  if (!venues.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏛️</div><div class="empty-msg">No venues match your filter</div></div>';
+    return;
+  }
+
+  container.innerHTML = venues.map(v => renderVenueCard(v)).join('') +
+    `<div style="margin-top:12px">
+      <button class="btn btn-secondary btn-full" onclick="toggleVenueForm()">+ Add Venue</button>
+    </div>
+    <div id="venue-add-form" style="display:${venueFormOpen ? 'block' : 'none'};margin-top:12px">${venueAddFormHTML()}</div>`;
+}
+
+function renderVenueCard(v) {
+  const br = bothRated('venue', v.id);
+  const kScore = getRating('venue', v.id, 'kerwin');
+  const dScore = getRating('venue', v.id, 'dani');
+  const highlyRated = kScore >= 6 || dScore >= 6;
+
+  // Flags
+  const flags = [];
+  if (v.bridal_suite) flags.push('👰 Bridal');
+  if (v.groom_suite) flags.push('🤵 Groom');
+  if (v.ceremony_and_reception) flags.push('💒 Ceremony+Reception');
+  if (v.aqua) flags.push('🌊 Aqua');
+  if (v.arch) flags.push('🏛️ Arch');
+  if (v.planet) flags.push('🌎 Planet');
+  if (v.leader) flags.push('⭐ Leader');
+
+  const catBadge = v.catering_status === 'in_house'
+    ? '<span class="tag green">In-House Catering</span>'
+    : '<span class="tag">BYO Catering</span>';
+
+  // Cost rows
+  let costRows = `<div class="info-row"><span class="info-key">Venue Fee</span><span class="info-val">${fmt$(v.venue_fee)}</span></div>`;
+  if (v.catering_pp) costRows += `<div class="info-row"><span class="info-key">Catering /pp</span><span class="info-val">${fmt$(v.catering_pp)}</span></div>`;
+  if (v.bar_pp) costRows += `<div class="info-row"><span class="info-key">Bar /pp</span><span class="info-val">${fmt$(v.bar_pp)}</span></div>`;
+  const totalEst = (v.venue_fee || 0) + ((v.catering_pp || 0) + (v.bar_pp || 0)) * guestCount;
+  costRows += `<div class="divider"></div><div class="info-row"><span class="info-key" style="font-weight:600;color:var(--text)">Est. Total (${guestCount} guests)</span><span class="info-val" style="color:var(--gold)">${fmt$(totalEst)}</span></div>`;
+
+  // Similar vibes
+  let similarHTML = '';
+  if (highlyRated) {
+    const similar = getSimilarVenues(v);
+    if (similar.length) {
+      similarHTML = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--subtext);margin-bottom:6px">💡 SIMILAR VIBES</div>
+        ${similar.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px">
+          <span>${s.name}</span>
+          <span style="color:var(--subtext);font-size:11px">${s.matchTags.join(', ')}</span>
+        </div>`).join('')}
+      </div>`;
+    }
+  }
+
+  return `<div class="item-card ${br ? 'both-rated' : ''}">
+    <div class="item-card-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="item-card-name">${v.name}</div>
+          <div class="item-card-sub">${v.region_label || ''}${v.max_cap ? ' · Up to ' + v.max_cap.toLocaleString() + ' guests' : ''}</div>
+        </div>
+        ${v.rating === 'top' ? '<span class="tag gold">TOP PICK</span>' : ''}
+      </div>
+      ${v.highlight ? `<div style="font-size:13px;margin:6px 0">${v.highlight}</div>` : ''}
+      ${v.note ? `<div style="font-size:12px;color:var(--subtext);font-style:italic;margin-bottom:6px">${v.note}</div>` : ''}
+      <div class="item-card-tags">
+        ${catBadge}
+        ${(v.vibe_tags || []).map(t => `<span class="tag">${t}</span>`).join('')}
+      </div>
+      ${flags.length ? `<div style="font-size:12px;color:var(--subtext);margin-bottom:8px">${flags.join(' · ')}</div>` : ''}
+      ${costRows}
+      ${v.disclaimer ? `<div style="font-size:11px;color:#e74c3c;margin-top:6px">⚠️ ${v.disclaimer}</div>` : ''}
+      ${v.url ? `<a href="${v.url}" target="_blank" class="link-btn" style="margin-top:8px">Visit Website →</a>` : ''}
+      ${renderStars('venue', v.id, 'renderVenuesList')}
+      ${similarHTML}
+      <button onclick="setSelectedVenue(${v.id})" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:2px solid ${selectedVenue && selectedVenue.id === v.id ? 'var(--gold)' : '#ddd'};background:${selectedVenue && selectedVenue.id === v.id ? 'linear-gradient(135deg,#fff8e7,#fff0f5)' : '#fafafa'};cursor:pointer;font-size:13px;font-weight:600;color:${selectedVenue && selectedVenue.id === v.id ? '#8a6000' : '#555'}">
+        ${selectedVenue && selectedVenue.id === v.id ? '✓ Our Venue' : '📍 Set as Our Venue'}
+      </button>
+    </div>
+  </div>`;
+}
+
+function getSimilarVenues(venue) {
+  if (!venue.vibe_tags || !venue.vibe_tags.length) return [];
+  return venuesData
+    .filter(v => v.id !== venue.id && v.vibe_tags && v.vibe_tags.length)
+    .map(v => ({
+      ...v,
+      matchTags: v.vibe_tags.filter(t => venue.vibe_tags.includes(t)),
+      overlap: v.vibe_tags.filter(t => venue.vibe_tags.includes(t)).length
+    }))
+    .filter(v => v.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)
+    .slice(0, 3);
+}
+
+function updateVenueCost() {
+  let bestVenue = null;
+  let bestScore = 0;
+  venuesData.forEach(v => {
+    const ks = getRating('venue', v.id, 'kerwin');
+    const ds = getRating('venue', v.id, 'dani');
+    const avg = (ks && ds) ? (ks + ds) / 2 : (ks || ds || 0);
+    if (avg > bestScore) { bestScore = avg; bestVenue = v; }
+  });
+  if (bestVenue && bestScore >= 4) {
+    moduleCosts.venue = (bestVenue.venue_fee || 0) + ((bestVenue.catering_pp || 0) + (bestVenue.bar_pp || 0)) * guestCount;
+  } else {
+    moduleCosts.venue = null;
+  }
+  updateDashboardCosts();
+}
+
+function toggleVenueForm() {
+  venueFormOpen = !venueFormOpen;
+  const f = document.getElementById('venue-add-form');
+  if (f) f.style.display = venueFormOpen ? 'block' : 'none';
+}
+
+function venueAddFormHTML() {
+  return `<div class="card">
+    <div class="section-title">Add New Venue</div>
+    <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="v-name" /></div>
+    <div class="form-group"><label class="form-label">Region</label>
+      <select class="form-select" id="v-region"><option value="monterey">Monterey</option><option value="bay_area">Bay Area</option></select></div>
+    <div class="form-group"><label class="form-label">Region Label</label><input class="form-input" id="v-region-label" placeholder="e.g. Carmel Valley" /></div>
+    <div class="form-group"><label class="form-label">Highlight</label><input class="form-input" id="v-highlight" /></div>
+    <div class="form-group"><label class="form-label">Max Capacity</label><input class="form-input" type="number" id="v-cap" /></div>
+    <div class="form-group"><label class="form-label">Venue Fee ($)</label><input class="form-input" type="number" id="v-fee" /></div>
+    <div class="form-group"><label class="form-label">Catering /pp ($)</label><input class="form-input" type="number" id="v-cater" /></div>
+    <div class="form-group"><label class="form-label">Bar /pp ($)</label><input class="form-input" type="number" id="v-bar" /></div>
+    <div class="form-group"><label class="form-label">Website URL</label><input class="form-input" id="v-url" /></div>
+    <div class="form-group"><label class="form-label">Vibe Tags (comma-separated)</label><input class="form-input" id="v-vibes" placeholder="rustic, vineyard, romantic" /></div>
+    <div class="form-group"><label class="form-label">Catering Status</label>
+      <select class="form-select" id="v-catstatus"><option value="byo">BYO Catering</option><option value="in_house">In-House Catering</option></select></div>
+    <button class="btn btn-primary btn-full" onclick="submitVenue()">Add Venue</button>
+  </div>`;
+}
+
+async function submitVenue() {
+  const name = document.getElementById('v-name').value.trim();
+  if (!name) { toast('Enter a venue name'); return; }
+  const venue = {
+    name,
+    region: document.getElementById('v-region').value,
+    region_label: document.getElementById('v-region-label').value.trim() || null,
+    highlight: document.getElementById('v-highlight').value.trim() || null,
+    max_cap: parseInt(document.getElementById('v-cap').value) || null,
+    venue_fee: parseInt(document.getElementById('v-fee').value) || null,
+    catering_pp: parseInt(document.getElementById('v-cater').value) || null,
+    bar_pp: parseInt(document.getElementById('v-bar').value) || null,
+    url: document.getElementById('v-url').value.trim() || null,
+    vibe_tags: document.getElementById('v-vibes').value.split(',').map(t => t.trim()).filter(Boolean),
+    catering_status: document.getElementById('v-catstatus').value
+  };
+  const { error } = await sb.from('venues').insert(venue);
+  if (error) { toast('Error adding venue'); console.error(error); return; }
+  toast('Venue added!');
+  venueFormOpen = false;
+  initializedTabs.delete('venues');
+  loadVenues();
+}
+// ── Caterers ──
+let caterersData = [];
+let catererCuisineFilter = 'all';
+let catererSortBy = 'name';
+let catererFormOpen = false;
+let showInNOutOnly = false;
+
+async function loadCaterers() {
+  document.getElementById('caterers-loading').style.display = 'block';
+  document.getElementById('caterers-content').style.display = 'none';
+  const { data } = await sb.from('caterers').select('*').order('name');
+  caterersData = data || [];
+  await fetchRatings('caterer', caterersData.map(c => c.id));
+  renderCatererControls();
+  renderCaterersList();
+  updateCatererCost();
+  document.getElementById('caterers-loading').style.display = 'none';
+  document.getElementById('caterers-content').style.display = 'block';
+}
+
+function renderCatererControls() {
+  const cuisines = [...new Set(caterersData.map(c => c.cuisine).filter(Boolean))].sort();
+  const container = document.getElementById('caterers-list');
+  const controlsHTML = `
+    ${proximityBanner()}
+    <input type="text" placeholder="🔍 Search caterers..." value="${catererSearch}" oninput="catererSearch=this.value;renderCatererCards()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+    <div class="filter-bar" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="chip ${showInNOutOnly ? 'active' : ''}" onclick="toggleInNOut()" style="${showInNOutOnly ? 'background:#e74c3c;color:#fff' : ''}">🍔 In-N-Out</button>
+      <button class="chip ${catererCuisineFilter === 'all' ? 'active' : ''}" onclick="filterCaterersByCuisine('all')">All</button>
+      ${cuisines.map(c => `<button class="chip ${catererCuisineFilter === c ? 'active' : ''}" onclick="filterCaterersByCuisine('${c}')">${c}</button>`).join('')}
+      <select class="sort-select" onchange="sortCaterersBy(this.value)" style="margin-left:auto;padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:13px">
+        <option value="name" ${catererSortBy === 'name' ? 'selected' : ''}>Name</option>
+        <option value="price_low" ${catererSortBy === 'price_low' ? 'selected' : ''}>Price: Low</option>
+        <option value="price_high" ${catererSortBy === 'price_high' ? 'selected' : ''}>Price: High</option>
+      </select>
+    </div>`;
+  container.innerHTML = controlsHTML + '<div id="caterers-cards"></div>';
+  renderCatererCards();
+}
+
+function toggleInNOut() {
+  showInNOutOnly = !showInNOutOnly;
+  renderCatererControls();
+}
+
+function filterCaterersByCuisine(c) {
+  catererCuisineFilter = c;
+  showInNOutOnly = false;
+  renderCatererControls();
+}
+
+function sortCaterersBy(val) {
+  catererSortBy = val;
+  renderCatererCards();
+}
+
+function getFilteredCaterers() {
+  let list = [...caterersData];
+  if (showInNOutOnly) list = list.filter(c => c.is_in_n_out);
+  if (catererCuisineFilter !== 'all') list = list.filter(c => c.cuisine === catererCuisineFilter);
+  if (selectedVenue) list = list.filter(c => matchesVenueProximity(c.location, c.region));
+  if (catererSearch) {
+    const q = catererSearch.toLowerCase();
+    list = list.filter(c => (c.name || '').toLowerCase().includes(q) || (c.cuisine || '').toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q));
+  }
+  if (catererSortBy === 'price_low') list.sort((a, b) => (a.price_pp || 999) - (b.price_pp || 999));
+  else if (catererSortBy === 'price_high') list.sort((a, b) => (b.price_pp || 0) - (a.price_pp || 0));
+  else list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return list;
+}
+
+function renderCatererCards() {
+  const list = getFilteredCaterers();
+  const cardsEl = document.getElementById('caterers-cards');
+  if (!list.length) {
+    cardsEl.innerHTML = '<div style="text-align:center;color:var(--subtext);padding:32px">No caterers match filters</div>';
+    return;
+  }
+  cardsEl.innerHTML = list.map(c => renderCatererCard(c)).join('') +
+    `<button class="btn" style="width:100%;margin-top:12px" onclick="toggleCatererForm()">+ Add Caterer</button>` +
+    `<div id="caterer-add-form" style="display:${catererFormOpen ? 'block' : 'none'};margin-top:12px">${catererAddFormHTML()}</div>`;
+}
+
+function renderCaterersList() { renderCatererCards(); }
+
+function renderCatererCard(c) {
+  const ks = getRating('caterer', c.id, 'kerwin');
+  const ds = getRating('caterer', c.id, 'dani');
+  const hasBoth = ks && ds;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box' : '';
+  const statusBadge = c.is_in_n_out ? '<span style="background:#e74c3c;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">🍔 In-N-Out</span>' :
+    c.status === 'independent' ? '<span style="background:#3498db;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">Independent</span>' :
+    '<span style="background:#2ecc71;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">Venue Partner</span>';
+  const estTotal = c.price_pp ? `$${(c.price_pp * guestCount).toLocaleString()} est. (${guestCount} guests)` : '';
+  const activeToggle = `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:8px">
+    <input type="checkbox" ${c.active ? 'checked' : ''} onchange="toggleCatererActive(${c.id}, this.checked)"> Shortlisted
+  </label>`;
+
+  return `<div class="card" style="${borderStyle}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="card-title">${c.name}</div>
+        ${c.location ? `<div style="font-size:13px;color:var(--subtext)">${c.location}</div>` : ''}
+      </div>
+      ${statusBadge}
+    </div>
+    ${c.cuisine ? `<div style="font-size:13px;margin-top:6px">🍽️ ${c.cuisine}</div>` : ''}
+    ${c.price_pp ? `<div style="font-size:14px;font-weight:600;margin-top:6px">$${c.price_pp}/person</div>` : ''}
+    ${estTotal ? `<div style="font-size:12px;color:var(--subtext)">${estTotal}</div>` : ''}
+    ${c.notes ? `<div style="font-size:13px;color:var(--subtext);margin-top:6px">${c.notes}</div>` : ''}
+    ${c.url ? `<a href="${c.url}" target="_blank" class="link-btn" style="margin-top:8px">Visit Website →</a>` : ''}
+    ${activeToggle}
+    ${renderStars('caterer', c.id, 'renderCatererCards')}
+  </div>`;
+}
+
+async function toggleCatererActive(id, active) {
+  await sb.from('caterers').update({ active }).eq('id', id);
+  const c = caterersData.find(x => x.id === id);
+  if (c) c.active = active;
+  updateCatererCost();
+  updateDashboardCosts();
+}
+
+function updateCatererCost() {
+  const activeCaterers = caterersData.filter(c => c.active && c.price_pp);
+  if (activeCaterers.length === 0) { moduleCosts.catering = null; return; }
+  let best = null, bestScore = 0;
+  activeCaterers.forEach(c => {
+    const ks = getRating('caterer', c.id, 'kerwin');
+    const ds = getRating('caterer', c.id, 'dani');
+    const avg = (ks && ds) ? (ks + ds) / 2 : (ks || ds || 0);
+    if (avg > bestScore || !best) { bestScore = avg; best = c; }
+  });
+  moduleCosts.catering = best ? best.price_pp * guestCount : null;
+  updateDashboardCosts();
+}
+
+function toggleCatererForm() {
+  catererFormOpen = !catererFormOpen;
+  const f = document.getElementById('caterer-add-form');
+  if (f) f.style.display = catererFormOpen ? 'block' : 'none';
+}
+
+function catererAddFormHTML() {
+  return `<div class="card">
+    <div class="section-title">Add New Caterer</div>
+    <input id="cat-name" placeholder="Name" class="input" style="width:100%;margin-bottom:8px">
+    <input id="cat-location" placeholder="Location" class="input" style="width:100%;margin-bottom:8px">
+    <input id="cat-cuisine" placeholder="Cuisine (e.g. Mexican, BBQ)" class="input" style="width:100%;margin-bottom:8px">
+    <input id="cat-price" type="number" placeholder="Price per person ($)" class="input" style="width:100%;margin-bottom:8px">
+    <input id="cat-url" placeholder="Website URL" class="input" style="width:100%;margin-bottom:8px">
+    <textarea id="cat-notes" placeholder="Notes" class="input" style="width:100%;margin-bottom:8px;min-height:60px"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:8px">
+      <input type="checkbox" id="cat-innout"> This is In-N-Out 🍔
+    </label>
+    <button class="btn" onclick="submitCaterer()">Add Caterer</button>
+  </div>`;
+}
+
+async function submitCaterer() {
+  const name = document.getElementById('cat-name').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  const row = {
+    name,
+    location: document.getElementById('cat-location').value.trim() || null,
+    cuisine: document.getElementById('cat-cuisine').value.trim() || null,
+    price_pp: parseInt(document.getElementById('cat-price').value) || null,
+    url: document.getElementById('cat-url').value.trim() || null,
+    notes: document.getElementById('cat-notes').value.trim() || null,
+    is_in_n_out: document.getElementById('cat-innout').checked,
+    status: 'independent'
+  };
+  const { error } = await sb.from('caterers').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Caterer added!');
+  catererFormOpen = false;
+  await loadCaterers();
+}
+// ── Bar ──
+let barData = [];
+let barFormOpen = false;
+let barDurationHours = 5;
+
+async function loadBar() {
+  document.getElementById('bar-loading').style.display = 'block';
+  document.getElementById('bar-content').style.display = 'none';
+  const { data } = await sb.from('bar_options').select('*').order('provider');
+  barData = data || [];
+  await fetchRatings('bar', barData.map(b => b.id));
+  renderBarList();
+  updateBarCost();
+  document.getElementById('bar-loading').style.display = 'none';
+  document.getElementById('bar-content').style.display = 'block';
+}
+
+function renderBarList() {
+  const el = document.getElementById('bar-list');
+  const durationControl = `<div class="card" style="margin-bottom:12px">
+    <div class="section-title">Bar Duration</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <input type="range" min="1" max="8" value="${barDurationHours}" style="flex:1" oninput="updateBarDuration(this.value)">
+      <span id="bar-duration-label" style="font-weight:600;min-width:40px">${barDurationHours}h</span>
+    </div>
+    <div style="font-size:12px;color:var(--subtext);margin-top:4px">Affects hourly-rate estimates</div>
+  </div>`;
+
+  const searchInput = `<input type="text" placeholder="🔍 Search bar options..." value="${barSearch}" oninput="barSearch=this.value;renderBarList()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">`;
+
+  const filteredBar = barSearch ? barData.filter(b => (b.provider || '').toLowerCase().includes(barSearch.toLowerCase()) || (b.notes || '').toLowerCase().includes(barSearch.toLowerCase())) : barData;
+  const openBarOptions = filteredBar.filter(b => b.open_bar);
+  const otherOptions = filteredBar.filter(b => !b.open_bar);
+
+  let html = searchInput + durationControl;
+
+  if (openBarOptions.length) {
+    html += `<div class="section-title" style="margin-bottom:8px">🍸 Open Bar Options</div>`;
+    html += openBarOptions.map(b => renderBarCard(b)).join('');
+  }
+  if (otherOptions.length) {
+    html += `<div class="section-title" style="margin:16px 0 8px">🥤 Other Options</div>`;
+    html += otherOptions.map(b => renderBarCard(b)).join('');
+  }
+  if (!barData.length) {
+    html += '<div style="text-align:center;color:var(--subtext);padding:32px">No bar options yet</div>';
+  }
+
+  html += `<button class="btn" style="width:100%;margin-top:12px" onclick="toggleBarForm()">+ Add Bar Option</button>`;
+  html += `<div id="bar-add-form" style="display:${barFormOpen ? 'block' : 'none'};margin-top:12px">${barAddFormHTML()}</div>`;
+  el.innerHTML = html;
+}
+
+function updateBarDuration(val) {
+  barDurationHours = parseInt(val);
+  document.getElementById('bar-duration-label').textContent = barDurationHours + 'h';
+  renderBarList();
+  updateBarCost();
+}
+
+function renderBarCard(b) {
+  const ks = getRating('bar', b.id, 'kerwin');
+  const ds = getRating('bar', b.id, 'dani');
+  const hasBoth = ks && ds;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box' : '';
+  const ppCost = b.price_pp || 0;
+  const estTotal = ppCost ? ppCost * guestCount : 0;
+  const activeToggle = `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:8px">
+    <input type="checkbox" ${b.active ? 'checked' : ''} onchange="toggleBarActive(${b.id}, this.checked)"> Shortlisted
+  </label>`;
+
+  return `<div class="card" style="${borderStyle}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div class="card-title">${b.provider}</div>
+      ${b.open_bar ? '<span style="background:#9b59b6;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">Open Bar</span>' : ''}
+    </div>
+    ${ppCost ? `<div style="font-size:14px;font-weight:600;margin-top:6px">$${ppCost}/person</div>` : ''}
+    ${estTotal ? `<div style="font-size:12px;color:var(--subtext)">$${estTotal.toLocaleString()} est. (${guestCount} guests)</div>` : ''}
+    ${b.notes ? `<div style="font-size:13px;color:var(--subtext);margin-top:6px">${b.notes}</div>` : ''}
+    ${b.url ? `<a href="${b.url}" target="_blank" class="link-btn" style="margin-top:8px">Visit Website →</a>` : ''}
+    ${activeToggle}
+    ${renderStars('bar', b.id, 'renderBarList')}
+  </div>`;
+}
+
+async function toggleBarActive(id, active) {
+  await sb.from('bar_options').update({ active }).eq('id', id);
+  const b = barData.find(x => x.id === id);
+  if (b) b.active = active;
+  updateBarCost();
+}
+
+function updateBarCost() {
+  const activeBar = barData.filter(b => b.active && b.price_pp);
+  if (!activeBar.length) { moduleCosts.bar = null; updateDashboardCosts(); return; }
+  let best = null, bestScore = 0;
+  activeBar.forEach(b => {
+    const ks = getRating('bar', b.id, 'kerwin');
+    const ds = getRating('bar', b.id, 'dani');
+    const avg = (ks && ds) ? (ks + ds) / 2 : (ks || ds || 0);
+    if (avg > bestScore || !best) { bestScore = avg; best = b; }
+  });
+  moduleCosts.bar = best ? best.price_pp * guestCount : null;
+  updateDashboardCosts();
+}
+
+function toggleBarForm() {
+  barFormOpen = !barFormOpen;
+  const f = document.getElementById('bar-add-form');
+  if (f) f.style.display = barFormOpen ? 'block' : 'none';
+}
+
+function barAddFormHTML() {
+  return `<div class="card">
+    <div class="section-title">Add Bar Option</div>
+    <input id="bar-provider" placeholder="Provider name" class="input" style="width:100%;margin-bottom:8px">
+    <input id="bar-price" type="number" placeholder="Price per person ($)" class="input" style="width:100%;margin-bottom:8px">
+    <input id="bar-url" placeholder="Website URL" class="input" style="width:100%;margin-bottom:8px">
+    <textarea id="bar-notes" placeholder="Notes" class="input" style="width:100%;margin-bottom:8px;min-height:60px"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:8px">
+      <input type="checkbox" id="bar-openbar"> Open bar
+    </label>
+    <button class="btn" onclick="submitBar()">Add Bar Option</button>
+  </div>`;
+}
+
+async function submitBar() {
+  const provider = document.getElementById('bar-provider').value.trim();
+  if (!provider) { toast('Provider name is required'); return; }
+  const row = {
+    provider,
+    price_pp: parseInt(document.getElementById('bar-price').value) || null,
+    url: document.getElementById('bar-url').value.trim() || null,
+    notes: document.getElementById('bar-notes').value.trim() || null,
+    open_bar: document.getElementById('bar-openbar').checked
+  };
+  const { error } = await sb.from('bar_options').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Bar option added!');
+  barFormOpen = false;
+  await loadBar();
+}
+// ── Music ──
+let musiciansData = [];
+let musicCategoryFilter = 'all';
+let musicFormOpen = false;
+
+async function loadMusic() {
+  document.getElementById('music-loading').style.display = 'block';
+  document.getElementById('music-content').style.display = 'none';
+  const { data } = await sb.from('musicians').select('*').order('name');
+  musiciansData = data || [];
+  await fetchRatings('music', musiciansData.map(m => m.id));
+  renderMusicControls();
+  renderMusicList();
+  updateMusicCost();
+  document.getElementById('music-loading').style.display = 'none';
+  document.getElementById('music-content').style.display = 'block';
+}
+
+function renderMusicControls() {
+  const categories = [...new Set(musiciansData.map(m => m.category).filter(Boolean))].sort();
+  const el = document.getElementById('music-list');
+  const chips = `
+    ${proximityBanner()}
+    <input type="text" placeholder="🔍 Search musicians..." value="${musicSearch}" oninput="musicSearch=this.value;renderMusicCards()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+    <div class="filter-bar" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="chip ${musicCategoryFilter === 'all' ? 'active' : ''}" onclick="filterMusicByCategory('all')">All</button>
+      ${categories.map(c => `<button class="chip ${musicCategoryFilter === c ? 'active' : ''}" onclick="filterMusicByCategory('${c}')">${c}</button>`).join('')}
+    </div>`;
+  el.innerHTML = chips + '<div id="music-cards"></div>';
+  renderMusicCards();
+}
+
+function filterMusicByCategory(cat) {
+  musicCategoryFilter = cat;
+  renderMusicControls();
+}
+
+function getFilteredMusicians() {
+  let list = [...musiciansData];
+  if (musicCategoryFilter !== 'all') list = list.filter(m => m.category === musicCategoryFilter);
+  if (selectedVenue) list = list.filter(m => matchesVenueProximity(m.location, m.region));
+  if (musicSearch) {
+    const q = musicSearch.toLowerCase();
+    list = list.filter(m => (m.name || '').toLowerCase().includes(q) || (m.category || '').toLowerCase().includes(q) || (m.location || '').toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function renderMusicCards() {
+  const list = getFilteredMusicians();
+  const el = document.getElementById('music-cards');
+  if (!list.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--subtext);padding:32px">No musicians match filter</div>';
+    return;
+  }
+  el.innerHTML = list.map(m => renderMusicCard(m)).join('') +
+    `<button class="btn" style="width:100%;margin-top:12px" onclick="toggleMusicForm()">+ Add Musician</button>` +
+    `<div id="music-add-form" style="display:${musicFormOpen ? 'block' : 'none'};margin-top:12px">${musicAddFormHTML()}</div>`;
+}
+
+function renderMusicList() { renderMusicCards(); }
+
+function renderMusicCard(m) {
+  const ks = getRating('music', m.id, 'kerwin');
+  const ds = getRating('music', m.id, 'dani');
+  const hasBoth = ks && ds;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box' : '';
+  const socialLinks = [
+    m.instagram_url ? `<a href="${m.instagram_url}" target="_blank" style="font-size:13px">📷 Instagram</a>` : '',
+    m.tiktok_url ? `<a href="${m.tiktok_url}" target="_blank" style="font-size:13px">🎵 TikTok</a>` : '',
+    m.website_url ? `<a href="${m.website_url}" target="_blank" style="font-size:13px">🌐 Website</a>` : ''
+  ].filter(Boolean).join(' · ');
+  const flags = [];
+  if (m.hip_hop) flags.push('🎤 Hip-Hop');
+  if (m.category) flags.push(m.category);
+  const activeToggle = `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:8px">
+    <input type="checkbox" ${m.active ? 'checked' : ''} onchange="toggleMusicActive(${m.id}, this.checked)"> Shortlisted
+  </label>`;
+
+  return `<div class="card" style="${borderStyle}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="card-title">${m.name}</div>
+        ${m.location ? `<div style="font-size:13px;color:var(--subtext)">${m.location}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+        ${flags.map(f => `<span style="background:#f0f0f0;padding:2px 8px;border-radius:10px;font-size:11px">${f}</span>`).join('')}
+      </div>
+    </div>
+    ${m.price_estimate ? `<div style="font-size:14px;font-weight:600;margin-top:6px">$${m.price_estimate.toLocaleString()}</div>` : ''}
+    ${m.notes ? `<div style="font-size:13px;color:var(--subtext);margin-top:6px">${m.notes}</div>` : ''}
+    ${socialLinks ? `<div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">${socialLinks}</div>` : ''}
+    ${activeToggle}
+    ${renderStars('music', m.id, 'renderMusicCards')}
+  </div>`;
+}
+
+async function toggleMusicActive(id, active) {
+  await sb.from('musicians').update({ active }).eq('id', id);
+  const m = musiciansData.find(x => x.id === id);
+  if (m) m.active = active;
+  updateMusicCost();
+}
+
+function updateMusicCost() {
+  const active = musiciansData.filter(m => m.active && m.price_estimate);
+  if (!active.length) { moduleCosts.music = null; updateDashboardCosts(); return; }
+  moduleCosts.music = active.reduce((sum, m) => sum + m.price_estimate, 0);
+  updateDashboardCosts();
+}
+
+function toggleMusicForm() {
+  musicFormOpen = !musicFormOpen;
+  const f = document.getElementById('music-add-form');
+  if (f) f.style.display = musicFormOpen ? 'block' : 'none';
+}
+
+function musicAddFormHTML() {
+  return `<div class="card">
+    <div class="section-title">Add Musician</div>
+    <input id="mus-name" placeholder="Name" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-category" placeholder="Category (DJ, Band, Mariachi...)" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-location" placeholder="Location" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-price" type="number" placeholder="Price estimate ($)" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-instagram" placeholder="Instagram URL" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-tiktok" placeholder="TikTok URL" class="input" style="width:100%;margin-bottom:8px">
+    <input id="mus-website" placeholder="Website URL" class="input" style="width:100%;margin-bottom:8px">
+    <textarea id="mus-notes" placeholder="Notes" class="input" style="width:100%;margin-bottom:8px;min-height:60px"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:8px">
+      <input type="checkbox" id="mus-hiphop"> Hip-hop
+    </label>
+    <button class="btn" onclick="submitMusician()">Add Musician</button>
+  </div>`;
+}
+
+async function submitMusician() {
+  const name = document.getElementById('mus-name').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  const row = {
+    name,
+    category: document.getElementById('mus-category').value.trim() || null,
+    location: document.getElementById('mus-location').value.trim() || null,
+    price_estimate: parseInt(document.getElementById('mus-price').value) || null,
+    instagram_url: document.getElementById('mus-instagram').value.trim() || null,
+    tiktok_url: document.getElementById('mus-tiktok').value.trim() || null,
+    website_url: document.getElementById('mus-website').value.trim() || null,
+    notes: document.getElementById('mus-notes').value.trim() || null,
+    hip_hop: document.getElementById('mus-hiphop').checked
+  };
+  const { error } = await sb.from('musicians').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Musician added!');
+  musicFormOpen = false;
+  await loadMusic();
+}
+// ── Extras Tab ──
+let extrasData = [], extraCategoryFilter = 'all', extraFormOpen = false;
+
+async function loadExtras() {
+  if (initializedTabs.has('extras')) return;
+  showLoader('extras');
+  const { data } = await sb.from('extras').select('*').order('name');
+  extrasData = data || [];
+  await fetchRatings('extras', extrasData.map(e => e.id));
+  extrasData.forEach(e => { e.kerwin_rating = getRating('extras', e.id, 'kerwin'); e.dani_rating = getRating('extras', e.id, 'dani'); });
+  initializedTabs.add('extras');
+  document.getElementById('extras-loading').style.display = 'none';
+  document.getElementById('extras-content').style.display = 'block';
+  renderExtrasList();
+  updateExtrasCost();
+}
+
+function renderExtrasControls() {
+  const cats = [...new Set(extrasData.map(e => e.category).filter(Boolean))];
+  let html = `<input type="text" placeholder="🔍 Search extras..." value="${extraSearch}" oninput="extraSearch=this.value;renderExtrasList()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">`;
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+  html += `<button class="chip ${extraCategoryFilter==='all'?'active':''}" onclick="filterExtrasByCategory('all')">All</button>`;
+  cats.forEach(c => { html += `<button class="chip ${extraCategoryFilter===c?'active':''}" onclick="filterExtrasByCategory('${c}')">${c}</button>`; });
+  html += '</div>';
+  html += `<button class="btn" onclick="toggleExtrasForm()" style="margin-bottom:12px">${extraFormOpen?'Cancel':'+ Add Extra'}</button>`;
+  if (extraFormOpen) html += extrasAddFormHTML();
+  return html;
+}
+
+function filterExtrasByCategory(cat) { extraCategoryFilter = cat; renderExtrasList(); }
+
+function getFilteredExtras() {
+  let list = [...extrasData];
+  if (extraCategoryFilter !== 'all') list = list.filter(e => e.category === extraCategoryFilter);
+  if (extraSearch) {
+    const q = extraSearch.toLowerCase();
+    list = list.filter(e => (e.name || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q) || (e.category || '').toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function renderExtrasList() {
+  const filtered = getFilteredExtras();
+  let html = renderExtrasControls();
+  if (!filtered.length) { html += '<p style="color:#999">No extras found.</p>'; }
+  else { filtered.forEach(e => { html += renderExtraCard(e); }); }
+  document.getElementById('extras-content').innerHTML = html;
+}
+
+function renderExtraCard(e) {
+  const hasBoth = e.kerwin_rating > 0 && e.dani_rating > 0;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box;' : '';
+  const isPP = e.pricing_type === 'per_person';
+  const estTotal = isPP ? e.price_estimate * guestCount : e.price_estimate;
+  let html = `<div class="card" style="${borderStyle}">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:start">`;
+  html += `<div><strong>${e.name}</strong>`;
+  if (e.category) html += ` <span style="background:#f0f0f0;padding:2px 8px;border-radius:8px;font-size:0.75rem">${e.category}</span>`;
+  html += `</div>`;
+  html += `<button class="btn" style="font-size:0.75rem;padding:4px 10px;${e.active?'background:var(--gold);color:#111':''}" onclick="toggleExtraActive(${e.id},${!e.active})">${e.active?'★ Shortlisted':'☆ Shortlist'}</button>`;
+  html += `</div>`;
+  if (e.description) html += `<p style="color:#666;font-size:0.85rem;margin:4px 0">${e.description}</p>`;
+  if (e.price_estimate) {
+    html += `<p style="margin:4px 0">💰 $${e.price_estimate.toLocaleString()}${isPP ? '/pp' : ' flat'}`;
+    if (isPP) html += ` · Est. total: <strong>$${estTotal.toLocaleString()}</strong>`;
+    html += `</p>`;
+  }
+  if (e.notes) html += `<p style="color:#888;font-size:0.8rem;margin:4px 0">📝 ${e.notes}</p>`;
+  if (e.url) html += `<a href="${e.url}" target="_blank" style="font-size:0.8rem">🌐 Website</a>`;
+  html += `<div style="margin-top:8px">${renderStars('extras', e.id, 'renderExtrasList')}</div></div>`;
+  return html;
+}
+
+async function toggleExtraActive(id, val) {
+  await sb.from('extras').update({ active: val }).eq('id', id);
+  const item = extrasData.find(e => e.id === id);
+  if (item) item.active = val;
+  renderExtrasList();
+  updateExtrasCost();
+}
+
+function updateExtrasCost() {
+  let total = 0;
+  extrasData.filter(e => e.active).forEach(e => {
+    total += e.pricing_type === 'per_person' ? (e.price_estimate || 0) * guestCount : (e.price_estimate || 0);
+  });
+  moduleCosts.extras = total;
+  updateDashboardCosts();
+}
+
+function toggleExtrasForm() { extraFormOpen = !extraFormOpen; renderExtrasList(); }
+
+function extrasAddFormHTML() {
+  return `<div class="card" style="background:#f9f9f9">
+    <h4 style="margin-top:0">Add Extra</h4>
+    <input id="ext-name" placeholder="Name" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="ext-category" placeholder="Category (e.g. Photo Booth)" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="ext-price" type="number" placeholder="Price estimate" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <select id="ext-pricing" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+      <option value="flat">Flat rate</option>
+      <option value="per_person">Per person</option>
+    </select>
+    <input id="ext-desc" placeholder="Description" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="ext-url" placeholder="Website URL" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <textarea id="ext-notes" placeholder="Notes" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px"></textarea>
+    <button class="btn" onclick="submitExtra()">Save Extra</button>
+  </div>`;
+}
+
+async function submitExtra() {
+  const name = document.getElementById('ext-name').value.trim();
+  if (!name) { toast('Name required'); return; }
+  const row = {
+    name,
+    category: document.getElementById('ext-category').value.trim() || null,
+    price_estimate: parseInt(document.getElementById('ext-price').value) || null,
+    pricing_type: document.getElementById('ext-pricing').value,
+    description: document.getElementById('ext-desc').value.trim() || null,
+    url: document.getElementById('ext-url').value.trim() || null,
+    notes: document.getElementById('ext-notes').value.trim() || null
+  };
+  const { error } = await sb.from('extras').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Extra added!');
+  extraFormOpen = false;
+  initializedTabs.delete('extras');
+  await loadExtras();
+}
+// ── Cinematography Tab ──
+let cinemaData = [], cinemaFormOpen = false;
+
+async function loadCinema() {
+  if (initializedTabs.has('cinema')) return;
+  showLoader('cinema');
+  const { data } = await sb.from('cinematographers').select('*').order('name');
+  cinemaData = data || [];
+  await fetchRatings('cinema', cinemaData.map(c => c.id));
+  cinemaData.forEach(c => { c.kerwin_rating = getRating('cinema', c.id, 'kerwin'); c.dani_rating = getRating('cinema', c.id, 'dani'); });
+  initializedTabs.add('cinema');
+  document.getElementById('cinema-loading').style.display = 'none';
+  document.getElementById('cinema-content').style.display = 'block';
+  renderCinemaList();
+  updateCinemaCost();
+}
+
+function renderCinemaList() {
+  const q = cinemaSearch.toLowerCase();
+  const filtered = cinemaSearch
+    ? cinemaData.filter(c => (c.name || '').toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q) || (c.notes || '').toLowerCase().includes(q))
+    : cinemaData;
+  const proxFiltered = selectedVenue ? filtered.filter(c => matchesVenueProximity(c.location, c.region)) : filtered;
+  let html = proximityBanner();
+  html += `<input type="text" placeholder="🔍 Search cinematographers..." value="${cinemaSearch}" oninput="cinemaSearch=this.value;renderCinemaList()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">`;
+  html += `<button class="btn" onclick="toggleCinemaForm()" style="margin-bottom:12px">${cinemaFormOpen?'Cancel':'+ Add Cinematographer'}</button>`;
+  if (cinemaFormOpen) html += cinemaAddFormHTML();
+  if (!proxFiltered.length) { html += '<p style="color:#999">No cinematographers found.</p>'; }
+  else { proxFiltered.forEach(c => { html += renderCinemaCard(c); }); }
+  document.getElementById('cinema-content').innerHTML = html;
+}
+
+function renderCinemaCard(c) {
+  const hasBoth = c.kerwin_rating > 0 && c.dani_rating > 0;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box;' : '';
+  let html = `<div class="card" style="${borderStyle}">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:start">`;
+  html += `<div><strong>${c.name}</strong>`;
+  if (c.location) html += ` <span style="color:#888;font-size:0.85rem">· ${c.location}</span>`;
+  html += `</div>`;
+  html += `<button class="btn" style="font-size:0.75rem;padding:4px 10px;${c.active?'background:var(--gold);color:#111':''}" onclick="toggleCinemaActive(${c.id},${!c.active})">${c.active?'★ Shortlisted':'☆ Shortlist'}</button>`;
+  html += `</div>`;
+  if (c.package_name) html += `<p style="margin:4px 0;font-size:0.85rem">📦 ${c.package_name}</p>`;
+  let flags = [];
+  if (c.drone) flags.push('🚁 Drone');
+  if (c.highlight_reel) flags.push('🎬 Highlight');
+  if (c.full_film) flags.push('🎥 Full Film');
+  if (c.confessional) flags.push('💬 Confessional');
+  if (flags.length) html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">${flags.map(f => `<span style="background:#f0f0f0;padding:2px 8px;border-radius:8px;font-size:0.75rem">${f}</span>`).join('')}</div>`;
+  let details = [];
+  if (c.hours) details.push(`${c.hours} hours`);
+  if (c.num_cameras) details.push(`${c.num_cameras} camera${c.num_cameras>1?'s':''}`);
+  if (details.length) html += `<p style="color:#666;font-size:0.85rem;margin:4px 0">📋 ${details.join(' · ')}</p>`;
+  if (c.price) html += `<p style="margin:4px 0">💰 <strong>$${c.price.toLocaleString()}</strong></p>`;
+  if (c.notes) html += `<p style="color:#888;font-size:0.8rem;margin:4px 0">📝 ${c.notes}</p>`;
+  let links = [];
+  if (c.website_url) links.push(`<a href="${c.website_url}" target="_blank" style="font-size:0.8rem">🌐 Website</a>`);
+  if (c.instagram_url) links.push(`<a href="${c.instagram_url}" target="_blank" style="font-size:0.8rem">📷 Instagram</a>`);
+  if (links.length) html += `<div style="display:flex;gap:12px;margin:4px 0">${links.join('')}</div>`;
+  html += `<div style="margin-top:8px">${renderStars('cinema', c.id, 'renderCinemaList')}</div></div>`;
+  return html;
+}
+
+async function toggleCinemaActive(id, val) {
+  await sb.from('cinematographers').update({ active: val }).eq('id', id);
+  const item = cinemaData.find(c => c.id === id);
+  if (item) item.active = val;
+  renderCinemaList();
+  updateCinemaCost();
+}
+
+function updateCinemaCost() {
+  const active = cinemaData.filter(c => c.active && c.price);
+  const best = active.sort((a, b) => {
+    const aMax = Math.max(a.kerwin_rating || 0, a.dani_rating || 0);
+    const bMax = Math.max(b.kerwin_rating || 0, b.dani_rating || 0);
+    return bMax - aMax;
+  })[0];
+  moduleCosts.cinema = best ? best.price : 0;
+  updateDashboardCosts();
+}
+
+function toggleCinemaForm() { cinemaFormOpen = !cinemaFormOpen; renderCinemaList(); }
+
+function cinemaAddFormHTML() {
+  return `<div class="card" style="background:#f9f9f9">
+    <h4 style="margin-top:0">Add Cinematographer</h4>
+    <input id="cin-name" placeholder="Name" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-location" placeholder="Location" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-package" placeholder="Package name" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-price" type="number" placeholder="Price" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-hours" type="number" placeholder="Hours" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-cameras" type="number" placeholder="Number of cameras" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0">
+      <label><input type="checkbox" id="cin-drone"> Drone</label>
+      <label><input type="checkbox" id="cin-highlight"> Highlight Reel</label>
+      <label><input type="checkbox" id="cin-full"> Full Film</label>
+      <label><input type="checkbox" id="cin-confessional"> Confessional</label>
+    </div>
+    <input id="cin-website" placeholder="Website URL" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="cin-ig" placeholder="Instagram URL" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <textarea id="cin-notes" placeholder="Notes" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px"></textarea>
+    <button class="btn" onclick="submitCinema()">Save Cinematographer</button>
+  </div>`;
+}
+
+async function submitCinema() {
+  const name = document.getElementById('cin-name').value.trim();
+  if (!name) { toast('Name required'); return; }
+  const row = {
+    name,
+    location: document.getElementById('cin-location').value.trim() || null,
+    package_name: document.getElementById('cin-package').value.trim() || null,
+    price: parseInt(document.getElementById('cin-price').value) || null,
+    hours: parseInt(document.getElementById('cin-hours').value) || null,
+    num_cameras: parseInt(document.getElementById('cin-cameras').value) || null,
+    drone: document.getElementById('cin-drone').checked,
+    highlight_reel: document.getElementById('cin-highlight').checked,
+    full_film: document.getElementById('cin-full').checked,
+    confessional: document.getElementById('cin-confessional').checked,
+    website_url: document.getElementById('cin-website').value.trim() || null,
+    instagram_url: document.getElementById('cin-ig').value.trim() || null,
+    notes: document.getElementById('cin-notes').value.trim() || null
+  };
+  const { error } = await sb.from('cinematographers').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Cinematographer added!');
+  cinemaFormOpen = false;
+  initializedTabs.delete('cinema');
+  await loadCinema();
+}
+// ── Rehearsal Dinner Tab ──
+let rehearsalData = [], rehearsalFormOpen = false, rehearsalGuestCount = 60;
+
+async function loadRehearsal() {
+  if (initializedTabs.has('rehearsal')) return;
+  showLoader('rehearsal');
+  const { data } = await sb.from('rehearsal_options').select('*').order('name');
+  rehearsalData = data || [];
+  await fetchRatings('rehearsal', rehearsalData.map(r => r.id));
+  rehearsalData.forEach(r => { r.kerwin_rating = getRating('rehearsal', r.id, 'kerwin'); r.dani_rating = getRating('rehearsal', r.id, 'dani'); });
+  initializedTabs.add('rehearsal');
+  document.getElementById('rehearsal-loading').style.display = 'none';
+  document.getElementById('rehearsal-content').style.display = 'block';
+  renderRehearsalList();
+  updateRehearsalCost();
+}
+
+function renderRehearsalList() {
+  let html = proximityBanner();
+  html += `<input type="text" placeholder="🔍 Search rehearsal venues..." value="${rehearsalSearch}" oninput="rehearsalSearch=this.value;renderRehearsalList()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">`;
+  html += `<div class="card" style="background:#f9f9f9;margin-bottom:12px">
+    <label style="font-weight:600">Rehearsal Dinner Guests: <strong>${rehearsalGuestCount}</strong></label>
+    <input type="range" min="10" max="200" value="${rehearsalGuestCount}" oninput="updateRehearsalGuests(this.value)" style="width:100%">
+  </div>`;
+  html += `<button class="btn" onclick="toggleRehearsalForm()" style="margin-bottom:12px">${rehearsalFormOpen?'Cancel':'+ Add Option'}</button>`;
+  if (rehearsalFormOpen) html += rehearsalAddFormHTML();
+  let filtered = rehearsalData;
+  if (selectedVenue) filtered = filtered.filter(r => matchesVenueProximity(r.location, r.region));
+  if (rehearsalSearch) {
+    const q = rehearsalSearch.toLowerCase();
+    filtered = filtered.filter(r => (r.name||'').toLowerCase().includes(q) || (r.location||'').toLowerCase().includes(q) || (r.vibe_notes||'').toLowerCase().includes(q));
+  }
+  if (!filtered.length) { html += '<p style="color:#999">No rehearsal dinner options found.</p>'; }
+  else { filtered.forEach(r => { html += renderRehearsalCard(r); }); }
+  document.getElementById('rehearsal-content').innerHTML = html;
+}
+
+function updateRehearsalGuests(val) {
+  rehearsalGuestCount = parseInt(val);
+  renderRehearsalList();
+  updateRehearsalCost();
+}
+
+function renderRehearsalCard(r) {
+  const hasBoth = r.kerwin_rating > 0 && r.dani_rating > 0;
+  const borderStyle = hasBoth ? 'border:2px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box;' : '';
+  const isPP = r.pricing_type === 'per_person';
+  const estTotal = isPP ? r.price_estimate * rehearsalGuestCount : r.price_estimate;
+  let html = `<div class="card" style="${borderStyle}">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:start">`;
+  html += `<div><strong>${r.name}</strong>`;
+  if (r.location) html += ` <span style="color:#888;font-size:0.85rem">· ${r.location}</span>`;
+  html += `</div>`;
+  html += `<button class="btn" style="font-size:0.75rem;padding:4px 10px;${r.active?'background:var(--gold);color:#111':''}" onclick="toggleRehearsalActive(${r.id},${!r.active})">${r.active?'★ Shortlisted':'☆ Shortlist'}</button>`;
+  html += `</div>`;
+  let badges = [];
+  if (r.private_room) badges.push('🚪 Private Room');
+  if (badges.length) html += `<div style="margin:4px 0">${badges.map(b => `<span style="background:#f0f0f0;padding:2px 8px;border-radius:8px;font-size:0.75rem">${b}</span>`).join(' ')}</div>`;
+  if (r.price_estimate) {
+    html += `<p style="margin:4px 0">💰 $${r.price_estimate.toLocaleString()}${isPP ? '/pp' : ' flat'}`;
+    if (isPP) html += ` · Est. total: <strong>$${estTotal.toLocaleString()}</strong>`;
+    html += `</p>`;
+  }
+  if (r.vibe_notes) html += `<p style="color:#666;font-size:0.85rem;margin:4px 0">✨ ${r.vibe_notes}</p>`;
+  if (r.url) html += `<a href="${r.url}" target="_blank" style="font-size:0.8rem">🌐 Website</a>`;
+  html += `<div style="margin-top:8px">${renderStars('rehearsal', r.id, 'renderRehearsalList')}</div></div>`;
+  return html;
+}
+
+async function toggleRehearsalActive(id, val) {
+  await sb.from('rehearsal_options').update({ active: val }).eq('id', id);
+  const item = rehearsalData.find(r => r.id === id);
+  if (item) item.active = val;
+  renderRehearsalList();
+  updateRehearsalCost();
+}
+
+function updateRehearsalCost() {
+  const active = rehearsalData.filter(r => r.active);
+  const best = active.sort((a, b) => {
+    const aMax = Math.max(a.kerwin_rating || 0, a.dani_rating || 0);
+    const bMax = Math.max(b.kerwin_rating || 0, b.dani_rating || 0);
+    return bMax - aMax;
+  })[0];
+  if (best) {
+    moduleCosts.rehearsal = best.pricing_type === 'per_person' ? (best.price_estimate || 0) * rehearsalGuestCount : (best.price_estimate || 0);
+  } else {
+    moduleCosts.rehearsal = 0;
+  }
+  updateDashboardCosts();
+}
+
+function toggleRehearsalForm() { rehearsalFormOpen = !rehearsalFormOpen; renderRehearsalList(); }
+
+function rehearsalAddFormHTML() {
+  return `<div class="card" style="background:#f9f9f9">
+    <h4 style="margin-top:0">Add Rehearsal Option</h4>
+    <input id="reh-name" placeholder="Name" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="reh-location" placeholder="Location" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="reh-price" type="number" placeholder="Price estimate" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <select id="reh-pricing" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+      <option value="flat">Flat rate</option>
+      <option value="per_person">Per person</option>
+    </select>
+    <label style="display:block;margin:8px 0"><input type="checkbox" id="reh-private"> Private Room</label>
+    <input id="reh-vibe" placeholder="Vibe notes" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <input id="reh-url" placeholder="Website URL" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px">
+    <button class="btn" onclick="submitRehearsal()">Save Option</button>
+  </div>`;
+}
+
+async function submitRehearsal() {
+  const name = document.getElementById('reh-name').value.trim();
+  if (!name) { toast('Name required'); return; }
+  const row = {
+    name,
+    location: document.getElementById('reh-location').value.trim() || null,
+    price_estimate: parseInt(document.getElementById('reh-price').value) || null,
+    pricing_type: document.getElementById('reh-pricing').value,
+    private_room: document.getElementById('reh-private').checked,
+    vibe_notes: document.getElementById('reh-vibe').value.trim() || null,
+    url: document.getElementById('reh-url').value.trim() || null
+  };
+  const { error } = await sb.from('rehearsal_options').insert(row);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Rehearsal option added!');
+  rehearsalFormOpen = false;
+  initializedTabs.delete('rehearsal');
+  await loadRehearsal();
+}
+// ── Flowers Tab ──
+let floristData = [];
+let floristFormOpen = false;
+
+async function loadFlowers() {
+  if (initializedTabs.has('flowers')) return;
+  showLoader('flowers');
+  const { data, error } = await sb.from('florists').select('*').order('name');
+  if (error) { toast('Error loading florists'); return; }
+  floristData = data || [];
+  await fetchRatings('flowers', floristData.map(f => f.id));
+  floristData.forEach(f => {
+    f.kerwin_rating = getRating('flowers', f.id, 'kerwin');
+    f.dani_rating = getRating('flowers', f.id, 'dani');
+  });
+  initializedTabs.add('flowers');
+  document.getElementById('flowers-loading').style.display = 'none';
+  document.getElementById('flowers-content').style.display = 'block';
+  renderFloristList();
+  updateFlowersCost();
+}
+
+function renderFloristList() {
+  const cont = document.getElementById('flowers-content');
+  let filtered = floristData;
+  if (selectedVenue) filtered = filtered.filter(f => matchesVenueProximity(f.location, f.region));
+  if (floristSearch) {
+    const q = floristSearch.toLowerCase();
+    filtered = filtered.filter(f => (f.name||'').toLowerCase().includes(q) || (f.location||'').toLowerCase().includes(q) || (f.notes||'').toLowerCase().includes(q) || (f.style_tags||[]).some(t => t.toLowerCase().includes(q)));
+  }
+  const active = filtered.filter(f => f.active);
+  const inactive = filtered.filter(f => !f.active);
+  cont.innerHTML = `
+    ${proximityBanner()}
+    <input type="text" placeholder="🔍 Search florists..." value="${floristSearch}" oninput="floristSearch=this.value;renderFloristList()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">Florists</h3>
+      <button class="btn" onclick="toggleFloristForm()">+ Add Florist</button>
+    </div>
+    ${floristFormOpen ? floristAddFormHTML() : ''}
+    ${active.length ? '<div style="font-weight:600;margin:8px 0 4px;color:#666;font-size:0.85rem">🌸 Shortlisted</div>' : ''}
+    ${active.map(f => renderFloristCard(f)).join('')}
+    ${inactive.length ? '<div style="font-weight:600;margin:16px 0 4px;color:#666;font-size:0.85rem">All Florists</div>' : ''}
+    ${inactive.map(f => renderFloristCard(f)).join('')}
+    ${filtered.length === 0 ? '<p style="text-align:center;color:#999">No florists found.</p>' : ''}
+  `;
+}
+
+function renderFloristCard(f) {
+  const bothRated = f.kerwin_rating > 0 && f.dani_rating > 0;
+  const borderStyle = bothRated ? 'border:2px solid transparent;background-image:linear-gradient(white,white),linear-gradient(135deg,var(--gold),var(--pink));background-origin:border-box;background-clip:padding-box,border-box;' : '';
+  const styleTags = (f.style_tags || []).map(t => `<span class="chip">${t}</span>`).join('');
+  const includes = [];
+  if (f.includes_bouquets) includes.push('💐 Bouquets');
+  if (f.includes_centerpieces) includes.push('🏵️ Centerpieces');
+  if (f.includes_arch) includes.push('🌿 Arch');
+  if (f.includes_boutonnieres) includes.push('🌹 Boutonnieres');
+  const links = [];
+  if (f.website_url) links.push(`<a href="${f.website_url}" target="_blank" style="color:var(--gold);font-size:13px">🌐 Website</a>`);
+  if (f.instagram_url) links.push(`<a href="${f.instagram_url}" target="_blank" style="color:var(--pink);font-size:13px">📸 Instagram</a>`);
+  return `<div class="card" style="${borderStyle}">
+    <div style="display:flex;justify-content:space-between;align-items:start">
+      <div>
+        <strong>${f.name}</strong>
+        ${f.location ? `<div style="font-size:13px;color:#666">📍 ${f.location}</div>` : ''}
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleFloristActive(${f.id}, this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    ${styleTags ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${styleTags}</div>` : ''}
+    ${includes.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;font-size:13px">${includes.join(' ')}</div>` : ''}
+    ${f.price_estimate ? `<div style="margin-top:6px;font-size:14px;font-weight:600">$${f.price_estimate.toLocaleString()} est.</div>` : ''}
+    ${f.notes ? `<div style="margin-top:4px;font-size:13px;color:#666">${f.notes}</div>` : ''}
+    ${links.length ? `<div style="margin-top:6px;display:flex;gap:12px">${links.join('')}</div>` : ''}
+    <div style="margin-top:8px">${renderStars('flowers', f.id, 'renderFloristList')}</div>
+  </div>`;
+}
+
+async function toggleFloristActive(id, active) {
+  await sb.from('florists').update({ active }).eq('id', id);
+  const f = floristData.find(x => x.id === id);
+  if (f) f.active = active;
+  renderFloristList();
+  updateFlowersCost();
+}
+
+function updateFlowersCost() {
+  const active = floristData.filter(f => f.active && f.price_estimate);
+  if (active.length === 0) { moduleCosts.flowers = 0; updateDashboardCosts(); return; }
+  const rated = active.filter(f => f.kerwin_rating > 0 || f.dani_rating > 0);
+  let best = null;
+  if (rated.length) {
+    best = rated.reduce((a, b) => (Math.max(a.kerwin_rating, a.dani_rating) >= Math.max(b.kerwin_rating, b.dani_rating) ? a : b));
+  } else {
+    best = active[0];
+  }
+  moduleCosts.flowers = best.price_estimate;
+  updateDashboardCosts();
+}
+
+function toggleFloristForm() {
+  floristFormOpen = !floristFormOpen;
+  renderFloristList();
+}
+
+function floristAddFormHTML() {
+  return `<div class="card" style="background:#f9f9f9;margin-bottom:12px">
+    <h4 style="margin:0 0 8px">New Florist</h4>
+    <input id="fl-name" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Florist name" required>
+    <input id="fl-location" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Location">
+    <input id="fl-price" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" type="number" placeholder="Price estimate ($)">
+    <input id="fl-styles" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Style tags (comma-separated)">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+      <label style="font-size:13px"><input type="checkbox" id="fl-bouquets"> Bouquets</label>
+      <label style="font-size:13px"><input type="checkbox" id="fl-centerpieces"> Centerpieces</label>
+      <label style="font-size:13px"><input type="checkbox" id="fl-arch"> Arch</label>
+      <label style="font-size:13px"><input type="checkbox" id="fl-boutonnieres"> Boutonnieres</label>
+    </div>
+    <input id="fl-website" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Website URL">
+    <input id="fl-instagram" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Instagram URL">
+    <textarea id="fl-notes" style="width:100%;padding:8px;margin:4px 0;border:1px solid #ddd;border-radius:6px" placeholder="Notes" rows="2"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn" onclick="submitFlorist()">Save</button>
+      <button class="btn" onclick="toggleFloristForm()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+async function submitFlorist() {
+  const name = document.getElementById('fl-name').value.trim();
+  if (!name) { toast('Name is required'); return; }
+  const stylesRaw = document.getElementById('fl-styles').value.trim();
+  const style_tags = stylesRaw ? stylesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const { error } = await sb.from('florists').insert({
+    name,
+    location: document.getElementById('fl-location').value.trim() || null,
+    price_estimate: parseInt(document.getElementById('fl-price').value) || null,
+    style_tags: style_tags.length ? style_tags : null,
+    includes_bouquets: document.getElementById('fl-bouquets').checked,
+    includes_centerpieces: document.getElementById('fl-centerpieces').checked,
+    includes_arch: document.getElementById('fl-arch').checked,
+    includes_boutonnieres: document.getElementById('fl-boutonnieres').checked,
+    website_url: document.getElementById('fl-website').value.trim() || null,
+    instagram_url: document.getElementById('fl-instagram').value.trim() || null,
+    notes: document.getElementById('fl-notes').value.trim() || null
+  });
+  if (error) { toast('Error: ' + error.message); return; }
+  toast('Florist added!');
+  floristFormOpen = false;
+  initializedTabs.delete('flowers');
+  await loadFlowers();
+}
+
+function showLoader(tab) {
+  document.getElementById(`${tab}-loading`).style.display = 'block';
+  const c = document.getElementById(`${tab}-content`);
+  if (c) c.style.display = 'none';
+}
+
+// ── Realtime Subscriptions ──
+const tableToTab = {
+  venues: 'venues', caterers: 'caterers', bar_options: 'bar',
+  musicians: 'music', extras: 'extras', cinematographers: 'cinema',
+  rehearsal_options: 'rehearsal', florists: 'flowers'
+};
+
+function reloadTabIfActive(tabId) {
+  initializedTabs.delete(tabId);
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel && panel.classList.contains('active')) loadTab(tabId);
+}
+
+function setupRealtime() {
+  const ch = sb.channel('wedding-changes');
+
+  // Budget changes
+  ch.on('postgres_changes', { event: '*', schema: 'public', table: 'budget' }, () => {
+    initializedTabs.delete('dashboard');
+    if (document.getElementById('tab-dashboard').classList.contains('active')) loadTab('dashboard');
+  });
+
+  // Ratings changes — update local cache + reload relevant tab
+  ch.on('postgres_changes', { event: '*', schema: 'public', table: 'ratings' }, (payload) => {
+    const r = payload.new;
+    if (r && r.module && r.item_id) {
+      const key = `${r.module}:${r.item_id}`;
+      if (!allRatings[key]) allRatings[key] = {};
+      allRatings[key][r.rated_by] = r.score;
+      // Map module name to tab id for reload
+      const modToTab = { venues: 'venues', caterers: 'caterers', bar_options: 'bar', musicians: 'music', extras: 'extras', cinematographers: 'cinema', rehearsal_options: 'rehearsal', florists: 'flowers' };
+      const tid = modToTab[r.module] || r.module;
+      reloadTabIfActive(tid);
+    }
+  });
+
+  // All data tables — reload tab when data changes
+  Object.entries(tableToTab).forEach(([table, tabId]) => {
+    ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+      reloadTabIfActive(tabId);
+    });
+  });
+
+  ch.subscribe();
+}
+
+// ── Init ──
+initUserSelector();
+initializedTabs.add('dashboard');
+loadDashboard();
+setupRealtime();
+</script>
+</body>
+</html>

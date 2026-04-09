@@ -50,8 +50,9 @@ export default function App() {
         top: 0,
         zIndex: 200,
         background: 'var(--dark)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        padding: '14px 20px',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 20px',
+        height: 56,
       }}>
         <NavBar user={user} onSwitchUser={handleSwitchUser} />
       </div>

@@ -7,7 +7,6 @@ import {
   calculateAxisScores,
   determineArchetype,
 } from '../lib/quiz'
-
 const TOTAL = QUESTIONS.length
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -175,6 +174,19 @@ export default function Quiz({ user, onSwitchUser }) {
   // Load saved answers on mount
   useEffect(() => {
     async function loadAnswers() {
+      // Check completion first — independent of saved answers
+      const { data: result } = await supabase
+        .from('quiz_results')
+        .select('archetype')
+        .eq('user_id', user)
+        .maybeSingle()
+
+      if (result) {
+        navigate('/results', { replace: true })
+        return
+      }
+
+      // Not completed — load any saved answers to resume
       const { data } = await supabase
         .from('quiz_answers')
         .select('question_id, answer')
@@ -186,18 +198,6 @@ export default function Quiz({ user, onSwitchUser }) {
           saved[row.question_id] = row.answer
         })
         setAnswers(saved)
-
-        // Check if already completed
-        const { data: result } = await supabase
-          .from('quiz_results')
-          .select('archetype')
-          .eq('user_id', user)
-          .maybeSingle()
-
-        if (result) {
-          navigate('/results', { replace: true })
-          return
-        }
 
         // Resume from first unanswered
         const firstUnanswered = QUESTIONS.findIndex((q) => saved[q.id] == null)

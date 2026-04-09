@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
 import { AXES, ARCHETYPES, calculateCompatibility } from '../lib/quiz'
@@ -105,6 +106,7 @@ function WaitingScreen({ user, partner, onSwitchUser }) {
 // ─── Full Report ──────────────────────────────────────────────────────────────
 
 function CompatibilityReport({ user, resultsA, resultsB, compat, onSwitchUser, onRetake }) {
+  const navigate    = useNavigate()
   const userMeta    = USERS[user]
   const partnerMeta = USERS[OTHER[user]]
   const axisKeys    = Object.keys(AXES)
@@ -403,23 +405,45 @@ function CompatibilityReport({ user, resultsA, resultsB, compat, onSwitchUser, o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          className="flex justify-between items-center pt-4 border-t"
+          className="flex flex-col gap-3 pt-4 border-t"
           style={{ borderColor: 'rgba(255,255,255,0.08)' }}
         >
+          {/* Primary CTA */}
           <button
-            onClick={onRetake}
-            className="text-sm"
-            style={{ color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}
+            onClick={() => navigate('/dashboard')}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              borderRadius: 14,
+              border: 'none',
+              background: 'linear-gradient(135deg, #A51C30, #2D6A4F)',
+              color: '#fff',
+              fontFamily: 'Playfair Display, serif',
+              fontSize: '1rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              letterSpacing: '0.01em',
+            }}
           >
-            Retake quiz
+            Go to Dashboard →
           </button>
-          <button
-            onClick={onSwitchUser}
-            className="text-sm"
-            style={{ color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}
-          >
-            Switch user
-          </button>
+          {/* Secondary links */}
+          <div className="flex justify-between">
+            <button
+              onClick={onRetake}
+              className="text-sm"
+              style={{ color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}
+            >
+              Retake quiz
+            </button>
+            <button
+              onClick={onSwitchUser}
+              className="text-sm"
+              style={{ color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}
+            >
+              Switch user
+            </button>
+          </div>
         </motion.div>
       </div>
     </div>

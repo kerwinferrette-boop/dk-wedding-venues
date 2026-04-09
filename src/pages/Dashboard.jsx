@@ -24,12 +24,17 @@ const DEFAULT_BREAKDOWN = {
   florals: 0,
   music: 0,
   other: 0,
+  taxRate: 9.5,
+  gratRate: 20.0,
 }
 
 function calcTotal(b, multiplier = 1.25) {
-  const variable = (b.venue + b.catering + b.bar) * multiplier
-  const fixed = b.photography + b.florals + b.music + b.other
-  return { variable, fixed, total: variable + fixed }
+  const fnb = (b.catering || 0) + (b.bar || 0)
+  const taxAmt  = fnb * ((b.taxRate  ?? 9.5) / 100)
+  const gratAmt = fnb * ((b.gratRate ?? 20.0) / 100)
+  const variable = ((b.venue || 0) + (b.catering || 0) + (b.bar || 0)) * multiplier
+  const fixed = (b.photography || 0) + (b.florals || 0) + (b.music || 0) + (b.other || 0)
+  return { variable, fixed, taxAmt, gratAmt, total: variable + fixed + taxAmt + gratAmt }
 }
 
 // ─── Budget Line Row ──────────────────────────────────────────────────────────
@@ -119,6 +124,61 @@ function BudgetRow({ label, field, value, onChange, accent, isVariable }) {
           {value ? fmt(value) : 'tap to enter'}
         </button>
       )}
+    </div>
+  )
+}
+
+// ─── Percent Row (tax / gratuity) ─────────────────────────────────────────────
+
+function PctRow({ label, field, value, base, onChange, accent }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value ?? ''))
+  const inputRef = useRef(null)
+  const dollarAmt = base * ((value ?? 0) / 100)
+
+  function commit() {
+    const parsed = parseFloat(draft.replace(/[^0-9.]/g, '')) || 0
+    onChange(field, Math.min(parsed, 99))
+    setEditing(false)
+  }
+
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+
+  return (
+    <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-2">
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          {label}
+        </span>
+        {editing ? (
+          <div className="flex items-center gap-1">
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => e.key === 'Enter' && commit()}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                borderBottom: `1px solid ${accent}`,
+                fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text)',
+                width: 40, textAlign: 'right',
+              }}
+            />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setDraft(String(value ?? '')); setEditing(true) }}
+            style={{ background: `${accent}14`, border: 'none', cursor: 'pointer', borderRadius: 4, padding: '1px 6px', fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: accent, fontWeight: 600 }}
+          >
+            {value ?? 0}%
+          </button>
+        )}
+      </div>
+      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+        {dollarAmt > 0 ? fmt(dollarAmt) : '—'}
+      </span>
     </div>
   )
 }
@@ -223,6 +283,143 @@ function NavCard({ label, desc, icon, path, available, navigate }) {
   )
 }
 
+// ─── Wedding Calendar ─────────────────────────────────────────────────────────
+
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const CAL_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+
+function WeddingCalendar({ year, month, onNavMonth, selectedDate, offDays, calMode, onDayClick, onSetMode, accent }) {
+  const today    = new Date()
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const firstDow = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  const cells = []
+  for (let i = 0; i < firstDow; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
+  }
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const navBtn = {
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: '4px 10px', borderRadius: 7, color: 'var(--text-muted)',
+    fontFamily: 'DM Sans, sans-serif', fontSize: '1rem', lineHeight: 1,
+  }
+
+  return (
+    <div>
+      {/* Month navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button style={navBtn} onClick={() => onNavMonth(-1)}>‹</button>
+        <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '0.95rem', color: 'var(--text)' }}>
+          {CAL_MONTHS[month]} {year}
+        </span>
+        <button style={navBtn} onClick={() => onNavMonth(1)}>›</button>
+      </div>
+
+      {/* Day-of-week labels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
+        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+          <div key={d} style={{ textAlign: 'center', fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', color: 'var(--text-dim)', paddingBottom: 2 }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Date grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {cells.map((iso, i) => {
+          if (!iso) return <div key={i} />
+          const isSelected = iso === selectedDate
+          const isOff      = offDays.includes(iso)
+          const isToday    = iso === todayIso
+          const blocked    = calMode === 'select' && isOff
+          const day        = parseInt(iso.split('-')[2], 10)
+
+          return (
+            <button
+              key={iso}
+              onClick={() => !blocked && onDayClick(iso)}
+              style={{
+                position: 'relative',
+                padding: '7px 2px',
+                borderRadius: 8,
+                border: isSelected
+                  ? `1.5px solid ${accent}`
+                  : isOff && calMode === 'off'
+                  ? '1.5px solid rgba(224,112,112,0.4)'
+                  : '1.5px solid transparent',
+                background: isSelected
+                  ? `${accent}22`
+                  : isOff
+                  ? 'rgba(224,112,112,0.09)'
+                  : 'none',
+                cursor: blocked ? 'not-allowed' : 'pointer',
+                opacity: blocked ? 0.4 : 1,
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: '0.8rem',
+                fontWeight: isSelected ? 700 : 400,
+                color: isSelected ? accent : isOff ? 'rgba(224,112,112,0.75)' : 'var(--text)',
+                textDecoration: isOff ? 'line-through' : 'none',
+                textAlign: 'center',
+                transition: 'all 0.12s',
+              }}
+            >
+              {day}
+              {isToday && (
+                <span style={{
+                  position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)',
+                  width: 3, height: 3, borderRadius: '50%',
+                  background: isSelected ? accent : 'var(--text-dim)',
+                  display: 'block',
+                }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Mode toggle */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+        <button
+          onClick={() => onSetMode('select')}
+          style={{
+            flex: 1, padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem',
+            fontWeight: calMode === 'select' ? 600 : 400,
+            background: calMode === 'select' ? `${accent}18` : 'rgba(0,0,0,0.05)',
+            color: calMode === 'select' ? accent : 'var(--text-muted)',
+            border: `1px solid ${calMode === 'select' ? accent + '40' : 'transparent'}`,
+            transition: 'all 0.12s',
+          }}
+        >
+          Pick Date
+        </button>
+        <button
+          onClick={() => onSetMode('off')}
+          style={{
+            flex: 1, padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem',
+            fontWeight: calMode === 'off' ? 600 : 400,
+            background: calMode === 'off' ? 'rgba(224,112,112,0.12)' : 'rgba(0,0,0,0.05)',
+            color: calMode === 'off' ? '#E07070' : 'var(--text-muted)',
+            border: `1px solid ${calMode === 'off' ? 'rgba(224,112,112,0.4)' : 'transparent'}`,
+            transition: 'all 0.12s',
+          }}
+        >
+          Block Off-Days
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function formatCalDate(iso) {
+  const d = new Date(iso + 'T12:00:00')
+  return `${CAL_DAYS[d.getDay()]}, ${CAL_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard({ user, onSwitchUser }) {
@@ -239,12 +436,20 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [pkgSelections, setPkgSelections] = useState({})
   const saveTimerRef = useRef(null)
 
+  // ── Calendar ─────────────────────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [offDays, setOffDays]           = useState([])
+  const [calYear, setCalYear]           = useState(() => new Date().getFullYear())
+  const [calMonth, setCalMonth]         = useState(() => new Date().getMonth())
+  const [calMode, setCalMode]           = useState('select')
+  const [pricingState, setPricingState] = useState('idle') // 'idle'|'loading'|'done'|'error'
+
   // ── Load project_metadata + venues ────────────────────────────────────────
   useEffect(() => {
     async function load() {
       const [{ data }, { data: venueData }] = await Promise.all([
         supabase.from('project_metadata').select('*').eq('id', 1).single(),
-        supabase.from('venues').select('id, name, venue_fee').neq('archived', true).order('name'),
+        supabase.from('venues').select('id, name, venue_fee, url').neq('archived', true).order('name'),
       ])
 
       if (data) {
@@ -256,6 +461,8 @@ export default function Dashboard({ user, onSwitchUser }) {
         if (bb._venue_id) setSelectedVenueId(bb._venue_id)
         if (bb._guests) setGuestCount(bb._guests)
         if (bb._pkg) setPkgSelections(bb._pkg)
+        if (bb._cal_date) setSelectedDate(bb._cal_date)
+        if (bb._cal_off)  setOffDays(bb._cal_off || [])
       }
       setVenues(venueData || [])
       setLoaded(true)
@@ -279,6 +486,8 @@ export default function Dashboard({ user, onSwitchUser }) {
           if (bb._venue_id) setSelectedVenueId(bb._venue_id)
           if (bb._guests) setGuestCount(bb._guests)
           if (bb._pkg) setPkgSelections(bb._pkg)
+          if (bb._cal_date) setSelectedDate(bb._cal_date)
+          if (bb._cal_off)  setOffDays(bb._cal_off || [])
         }
       )
       .subscribe()
@@ -305,6 +514,77 @@ export default function Dashboard({ user, onSwitchUser }) {
       next[cat.budgetField] = calcOptionCost(opt, guests)
     }
     return next
+  }
+
+  // ── Calendar handlers ─────────────────────────────────────────────────────
+
+  async function handlePickDate(date) {
+    setSelectedDate(date)
+    setPricingState('idle')
+    const next = { ...breakdown, _cal_date: date, _cal_off: offDays }
+    setBreakdown(next)
+    await supabase.from('project_metadata').update({
+      wedding_date: formatCalDate(date),
+      budget_breakdown: next,
+    }).eq('id', 1)
+    triggerAutoPricing(date, next)
+  }
+
+  async function handleToggleOffDay(date) {
+    const next = offDays.includes(date)
+      ? offDays.filter(d => d !== date)
+      : [...offDays, date]
+    setOffDays(next)
+    const newDate = next.includes(selectedDate) ? null : selectedDate
+    if (newDate !== selectedDate) setSelectedDate(newDate)
+    const bb = { ...breakdown, _cal_off: next, _cal_date: newDate }
+    setBreakdown(bb)
+    await supabase.from('project_metadata').update({
+      budget_breakdown: bb,
+      ...(newDate !== selectedDate ? { wedding_date: null } : {}),
+    }).eq('id', 1)
+  }
+
+  async function triggerAutoPricing(date, currentBreakdown) {
+    const venueUrl = venues.find(v => v.id === selectedVenueId)?.url ?? null
+    const quotes   = currentBreakdown._quotes ?? []
+    if (!venueUrl && quotes.length === 0) return
+    setPricingState('loading')
+    try {
+      const res = await fetch('/.netlify/functions/date-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, venueUrl, quotes }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const pricing = await res.json()
+      if (pricing.error) throw new Error(pricing.error)
+
+      const merged = { ...currentBreakdown }
+      for (const field of ['venue','catering','bar','photography','florals','music','other']) {
+        if ((pricing[field] ?? 0) > 0) merged[field] = pricing[field]
+      }
+      merged._pricing_notes = pricing.notes
+      merged._pricing_date  = date
+
+      setBreakdown(merged)
+      setPricingState('done')
+      await supabase.from('project_metadata').update({
+        plus_plus_multiplier: pricing.multiplier ?? 1.25,
+        budget_breakdown: merged,
+      }).eq('id', 1)
+    } catch {
+      setPricingState('error')
+    }
+  }
+
+  function handleCalNav(dir) {
+    let m = calMonth + dir
+    let y = calYear
+    if (m < 0)  { m = 11; y-- }
+    if (m > 11) { m = 0;  y++ }
+    setCalMonth(m)
+    setCalYear(y)
   }
 
   // ── Budget line update (manual rows) ──────────────────────────────────────
@@ -370,7 +650,7 @@ export default function Dashboard({ user, onSwitchUser }) {
   // ── Derived ───────────────────────────────────────────────────────────────
   const activePackage = selectedVenueId ? VENUE_PACKAGES[selectedVenueId] ?? null : null
   const multiplier = meta?.plus_plus_multiplier ?? 1.25
-  const { variable, fixed, total } = calcTotal(breakdown, multiplier)
+  const { variable, fixed, taxAmt, gratAmt, total } = calcTotal(breakdown, multiplier)
   const budget = meta?.budget_target ?? 0
   const overBudget = budget > 0 && total > budget
   const pct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0
@@ -427,6 +707,55 @@ export default function Dashboard({ user, onSwitchUser }) {
             </p>
           </div>
         </div>
+
+        {/* ── Wedding Date Calendar ──────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-5 rounded-2xl mb-4"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+              Wedding Date
+            </h2>
+            {selectedDate && (
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, fontWeight: 600 }}>
+                {formatCalDate(selectedDate).split(', ').slice(1).join(', ')}
+              </span>
+            )}
+          </div>
+
+          <WeddingCalendar
+            year={calYear}
+            month={calMonth}
+            onNavMonth={handleCalNav}
+            selectedDate={selectedDate}
+            offDays={offDays}
+            calMode={calMode}
+            onDayClick={date => calMode === 'select' ? handlePickDate(date) : handleToggleOffDay(date)}
+            onSetMode={setCalMode}
+            accent={userMeta.color}
+          />
+
+          {pricingState === 'loading' && (
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 15, height: 15, borderRadius: '50%',
+                border: `2px solid ${userMeta.color}`, borderTopColor: 'transparent',
+                animation: 'spin 0.7s linear infinite', flexShrink: 0,
+              }} />
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Reading quotes &amp; venue site…
+              </span>
+            </div>
+          )}
+          {pricingState === 'error' && (
+            <p style={{ marginTop: 10, fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: '#E07070', margin: '10px 0 0' }}>
+              Couldn't auto-fill pricing. Check venue URL or try again.
+            </p>
+          )}
+        </motion.div>
 
         {/* ── Archetype Pair Card ────────────────────────────────────────── */}
         {(kerwinArchetype || daniArchetype) && (
@@ -765,76 +1094,54 @@ export default function Dashboard({ user, onSwitchUser }) {
             />
           ))}
 
+          {/* Tax & Gratuity */}
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: 16, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Tax &amp; Gratuity <span style={{ fontSize: '0.6rem', letterSpacing: 0, textTransform: 'none', color: 'var(--text-dim)' }}>(applied to F&amp;B)</span>
+          </p>
+          <PctRow label="Sales Tax" field="taxRate" value={breakdown.taxRate ?? 9.5} base={(breakdown.catering || 0) + (breakdown.bar || 0)} onChange={updateLine} accent={userMeta.color} />
+          <PctRow label="Gratuity" field="gratRate" value={breakdown.gratRate ?? 20.0} base={(breakdown.catering || 0) + (breakdown.bar || 0)} onChange={updateLine} accent={userMeta.color} />
+
           {/* Formula breakdown */}
           <div
             className="mt-4 pt-4 flex flex-col gap-1.5"
             style={{ borderTop: '1px solid var(--border)' }}
           >
-            <div className="flex justify-between">
-              <span
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Variable subtotal (×{multiplier})
-              </span>
-              <span
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {fmt(variable)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                Fixed costs
-              </span>
-              <span
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {fmt(fixed)}
-              </span>
-            </div>
+            {[
+              { label: `Variable subtotal (×${multiplier})`, val: variable },
+              { label: 'Fixed costs', val: fixed },
+              { label: `Tax (${breakdown.taxRate ?? 9.5}%)`, val: taxAmt },
+              { label: `Gratuity (${breakdown.gratRate ?? 20.0}%)`, val: gratAmt },
+            ].map(({ label, val }) => (
+              <div key={label} className="flex justify-between">
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmt(val)}</span>
+              </div>
+            ))}
 
             <div
               className="flex justify-between pt-2 mt-1"
               style={{ borderTop: '1px solid var(--border)' }}
             >
-              <span
-                style={{
-                  fontFamily: 'Playfair Display, serif',
-                  fontSize: '1.05rem',
-                  color: overBudget ? 'var(--red)' : 'var(--text)',
-                }}
-              >
+              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: overBudget ? 'var(--red)' : 'var(--text)' }}>
                 Total
               </span>
-              <span
-                style={{
-                  fontFamily: 'Playfair Display, serif',
-                  fontSize: '1.05rem',
-                  color: overBudget ? 'var(--red)' : 'var(--text)',
-                }}
-              >
+              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: overBudget ? 'var(--red)' : 'var(--text)' }}>
                 {fmt(total)}
               </span>
             </div>
           </div>
+
+          {/* AI pricing notes banner */}
+          {breakdown._pricing_notes && breakdown._pricing_date === selectedDate && (
+            <div
+              className="mt-3 px-3 py-2.5 rounded-xl"
+              style={{ background: `${userMeta.color}0E`, border: `1px solid ${userMeta.color}28` }}
+            >
+              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, margin: 0, lineHeight: 1.5 }}>
+                ✦ {breakdown._pricing_notes}
+              </p>
+            </div>
+          )}
 
           {/* Budget progress bar */}
           {budget > 0 && (

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
-import NavBar from '../components/NavBar'
 
 const TABS = [
   { id: 'music',        label: 'Music',        table: 'musicians',          icon: '🎵' },
@@ -523,6 +522,19 @@ function QuoteScanModal({ tab, user, onClose, onAdded }) {
     const payload = buildVendorPayload(tab.id, form)
     const { data, error: err } = await supabase.from(tab.table).insert(payload).select().single()
     if (err) { setError(err.message); setSaving(false); return }
+
+    // Store extracted quote data for AI date-pricing
+    ;(async () => {
+      try {
+        const { data: meta } = await supabase.from('project_metadata').select('budget_breakdown').eq('id', 1).single()
+        const bb = meta?.budget_breakdown || {}
+        const existing = bb._quotes || []
+        await supabase.from('project_metadata').update({
+          budget_breakdown: { ...bb, _quotes: [...existing, { type: tab.id, text: form, savedAt: new Date().toISOString() }] },
+        }).eq('id', 1)
+      } catch {}
+    })()
+
     onAdded(data || { ...payload, id: Date.now() })
     onClose()
   }
@@ -673,27 +685,23 @@ export default function Vendors({ user, onSwitchUser }) {
     <div style={PAGE_STYLE}>
       {/* Header */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 50,
+        position: 'sticky', top: 56, zIndex: 50,
         background: 'var(--dark)', borderBottom: '1px solid var(--border)',
         padding: '0 24px',
       }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', height: 60, display: 'flex', alignItems: 'center' }}>
-          <NavBar user={user} onSwitchUser={onSwitchUser}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: 22, fontWeight: 700, margin: 0 }}>
-                Vendor Board
-              </h1>
-              <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 500 }}>
-                {selectedCount}/{TABS.length} categories locked
-              </span>
-              <button
-                onClick={() => setShowQuoteScan(true)}
-                style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${userMeta.color}44`, background: `${userMeta.color}0D`, color: userMeta.color, fontFamily: '"DM Sans", sans-serif', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >
-                📄 Scan Quote
-              </button>
-            </div>
-          </NavBar>
+        <div style={{ maxWidth: 1100, margin: '0 auto', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--text)' }}>
+            Vendor Board
+          </h1>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 500 }}>
+            {selectedCount}/{TABS.length} categories locked
+          </span>
+          <button
+            onClick={() => setShowQuoteScan(true)}
+            style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${userMeta.color}44`, background: `${userMeta.color}0D`, color: userMeta.color, fontFamily: '"DM Sans", sans-serif', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            📄 Scan Quote
+          </button>
         </div>
 
         {/* Tab bar */}

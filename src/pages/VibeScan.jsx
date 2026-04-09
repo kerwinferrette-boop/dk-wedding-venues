@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
 import { AXES, ARCHETYPES, calculateCompatibility } from '../lib/quiz'
 import ArchetypeBadge from '../components/ArchetypeBadge'
-import NavBar from '../components/NavBar'
 
 function getDomain(url) {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
@@ -201,11 +200,6 @@ export default function VibeScan({ user, onSwitchUser }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--dark)' }}>
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 20px 64px' }}>
-
-        {/* Nav */}
-        <div style={{ marginBottom: 32 }}>
-          <NavBar user={user} onSwitchUser={onSwitchUser} />
-        </div>
 
         <AnimatePresence mode="wait">
 
