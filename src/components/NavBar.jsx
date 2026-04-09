@@ -4,9 +4,9 @@ import { USERS } from '../lib/supabase'
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home' },
+  { path: '/venues',    label: 'Venues' },
   { path: '/guests',    label: 'Guests' },
   { path: '/vendors',   label: 'Vendors' },
-  { path: '/venues',    label: 'Venues' },
   { path: '/vibe',      label: 'Vibe' },
 ]
 

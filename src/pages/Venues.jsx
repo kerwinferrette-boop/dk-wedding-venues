@@ -1769,55 +1769,21 @@ export default function Venues({ user, onSwitchUser }) {
         </div>
       </div>
 
-      {/* ── Venue Grid ────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1140, margin: '0 auto', padding: '24px' }}>
-        {filteredVenues.length === 0 ? (
-          <div style={{
-            textAlign: 'center', padding: '60px 20px',
-            fontFamily: 'DM Sans', color: 'var(--text-muted)',
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-            <p style={{ fontSize: 16, margin: '0 0 16px' }}>No venues match these filters.</p>
-            <button
-              onClick={() => {
-                setActiveRegion('all')
-                setFilterTopPicks(false)
-                setFilterHasPackage(false)
-                setMaxFee(50000)
-                setMinCap(0)
-              }}
-              style={{
-                padding: '9px 22px', borderRadius: 20,
-                border: `1.5px solid ${userColor}`,
-                background: 'transparent', color: userColor,
-                fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <motion.div layout style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-            gap: 18,
-          }}>
-            <AnimatePresence>
-              {filteredVenues.map(venue => (
-                <VenueCard
-                  key={venue.id}
-                  venue={venue}
-                  ratings={ratingsMap[venue.id]}
-                  user={user}
-                  onRate={v => setRatingVenue(v)}
-                  onPackage={v => setPackageVenue(v)}
-                  onQuote={v => setQuoteVenue(v)}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
+      {/* ── Coming Soon ───────────────────────────────────────────────────── */}
+      <div style={{
+        maxWidth: 600, margin: '80px auto', padding: '0 24px',
+        textAlign: 'center', fontFamily: 'DM Sans, sans-serif',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 20 }}>🏛️</div>
+        <h2 style={{
+          fontFamily: 'Playfair Display, serif', fontSize: 22,
+          color: 'var(--text)', margin: '0 0 12px',
+        }}>
+          Venue Comparison Coming Soon
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+          This is where side-by-side venue comparison, pricing breakdowns, and your shortlist will live.
+        </p>
       </div>
 
       {/* ── Rating Modal ──────────────────────────────────────────────────── */}
