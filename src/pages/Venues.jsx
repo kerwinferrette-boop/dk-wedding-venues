@@ -157,7 +157,7 @@ function StatPill({ icon, label, value }) {
 
 // ── VenueCard ──────────────────────────────────────────────────────────────────
 
-function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete }) {
+function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete, guestCount }) {
   const userColor = USER_COLORS[user]
   const myRating  = ratings?.[user]
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -174,6 +174,15 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete 
   const fmtFee = venue.venue_fee
     ? fmt(venue.venue_fee)
     : venue.catering_pp ? 'Bundled' : null
+
+  const estTotal = (() => {
+    const gc  = guestCount || 0
+    const fee = venue.venue_fee    || 0
+    const cpp = venue.catering_pp  || 0
+    const bpp = venue.bar_pp       || 0
+    if (!fee && !cpp && !bpp) return null
+    return fee + (cpp + bpp) * gc
+  })()
 
   return (
     <motion.div
@@ -304,6 +313,24 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete 
           {venue.max_cap && <StatPill icon="👥" label="Capacity" value={`${venue.max_cap}`} />}
           {venue.catering_pp && <StatPill icon="🍽" label="Catering" value={`${fmt(venue.catering_pp)}/pp`} />}
         </div>
+
+        {/* Estimated total */}
+        {estTotal != null && (
+          <div style={{
+            padding: '6px 10px',
+            background: `${userColor}12`,
+            border: `1px solid ${userColor}30`,
+            borderRadius: 8,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)' }}>
+              Est. for {guestCount} guests
+            </span>
+            <span style={{ fontFamily: 'Playfair Display, serif', fontSize: 14, fontWeight: 700, color: userColor }}>
+              {fmt(estTotal)}
+            </span>
+          </div>
+        )}
 
         {/* Vibe tags */}
         {vibeTags.length > 0 && (
@@ -981,8 +1008,7 @@ function QuoteUploadModal({ venue, user, onClose }) {
       const { data: fnData, error: fnErr } = await supabase.functions.invoke('extract-quote', {
         body: { file_path: filePath, venue_id: venue.id, user },
       })
-      if (fnErr) throw new Error(fnErr.message)
-      if (fnData?.error) throw new Error(fnData.error)
+      if (!fnData?.success) throw new Error(fnData?.error || fnErr?.message || 'Extraction failed')
 
       setExtracted(fnData.extracted)
       setStatus('done')
@@ -1571,6 +1597,7 @@ export default function Venues({ user, onSwitchUser }) {
   const [sortBy,           setSortBy]           = useState('name')
   const [maxFee,           setMaxFee]           = useState(50000)
   const [minCap,           setMinCap]           = useState(0)
+  const [guestCount,       setGuestCount]       = useState(150)
 
   // Modals
   const [ratingVenue,  setRatingVenue]  = useState(null)
@@ -1717,6 +1744,24 @@ export default function Venues({ user, onSwitchUser }) {
                 {filteredVenues.length} of {venues.length} venues
               </p>
             </div>
+
+            {/* Guest count input */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                👥 Guests
+              </span>
+              <input
+                type="number"
+                min={1} max={999} value={guestCount}
+                onChange={e => setGuestCount(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{
+                  width: 64, padding: '5px 8px', borderRadius: 8,
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--dark)', color: 'var(--text)',
+                  fontFamily: 'DM Sans', fontSize: 13, textAlign: 'center', outline: 'none',
+                }}
+              />
+            </div>
           </div>
 
           {/* Region tabs */}
@@ -1861,6 +1906,7 @@ export default function Venues({ user, onSwitchUser }) {
                   venue={venue}
                   ratings={ratingsMap[venue.id]}
                   user={user}
+                  guestCount={guestCount}
                   onRate={v => setRatingVenue(v)}
                   onPackage={v => setPackageVenue(v)}
                   onQuote={v => setQuoteVenue(v)}
