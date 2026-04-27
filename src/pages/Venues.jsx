@@ -271,7 +271,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
         {/* Edit toggle + Ratings dots — top right */}
         <div style={{ position: 'absolute', top: 8, right: 10, zIndex: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
-            onClick={() => setEditMode(m => !m)}
+            onClick={e => { e.stopPropagation(); setEditMode(m => !m) }}
             title="Edit venue"
             style={{
               background: editMode ? userColor : 'rgba(0,0,0,0.35)',
