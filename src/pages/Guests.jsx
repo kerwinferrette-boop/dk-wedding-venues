@@ -662,7 +662,11 @@ export default function Guests({ user }) {
   async function addGuest(name, addedBy = user) {
     const g = makeGuest({ name }, addedBy)
     setGuests(prev => { const updated = [...prev, g]; saveLocal(updated); return updated })
-    try { await supabase.from('guests').insert(guestToDb(g)) } catch {}
+    try {
+      await supabase.from('guests').insert(guestToDb(g))
+    } catch (err) {
+      console.error('addGuest error:', err)
+    }
   }
 
   async function removeGuest(id) {
@@ -693,10 +697,15 @@ export default function Guests({ user }) {
     const mapping = {
       status: 'status', role: 'role', notes: 'notes',
       plusOne: 'plus_one', hasMetDani: 'has_met_dani',
+      plansToMeet: 'plans_to_meet', invitedEngagement: 'invited_engagement',
+      engagementPlusOne: 'engagement_plus_one', goingEngagement: 'going_engagement',
+      knowFrom: 'know_from', residence: 'residence', rsvp: 'rsvp',
     }
     Object.entries(fields).forEach(([k, v]) => { if (mapping[k]) dbFields[mapping[k]] = v })
     optimistic(guests.map(g => g.id === id ? { ...g, ...fields } : g))
-    try { await supabase.from('guests').update(dbFields).eq('id', id) } catch {}
+    try { await supabase.from('guests').update(dbFields).eq('id', id) } catch (err) {
+      console.error('updateGuest error:', err)
+    }
   }
 
   // ─── Import ─────────────────────────────────────────────────────────────────
@@ -932,7 +941,7 @@ export default function Guests({ user }) {
                 <SectionHeader
                   label="Unassigned"
                   count={guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani').length}
-                  plusOnes={0}
+                  plusOnes={guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani' && g.plusOne).length}
                   kCount={0}
                   dCount={0}
                   colSpan={totalCols}

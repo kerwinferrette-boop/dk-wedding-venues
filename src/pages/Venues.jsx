@@ -157,10 +157,15 @@ function StatPill({ icon, label, value }) {
 
 // ── VenueCard ──────────────────────────────────────────────────────────────────
 
-function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete, guestCount }) {
+function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete, guestCount, quotes, onQuoteView, onUpdate }) {
   const userColor = USER_COLORS[user]
   const myRating  = ratings?.[user]
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editMode, setEditMode]   = useState(false)
+  const [editName, setEditName]   = useState(venue.name || '')
+  const [editUrl,  setEditUrl]    = useState(venue.website_url || '')
+  const [editFee,  setEditFee]    = useState(venue.venue_fee || '')
+  const [editCat,  setEditCat]    = useState(venue.catering_pp || '')
 
   const badges = []
   if (venue.leader)      badges.push({ label: '⭐ Top Pick',       color: '#C9932A' })
@@ -217,52 +222,68 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
           }} />
         )}
 
-        {/* Delete button — top left */}
+        {/* Delete button — top left (only in edit mode) */}
         <div style={{ position: 'absolute', top: 8, left: 10, zIndex: 2 }}>
-          {confirmDelete ? (
-            <div style={{ display: 'flex', gap: 4 }}>
+          {editMode && (
+            confirmDelete ? (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => { onDelete(venue.id); setConfirmDelete(false) }}
+                  style={{
+                    background: '#ef4444', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '4px 8px', fontSize: 11,
+                    fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', fontWeight: 700,
+                  }}
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    background: 'rgba(0,0,0,0.45)', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '4px 7px', fontSize: 11,
+                    fontFamily: 'DM Sans, sans-serif', cursor: 'pointer',
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => { onDelete(venue.id); setConfirmDelete(false) }}
+                onClick={() => setConfirmDelete(true)}
+                title="Remove venue"
                 style={{
-                  background: '#ef4444', color: '#fff', border: 'none',
-                  borderRadius: 6, padding: '4px 8px', fontSize: 11,
-                  fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', fontWeight: 700,
+                  background: 'rgba(0,0,0,0.35)', color: 'rgba(255,255,255,0.7)',
+                  border: 'none', borderRadius: 6, width: 24, height: 24,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontSize: 14, lineHeight: 1,
+                  transition: 'background 0.15s, color 0.15s',
                 }}
+                onMouseOver={e => { e.currentTarget.style.background = '#ef444488'; e.currentTarget.style.color = '#fff' }}
+                onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
               >
-                Remove
+                🗑
               </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                style={{
-                  background: 'rgba(0,0,0,0.45)', color: '#fff', border: 'none',
-                  borderRadius: 6, padding: '4px 7px', fontSize: 11,
-                  fontFamily: 'DM Sans, sans-serif', cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              title="Remove venue"
-              style={{
-                background: 'rgba(0,0,0,0.35)', color: 'rgba(255,255,255,0.7)',
-                border: 'none', borderRadius: 6, width: 24, height: 24,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', fontSize: 14, lineHeight: 1,
-                transition: 'background 0.15s, color 0.15s',
-              }}
-              onMouseOver={e => { e.currentTarget.style.background = '#ef444488'; e.currentTarget.style.color = '#fff' }}
-              onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
-            >
-              🗑
-            </button>
+            )
           )}
         </div>
 
-        {/* Ratings dots — top right */}
-        <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 2 }}>
+        {/* Edit toggle + Ratings dots — top right */}
+        <div style={{ position: 'absolute', top: 8, right: 10, zIndex: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => setEditMode(m => !m)}
+            title="Edit venue"
+            style={{
+              background: editMode ? userColor : 'rgba(0,0,0,0.35)',
+              color: '#fff', border: 'none', borderRadius: 6,
+              width: 24, height: 24,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: 12, lineHeight: 1,
+              transition: 'background 0.15s',
+            }}
+          >
+            ✏️
+          </button>
           <RatingDots ratings={ratings} myUser={user} />
         </div>
 
@@ -286,6 +307,51 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
           </div>
         </div>
       </div>
+
+      {/* ── Edit Panel ─────────────────────────────────────────────────────── */}
+      {editMode && (
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[
+            { label: 'Name',        val: editName, set: setEditName, type: 'text' },
+            { label: 'Website URL', val: editUrl,  set: setEditUrl,  type: 'url' },
+            { label: 'Venue Fee',   val: editFee,  set: setEditFee,  type: 'number' },
+            { label: 'Catering/pp', val: editCat,  set: setEditCat,  type: 'number' },
+          ].map(({ label, val, set, type }) => (
+            <label key={label} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, color: 'rgba(255,255,255,0.6)', fontFamily: 'DM Sans' }}>
+              {label}
+              <input
+                type={type} value={val}
+                onChange={e => set(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '5px 8px', color: '#fff', fontSize: 13, fontFamily: 'DM Sans' }}
+              />
+            </label>
+          ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button
+              onClick={async () => {
+                const updates = {
+                  name: editName,
+                  website_url: editUrl || null,
+                  venue_fee: editFee ? parseFloat(editFee) : null,
+                  catering_pp: editCat ? parseFloat(editCat) : null,
+                }
+                await supabase.from('venues').update(updates).eq('id', venue.id)
+                onUpdate?.(venue.id, updates)
+                setEditMode(false)
+              }}
+              style={{ flex: 1, padding: '7px 0', borderRadius: 8, background: userColor, border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans', fontWeight: 600 }}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditMode(false)}
+              style={{ flex: 1, padding: '7px 0', borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
       <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -398,6 +464,20 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
           >
             📄
           </button>
+
+          {/* Quote view */}
+          {quotes?.some(q => q.extracted_data && !q.extracted_data.parse_error) && (
+            <button
+              onClick={() => onQuoteView(venue, quotes)}
+              style={{
+                padding: '8px 12px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+                color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans'
+              }}
+            >
+              📋 Quote
+            </button>
+          )}
 
           {/* Site link */}
           {venue.url && (
@@ -660,6 +740,117 @@ const PACKAGE_DATA = {
       { key: 'coord',   label: 'Day-of Coordination',  type: 'fixed',      amount: 2000 },
     ],
   },
+}
+
+// ── Quote Data Modal ───────────────────────────────────────────────────────────
+
+const DATE_KEYWORDS = /saturday|sunday|weekend|peak|minimum|surcharge|holiday|friday|off-peak|seasonal/i
+
+function QuoteDataModal({ venue, quotes, user, onClose }) {
+  const userColor = USER_COLORS[user]
+  const latest = quotes?.slice().sort((a, b) => b.id - a.id)[0]
+  const data    = latest?.extracted_data
+
+  function isFlagged(text) {
+    return DATE_KEYWORDS.test(String(text || ''))
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={onClose}>
+      <div style={{ background: '#1a1a2e', borderRadius: 20, padding: 28, maxWidth: 680, width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
+        onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 22, fontWeight: 700, color: '#fff' }}>{venue.name}</div>
+            <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Extracted Quote</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {!data ? (
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'DM Sans', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>No extracted quote data available.</div>
+        ) : data.parse_error ? (
+          <pre style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{data.raw}</pre>
+        ) : (
+          <>
+            {/* Summary row */}
+            {(data.total || data.deposit) && (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                {data.total && (
+                  <div style={{ flex: 1, minWidth: 140, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '12px 16px' }}>
+                    <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>TOTAL</div>
+                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 20, fontWeight: 700, color: userColor }}>{data.total}</div>
+                  </div>
+                )}
+                {data.deposit && (
+                  <div style={{ flex: 1, minWidth: 140, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '12px 16px' }}>
+                    <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>DEPOSIT</div>
+                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 20, fontWeight: 700, color: '#fff' }}>{data.deposit}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Line items */}
+            {data.line_items?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Line Items</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {data.line_items.map((item, i) => {
+                    const label = item.description || item.label || item.name || ''
+                    const flagged = isFlagged(label) || isFlagged(item.amount) || isFlagged(item.note)
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '8px 12px', borderRadius: 8,
+                        background: flagged ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.04)',
+                        border: flagged ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(255,255,255,0.06)',
+                      }}>
+                        <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: flagged ? '#FBB024' : 'rgba(255,255,255,0.85)' }}>
+                          {flagged && <span style={{ marginRight: 6 }}>⚠️</span>}{label}
+                          {item.note && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>{item.note}</span>}
+                        </div>
+                        <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600, color: flagged ? '#FBB024' : '#fff', whiteSpace: 'nowrap', marginLeft: 12 }}>{item.amount || item.price || item.cost || ''}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Inclusions */}
+            {data.inclusions?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Included</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {data.inclusions.map((inc, i) => {
+                    const text = typeof inc === 'string' ? inc : inc.description || inc.label || ''
+                    const flagged = isFlagged(text)
+                    return (
+                      <div key={i} style={{ fontFamily: 'DM Sans', fontSize: 13, color: flagged ? '#FBB024' : 'rgba(255,255,255,0.75)', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: userColor }}>✓</span>
+                        {flagged && <span>⚠️</span>}{text}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {data.notes && (
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Notes</div>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{data.notes}</div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── Package Builder Modal ─────────────────────────────────────────────────────
@@ -969,7 +1160,7 @@ function PackageModal({ venue, user, onClose }) {
 
 // ── Quote Upload Modal ────────────────────────────────────────────────────────
 
-function QuoteUploadModal({ venue, user, onClose }) {
+function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
   const userColor = USER_COLORS[user]
   const [file, setFile] = useState(null)
   const [dragOver, setDragOver] = useState(false)
@@ -1019,6 +1210,7 @@ function QuoteUploadModal({ venue, user, onClose }) {
         .eq('venue_id', venue.id)
         .order('uploaded_at', { ascending: false })
       setPastQuotes(data || [])
+      onSuccess?.()
     } catch (e) {
       setErrorMsg(String(e))
       setStatus('error')
@@ -1598,12 +1790,15 @@ export default function Venues({ user, onSwitchUser }) {
   const [maxFee,           setMaxFee]           = useState(50000)
   const [minCap,           setMinCap]           = useState(0)
   const [guestCount,       setGuestCount]       = useState(150)
+  const [quotesMap,        setQuotesMap]        = useState({})
 
   // Modals
-  const [ratingVenue,  setRatingVenue]  = useState(null)
-  const [packageVenue, setPackageVenue] = useState(null)
-  const [quoteVenue,   setQuoteVenue]   = useState(null)
-  const [showAddVenue, setShowAddVenue] = useState(false)
+  const [ratingVenue,     setRatingVenue]     = useState(null)
+  const [packageVenue,    setPackageVenue]    = useState(null)
+  const [quoteVenue,      setQuoteVenue]      = useState(null)
+  const [showAddVenue,    setShowAddVenue]    = useState(false)
+  const [quoteDataVenue,  setQuoteDataVenue]  = useState(null)
+  const [quoteDataQuotes, setQuoteDataQuotes] = useState(null)
 
   // ── Load ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1627,6 +1822,21 @@ export default function Venues({ user, onSwitchUser }) {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    loadQuotes()
+  }, [])
+
+  async function loadQuotes() {
+    const { data } = await supabase.from('quote_files').select('*')
+    if (!data) return
+    const map = {}
+    data.forEach(q => {
+      if (!map[q.venue_id]) map[q.venue_id] = []
+      map[q.venue_id].push(q)
+    })
+    setQuotesMap(map)
+  }
 
   // ── Save Rating ────────────────────────────────────────────────────────────
   const saveRating = useCallback(async (venueId, stars, notes) => {
@@ -1911,6 +2121,9 @@ export default function Venues({ user, onSwitchUser }) {
                   onPackage={v => setPackageVenue(v)}
                   onQuote={v => setQuoteVenue(v)}
                   onDelete={deleteVenue}
+                  quotes={quotesMap[venue.id] || []}
+                  onQuoteView={(v, qs) => { setQuoteDataVenue(v); setQuoteDataQuotes(qs) }}
+                  onUpdate={(id, updates) => setVenues(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v))}
                 />
               ))}
             </AnimatePresence>
@@ -1949,6 +2162,19 @@ export default function Venues({ user, onSwitchUser }) {
             venue={quoteVenue}
             user={user}
             onClose={() => setQuoteVenue(null)}
+            onSuccess={loadQuotes}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Quote Data Modal ───────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {quoteDataVenue && (
+          <QuoteDataModal
+            venue={quoteDataVenue}
+            quotes={quoteDataQuotes}
+            user={user}
+            onClose={() => { setQuoteDataVenue(null); setQuoteDataQuotes(null) }}
           />
         )}
       </AnimatePresence>
