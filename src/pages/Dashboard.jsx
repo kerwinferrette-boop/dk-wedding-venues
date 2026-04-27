@@ -283,6 +283,123 @@ function NavCard({ label, desc, icon, path, available, navigate }) {
   )
 }
 
+// ─── Dash Venue Card ──────────────────────────────────────────────────────────
+
+const REGION_LABEL = { socal: 'SoCal', bay: 'Bay Area', monterey: 'Monterey' }
+
+function normalizeRegion(r) {
+  if (!r) return null
+  const s = r.toLowerCase()
+  if (s === 'bay_area' || s === 'bay') return 'bay'
+  return s
+}
+
+function DashVenueCard({ venue, accentColor, onClick }) {
+  const badges = []
+  if (venue.leader)      badges.push({ label: '⭐ Top Pick',    color: '#C9932A' })
+  if (venue.has_package) badges.push({ label: '📦 Package',     color: '#7B61FF' })
+  if (venue.aqua)        badges.push({ label: '🐟 Aquarium',    color: '#2B9FCC' })
+  if (venue.arch)        badges.push({ label: '🏛️ Historic',   color: '#9A7B5E' })
+  if (venue.planet)      badges.push({ label: '🔭 Planetarium', color: '#8A5FCC' })
+
+  const regionKey = normalizeRegion(venue.region)
+  const regionLabel = REGION_LABEL[regionKey] || venue.region || null
+
+  const feeLabel = venue.venue_fee
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(venue.venue_fee)
+    : venue.catering_pp ? 'Bundled' : null
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+      onClick={onClick}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      {/* Hero image */}
+      <div style={{
+        height: 110,
+        background: venue.image_url
+          ? `url(${venue.image_url}) center/cover no-repeat`
+          : `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}05 100%)`,
+        position: 'relative',
+      }}>
+        {venue.image_url && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5))',
+          }} />
+        )}
+        {regionLabel && (
+          <span style={{
+            position: 'absolute', bottom: 8, right: 10,
+            fontFamily: 'DM Sans, sans-serif', fontSize: 10, fontWeight: 700,
+            color: '#fff', background: 'rgba(0,0,0,0.45)',
+            padding: '2px 7px', borderRadius: 10, letterSpacing: '0.04em',
+          }}>
+            {regionLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '10px 14px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+          <span style={{
+            fontFamily: 'Playfair Display, serif', fontSize: '0.95rem',
+            color: 'var(--text)', lineHeight: 1.2,
+          }}>
+            {venue.name}
+          </span>
+          {feeLabel && (
+            <span style={{
+              fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem',
+              fontWeight: 600, color: accentColor, whiteSpace: 'nowrap',
+            }}>
+              {feeLabel}
+            </span>
+          )}
+        </div>
+
+        {badges.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {badges.map(b => (
+              <span key={b.label} style={{
+                fontFamily: 'DM Sans, sans-serif', fontSize: 10, fontWeight: 700,
+                color: b.color, background: `${b.color}18`,
+                padding: '2px 7px', borderRadius: 10, letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}>
+                {b.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {venue.min_cap || venue.max_cap ? (
+          <p style={{
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem',
+            color: 'var(--text-dim)', marginTop: 5,
+          }}>
+            {venue.min_cap && venue.max_cap
+              ? `${venue.min_cap}–${venue.max_cap} guests`
+              : venue.max_cap ? `Up to ${venue.max_cap} guests` : `${venue.min_cap}+ guests`}
+          </p>
+        ) : null}
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Wedding Calendar ─────────────────────────────────────────────────────────
 
 const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -443,13 +560,18 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth())
   const [calMode, setCalMode]           = useState('select')
   const [pricingState, setPricingState] = useState('idle') // 'idle'|'loading'|'done'|'error'
+  const [lockedVenue,  setLockedVenue]  = useState(null)
+  const [lockedCinema, setLockedCinema] = useState(null)
+  const [guestStats,   setGuestStats]   = useState({ total: 0, plusOnes: 0, kerwin: 0, dani: 0 })
 
   // ── Load project_metadata + venues ────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const [{ data }, { data: venueData }] = await Promise.all([
+      const [{ data }, { data: venueData }, { data: cinemaData }, { data: guestData }] = await Promise.all([
         supabase.from('project_metadata').select('*').eq('id', 1).single(),
-        supabase.from('venues').select('id, name, venue_fee, url').neq('archived', true).order('name'),
+        supabase.from('venues').select('*').neq('archived', true).order('name'),
+        supabase.from('cinematographers').select('*').eq('locked', true).single(),
+        supabase.from('guests').select('status, plus_one, side').eq('status', 'locked'),
       ])
 
       if (data) {
@@ -463,6 +585,20 @@ export default function Dashboard({ user, onSwitchUser }) {
         if (bb._pkg) setPkgSelections(bb._pkg)
         if (bb._cal_date) setSelectedDate(bb._cal_date)
         if (bb._cal_off)  setOffDays(bb._cal_off || [])
+
+        if (cinemaData) setLockedCinema(cinemaData)
+        if (guestData) {
+          const plusOnes = guestData.filter(g => g.plus_one).length
+          const kerwin   = guestData.filter(g => g.side === 'kerwin').length
+          const dani     = guestData.filter(g => g.side === 'dani').length
+          setGuestStats({ total: guestData.length, plusOnes, kerwin, dani })
+        }
+        const locked = venueData?.find(v => v.locked)
+        if (locked) {
+          setLockedVenue(locked)
+          const bb2 = data.budget_breakdown || {}
+          if (!bb2._venue_id) setSelectedVenueId(locked.id)
+        }
       }
       setVenues(venueData || [])
       setLoaded(true)
@@ -707,6 +843,117 @@ export default function Dashboard({ user, onSwitchUser }) {
             </p>
           </div>
         </div>
+
+        {/* ── Confirmed Picks ──────────────────────────────────────────── */}
+        {(lockedVenue || lockedCinema) && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 rounded-2xl mb-4"
+            style={{ background: 'var(--card)', border: `1px solid ${userMeta.color}44` }}
+          >
+            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: '0 0 14px' }}>
+              🔒 Confirmed
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {lockedVenue && (
+                <div style={{
+                  background: 'rgba(201,147,42,0.08)', border: '1px solid rgba(201,147,42,0.3)',
+                  borderRadius: 12, padding: '12px 14px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                      {lockedVenue.name}
+                    </div>
+                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>VENUE</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)' }}>
+                      {lockedVenue.region_label || lockedVenue.region}
+                    </div>
+                    {lockedVenue.url && (
+                      <a href={lockedVenue.url} target="_blank" rel="noreferrer"
+                        style={{ fontFamily: 'DM Sans', fontSize: 12, color: userMeta.color, textDecoration: 'none', fontWeight: 600 }}>
+                        Visit →
+                      </a>
+                    )}
+                  </div>
+                  {(lockedVenue.venue_fee || lockedVenue.catering_pp) && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      {lockedVenue.venue_fee && (
+                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)' }}>
+                          Venue fee: <strong style={{ color: 'var(--text)' }}>${lockedVenue.venue_fee.toLocaleString()}</strong>
+                        </span>
+                      )}
+                      {lockedVenue.catering_pp && (
+                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)' }}>
+                          · Catering: <strong style={{ color: 'var(--text)' }}>${lockedVenue.catering_pp}/pp</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {lockedCinema && (
+                <div style={{
+                  background: 'rgba(201,147,42,0.05)', border: '1px solid rgba(201,147,42,0.2)',
+                  borderRadius: 12, padding: '12px 14px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                      {lockedCinema.name}
+                    </div>
+                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {lockedCinema.package_name || 'Cinema'}{lockedCinema.price ? ` · $${lockedCinema.price.toLocaleString()}` : ''}
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>CINEMA</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Guest Count ──────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-5 rounded-2xl mb-4"
+          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+              👥 Guest List
+            </h2>
+            <button onClick={() => navigate('/guests')}
+              style={{ fontFamily: 'DM Sans', fontSize: '0.78rem', color: userMeta.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
+              Manage →
+            </button>
+          </div>
+          {guestStats.total === 0 ? (
+            <p style={{ fontFamily: 'DM Sans', fontSize: '0.8rem', color: 'var(--text-dim)', margin: 0 }}>
+              No locked guests yet. Head to <button onClick={() => navigate('/guests')} style={{ background: 'none', border: 'none', color: userMeta.color, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}>Guest Draft Board</button> to start building your list.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { label: 'Total', value: guestStats.total + guestStats.plusOnes, sub: `${guestStats.total} + ${guestStats.plusOnes} (+1s)` },
+                { label: 'Kerwin', value: guestStats.kerwin, sub: 'side' },
+                { label: 'Dani', value: guestStats.dani, sub: 'side' },
+              ].map(({ label, value, sub }) => (
+                <div key={label} style={{
+                  flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 10,
+                  padding: '10px 12px', textAlign: 'center',
+                }}>
+                  <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
+                  {sub !== 'side' && <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: 'var(--text-dim)', marginTop: 1 }}>{sub}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
 
         {/* ── Wedding Date Calendar ──────────────────────────────────────── */}
         <motion.div
@@ -1214,6 +1461,46 @@ export default function Dashboard({ user, onSwitchUser }) {
             </div>
           )}
         </motion.div>
+
+        {/* ── Top Venues ──────────────────────────────────────────────────── */}
+        {venues.filter(v => v.locked || v.leader).length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="mb-4"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+                Top Venues
+              </h2>
+              <button
+                onClick={() => navigate('/venues')}
+                style={{
+                  fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem',
+                  color: userMeta.color, background: 'none', border: 'none',
+                  cursor: 'pointer', fontWeight: 600, padding: 0,
+                }}
+              >
+                See all →
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[...venues]
+                .filter(v => v.locked || v.leader)
+                .slice(0, 3)
+                .map(v => (
+                  <DashVenueCard
+                    key={v.id}
+                    venue={v}
+                    accentColor={userMeta.color}
+                    onClick={() => navigate('/venues')}
+                  />
+                ))
+              }
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Navigation Hub ──────────────────────────────────────────────── */}
         <motion.div

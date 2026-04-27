@@ -163,7 +163,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editMode, setEditMode]   = useState(false)
   const [editName, setEditName]   = useState(venue.name || '')
-  const [editUrl,  setEditUrl]    = useState(venue.website_url || '')
+  const [editUrl,  setEditUrl]    = useState(venue.url || '')
   const [editFee,  setEditFee]    = useState(venue.venue_fee || '')
   const [editCat,  setEditCat]    = useState(venue.catering_pp || '')
 
@@ -173,6 +173,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
   if (venue.aqua)        badges.push({ label: '🐟 Aquarium',       color: '#2B9FCC' })
   if (venue.arch)        badges.push({ label: '🏛️ Historic',      color: '#9A7B5E' })
   if (venue.planet)      badges.push({ label: '🔭 Planetarium',    color: '#8A5FCC' })
+  if (venue.locked)      badges.push({ label: '🔒 Confirmed',      color: '#C9932A' })
 
   const vibeTags = parseVibeTags(venue.vibe_tags)
 
@@ -331,7 +332,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
               onClick={async () => {
                 const updates = {
                   name: editName,
-                  website_url: editUrl || null,
+                  url: editUrl || null,
                   venue_fee: editFee ? parseFloat(editFee) : null,
                   catering_pp: editCat ? parseFloat(editCat) : null,
                 }
@@ -350,6 +351,27 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
               Cancel
             </button>
           </div>
+          <button
+            onClick={async e => {
+              e.stopPropagation()
+              const newLocked = !venue.locked
+              if (newLocked) {
+                // Unlock any other locked venue first
+                await supabase.from('venues').update({ locked: false }).eq('locked', true)
+              }
+              await supabase.from('venues').update({ locked: newLocked }).eq('id', venue.id)
+              onUpdate?.(venue.id, { locked: newLocked })
+            }}
+            style={{
+              width: '100%', padding: '7px 0', borderRadius: 8, marginTop: 4,
+              background: venue.locked ? 'rgba(201,147,42,0.15)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${venue.locked ? '#C9932A' : 'rgba(255,255,255,0.12)'}`,
+              color: venue.locked ? '#C9932A' : 'rgba(255,255,255,0.5)',
+              cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans', fontWeight: 600,
+            }}
+          >
+            {venue.locked ? '🔒 Locked In' : '🔓 Lock In This Venue'}
+          </button>
         </div>
       )}
 

@@ -128,7 +128,7 @@ function BarCard({ v, selected, color, onToggle }) {
   )
 }
 
-function CinemaCard({ v, selected, color, onToggle }) {
+function CinemaCard({ v, selected, color, onToggle, locked, onLock }) {
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       style={{ ...CARD_STYLE, outline: selected ? `2px solid ${color}` : 'none' }}>
@@ -142,6 +142,19 @@ function CinemaCard({ v, selected, color, onToggle }) {
         {v.confessional && <Badge label="Confessional Cam" color="#f59e0b" />}
       </div>
       <SelectBtn selected={selected} color={color} onClick={onToggle} />
+      <button
+        onClick={onLock}
+        style={{
+          marginTop: 4, padding: '6px 14px', borderRadius: 8,
+          border: `1px solid ${locked ? '#C9932A' : 'rgba(255,255,255,0.15)'}`,
+          background: locked ? 'rgba(201,147,42,0.12)' : 'transparent',
+          color: locked ? '#C9932A' : 'var(--text-muted)',
+          fontFamily: '"DM Sans", sans-serif', fontWeight: 600, fontSize: 12,
+          cursor: 'pointer',
+        }}
+      >
+        {locked ? '🔒 Confirmed' : '🔓 Lock In'}
+      </button>
     </motion.div>
   )
 }
@@ -221,7 +234,7 @@ function RehearsalCard({ v, selected, color, onToggle }) {
 
 // ─── tab content ──────────────────────────────────────────────────────────────
 
-function TabContent({ tab, data, loading, selections, onToggle, userColor }) {
+function TabContent({ tab, data, loading, selections, onToggle, userColor, lockedCinemaId, onLockCinema }) {
   if (loading) {
     return (
       <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>
@@ -259,7 +272,7 @@ function TabContent({ tab, data, loading, selections, onToggle, userColor }) {
         if (tab.id === 'music')     return <MusicCard    {...props} />
         if (tab.id === 'catering')  return <CateringCard {...props} />
         if (tab.id === 'bar')       return <BarCard      {...props} />
-        if (tab.id === 'cinema')    return <CinemaCard   {...props} />
+        if (tab.id === 'cinema')    return <CinemaCard   {...props} locked={lockedCinemaId === v.id} onLock={() => onLockCinema(v.id)} />
         if (tab.id === 'florals')   return <FloralCard   {...props} />
         if (tab.id === 'extras')    return <ExtrasCard   {...props} multi />
         if (tab.id === 'rehearsal') return <RehearsalCard {...props} />
@@ -634,6 +647,7 @@ export default function Vendors({ user, onSwitchUser }) {
   const [selections, setSelections] = useState(loadSelections)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showQuoteScan, setShowQuoteScan] = useState(false)
+  const [lockedCinemaId, setLockedCinemaId] = useState(null)
 
   const currentTab = TABS.find(t => t.id === activeTab)
 
@@ -651,6 +665,11 @@ export default function Vendors({ user, onSwitchUser }) {
         setLoadingTab(null)
       })
   }, [activeTab, currentTab, cache])
+
+  useEffect(() => {
+    supabase.from('cinematographers').select('id').eq('locked', true).single()
+      .then(({ data }) => { if (data) setLockedCinemaId(data.id) })
+  }, [])
 
   const handleToggle = useCallback((tabId, vendorId, isMulti) => {
     setSelections(prev => {
@@ -680,6 +699,18 @@ export default function Vendors({ user, onSwitchUser }) {
   const handleAdded = useCallback((newRow) => {
     setCache(c => ({ ...c, [activeTab]: [...(c[activeTab] || []), newRow] }))
   }, [activeTab])
+
+  async function lockCinema(id) {
+    const isLocking = lockedCinemaId !== id
+    // Unlock all first
+    await supabase.from('cinematographers').update({ locked: false }).eq('locked', true)
+    if (isLocking) {
+      await supabase.from('cinematographers').update({ locked: true }).eq('id', id)
+      setLockedCinemaId(id)
+    } else {
+      setLockedCinemaId(null)
+    }
+  }
 
   return (
     <div style={PAGE_STYLE}>
@@ -758,6 +789,8 @@ export default function Vendors({ user, onSwitchUser }) {
               selections={selections}
               onToggle={handleToggle}
               userColor={userMeta.color}
+              lockedCinemaId={lockedCinemaId}
+              onLockCinema={lockCinema}
             />
           </motion.div>
         </AnimatePresence>
