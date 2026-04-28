@@ -72,6 +72,8 @@ function makeGuest(fields, addedBy) {
     engagementPlusOne: fields.engagementPlusOne || false,
     goingEngagement: fields.goingEngagement || false,
     notes: fields.notes || '',
+    phone: fields.phone || '',
+    email: fields.email || '',
     rsvp: null,
     createdAt: new Date().toISOString(),
   }
@@ -93,6 +95,8 @@ function dbToGuest(r) {
     engagementPlusOne: r.engagement_plus_one || false,
     goingEngagement: r.going_engagement || false,
     notes: r.notes || '',
+    phone: r.phone || '',
+    email: r.email || '',
     rsvp: r.rsvp || null,
     createdAt: r.created_at,
   }
@@ -114,6 +118,8 @@ function guestToDb(g) {
     engagement_plus_one: g.engagementPlusOne,
     going_engagement: g.goingEngagement,
     notes: g.notes,
+    phone: g.phone,
+    email: g.email,
     rsvp: g.rsvp,
   }
 }
@@ -250,9 +256,39 @@ function TextCell({ value, onChange, width }) {
 
 function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
   const [notes, setNotes] = useState(guest.notes || '')
+  const [phone, setPhone] = useState(guest.phone || '')
+  const [email, setEmail] = useState(guest.email || '')
+  const [rsvp,  setRsvp]  = useState(guest.rsvp  || null)
 
   function saveNotes() {
     if (notes !== guest.notes) onUpdate({ notes })
+  }
+
+  function savePhone() {
+    if (phone !== guest.phone) onUpdate({ phone })
+  }
+
+  function saveEmail() {
+    if (email !== guest.email) onUpdate({ email })
+  }
+
+  function toggleRsvp(v) {
+    const next = rsvp === v ? null : v
+    setRsvp(next)
+    onUpdate({ rsvp: next })
+  }
+
+  const inputStyle = {
+    background: 'var(--card)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '5px 10px',
+    color: 'var(--text)',
+    fontFamily: 'DM Sans, sans-serif',
+    fontSize: '0.8rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+    width: '100%',
   }
 
   return (
@@ -273,6 +309,7 @@ function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
             flexWrap: 'wrap',
           }}
         >
+          {/* Notes */}
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes</div>
             <textarea
@@ -282,20 +319,30 @@ function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
               placeholder="Add notes…"
               rows={2}
               style={{
-                width: '100%',
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                padding: '6px 10px',
-                color: 'var(--text)',
-                fontFamily: 'DM Sans, sans-serif',
-                fontSize: '0.8rem',
+                ...inputStyle,
                 resize: 'vertical',
-                outline: 'none',
-                boxSizing: 'border-box',
               }}
             />
+            {/* Contact */}
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+              <input
+                placeholder="Phone"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                onBlur={savePhone}
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <input
+                placeholder="Email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onBlur={saveEmail}
+                style={{ ...inputStyle, flex: 1.5 }}
+              />
+            </div>
           </div>
+
+          {/* Status + RSVP */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -323,7 +370,35 @@ function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
                 </button>
               ))}
             </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 6 }}>RSVP</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { v: 'yes',   label: 'Yes',   bg: '#2D6A4F' },
+                { v: 'no',    label: 'No',    bg: '#A51C30' },
+                { v: 'maybe', label: 'Maybe', bg: '#64748b' },
+              ].map(({ v, label, bg }) => (
+                <button
+                  key={v}
+                  onClick={() => toggleRsvp(v)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 99,
+                    border: `1px solid ${rsvp === v ? bg : 'var(--border)'}`,
+                    background: rsvp === v ? `${bg}22` : 'none',
+                    color: rsvp === v ? bg : 'var(--text-dim)',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontFamily: 'DM Sans, sans-serif',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Role */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Role</div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -351,6 +426,7 @@ function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
               ))}
             </div>
           </div>
+
           <button
             onClick={onRemove}
             style={{
@@ -700,6 +776,7 @@ export default function Guests({ user }) {
       plansToMeet: 'plans_to_meet', invitedEngagement: 'invited_engagement',
       engagementPlusOne: 'engagement_plus_one', goingEngagement: 'going_engagement',
       knowFrom: 'know_from', residence: 'residence', rsvp: 'rsvp',
+      phone: 'phone', email: 'email',
     }
     Object.entries(fields).forEach(([k, v]) => { if (mapping[k]) dbFields[mapping[k]] = v })
     optimistic(guests.map(g => g.id === id ? { ...g, ...fields } : g))
@@ -736,10 +813,43 @@ export default function Guests({ user }) {
     setImporting(false)
   }
 
+  // ─── Filter / sort ──────────────────────────────────────────────────────────
+
+  const [filterText,    setFilterText]    = useState('')
+  const [filterSection, setFilterSection] = useState('all')
+  const [filterRole,    setFilterRole]    = useState('all')
+  const [filterStatus,  setFilterStatus]  = useState('all')
+  const [sortBy,        setSortBy]        = useState('default')
+  const [sortDir,       setSortDir]       = useState('asc')
+
+  const anyFilterActive = filterText || filterSection !== 'all' || filterRole !== 'all' || filterStatus !== 'all' || sortBy !== 'default'
+
+  function handleSort(key) {
+    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortBy(key); setSortDir('asc') }
+  }
+
+  function applyFilters(list) {
+    return list
+      .filter(g => !filterText || g.name.toLowerCase().includes(filterText.toLowerCase()))
+      .filter(g => filterRole === 'all' || g.role === filterRole)
+      .filter(g => filterStatus === 'all' || g.status === filterStatus)
+  }
+
+  function applySort(list) {
+    if (sortBy === 'default') return list
+    return [...list].sort((a, b) => {
+      const av = a[sortBy], bv = b[sortBy]
+      if (typeof av === 'boolean') return sortDir === 'asc' ? (bv ? 1 : -1) - (av ? 1 : -1) : (av ? 1 : -1) - (bv ? 1 : -1)
+      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+      return 0
+    })
+  }
+
   // ─── Stats ───────────────────────────────────────────────────────────────────
 
-  const kGuests = guests.filter(g => g.addedBy === 'kerwin')
-  const dGuests = guests.filter(g => g.addedBy === 'dani')
+  const kGuests = applySort(applyFilters(guests.filter(g => g.addedBy === 'kerwin')))
+  const dGuests = applySort(applyFilters(guests.filter(g => g.addedBy === 'dani')))
   const totalHeads = guests.reduce((acc, g) => acc + 1 + (g.plusOne ? 1 : 0), 0)
   const plusOnes = guests.filter(g => g.plusOne).length
 
@@ -839,100 +949,205 @@ export default function Guests({ user }) {
         </div>
       </div>
 
+      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--dark)',
+        borderBottom: '1px solid var(--border)',
+        padding: '8px 20px',
+        position: 'sticky',
+        top: 164,
+        zIndex: 8,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'wrap',
+      }}>
+        <input
+          value={filterText}
+          onChange={e => setFilterText(e.target.value)}
+          placeholder="Search by name…"
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 7,
+            padding: '5px 12px',
+            color: 'var(--text)',
+            fontFamily: 'DM Sans, sans-serif',
+            fontSize: '0.8rem',
+            outline: 'none',
+            width: 160,
+          }}
+        />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['all', 'kerwin', 'dani'].map(v => (
+            <button key={v}
+              onClick={() => setFilterSection(v)}
+              style={{
+                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+                background: filterSection === v ? (v === 'kerwin' ? '#A51C30' : v === 'dani' ? '#2D6A4F' : userMeta.color) : 'none',
+                color: filterSection === v ? '#fff' : 'var(--text-dim)',
+                border: `1px solid ${filterSection === v ? 'transparent' : 'var(--border)'}`,
+              }}
+            >{v === 'all' ? 'All' : v.charAt(0).toUpperCase() + v.slice(1)}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['all','All'],['best_man','BM'],['groomsman','GM']].map(([v, label]) => (
+            <button key={v}
+              onClick={() => setFilterRole(v)}
+              style={{
+                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+                background: filterRole === v ? userMeta.color : 'none',
+                color: filterRole === v ? '#fff' : 'var(--text-dim)',
+                border: `1px solid ${filterRole === v ? 'transparent' : 'var(--border)'}`,
+              }}
+            >{label}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['all','All'],['locked','Locked'],['bubble','Bubble'],['squad','Squad']].map(([v, label]) => (
+            <button key={v}
+              onClick={() => setFilterStatus(v)}
+              style={{
+                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+                background: filterStatus === v ? userMeta.color : 'none',
+                color: filterStatus === v ? '#fff' : 'var(--text-dim)',
+                border: `1px solid ${filterStatus === v ? 'transparent' : 'var(--border)'}`,
+              }}
+            >{label}</button>
+          ))}
+        </div>
+        {anyFilterActive && (
+          <button
+            onClick={() => { setFilterText(''); setFilterSection('all'); setFilterRole('all'); setFilterStatus('all'); setSortBy('default'); setSortDir('asc') }}
+            style={{
+              marginLeft: 'auto', padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem',
+              cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+              background: 'none', color: '#ef4444', border: '1px solid #ef444440',
+            }}
+          >Clear filters</button>
+        )}
+      </div>
+
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       <div style={{ overflowX: 'auto', padding: '20px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
 
           {/* Sticky column headers */}
-          <thead>
+          <thead style={{ position: 'sticky', top: 110, zIndex: 9 }}>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
-              <th style={{
-                textAlign: 'left',
-                padding: '8px 12px',
-                fontSize: '0.65rem',
-                color: 'var(--text-dim)',
-                fontFamily: 'DM Sans, sans-serif',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontWeight: 600,
-                position: 'sticky',
-                left: 0,
-                background: 'var(--dark)',
-                zIndex: 3,
-                minWidth: 160,
-              }}>
-                Name
+              <th
+                onClick={() => handleSort('name')}
+                style={{
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  fontSize: '0.65rem',
+                  color: sortBy === 'name' ? userMeta.color : 'var(--text-dim)',
+                  fontFamily: 'DM Sans, sans-serif',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 600,
+                  position: 'sticky',
+                  left: 0,
+                  background: 'var(--dark)',
+                  zIndex: 3,
+                  minWidth: 160,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                Name {sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
               </th>
-              <th style={{ padding: '8px 8px', fontSize: '0.65rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: 100, whiteSpace: 'nowrap' }}>Status</th>
+              <th
+                onClick={() => handleSort('status')}
+                style={{ padding: '8px 8px', fontSize: '0.65rem', color: sortBy === 'status' ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: 100, whiteSpace: 'nowrap', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
+              >
+                Status {sortBy === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+              </th>
               {BOOL_COLS.map(col => (
-                <th key={col.key} style={{ padding: '8px 4px', fontSize: '0.62rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: 44, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  {col.short}
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  style={{ padding: '8px 4px', fontSize: '0.62rem', color: sortBy === col.key ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: 44, textAlign: 'center', whiteSpace: 'nowrap', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
+                >
+                  {col.short}{sortBy === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                 </th>
               ))}
               {TEXT_COLS.map(col => (
-                <th key={col.key} style={{ padding: '8px 8px', fontSize: '0.65rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: col.width, textAlign: 'left' }}>
-                  {col.label}
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  style={{ padding: '8px 8px', fontSize: '0.65rem', color: sortBy === col.key ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: col.width, textAlign: 'left', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
+                >
+                  {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                 </th>
               ))}
-              <th style={{ width: 32 }} />
+              <th style={{ width: 32, background: 'var(--dark)' }} />
             </tr>
           </thead>
 
           <tbody>
             {/* Kerwin's section */}
-            <SectionHeader
-              label="Kerwin's Guests"
-              count={kGuests.length}
-              plusOnes={kGuests.filter(g => g.plusOne).length}
-              kCount={kGuests.length}
-              dCount={0}
-              colSpan={totalCols}
-            />
-            <AnimatePresence>
-              {kGuests.map(g => (
-                <GuestRow
-                  key={g.id}
-                  guest={g}
-                  userMeta={USERS.kerwin}
-                  onToggleBool={toggleBool}
-                  onUpdateText={updateText}
-                  onUpdate={updateGuest}
-                  onRemove={removeGuest}
-                  isExpanded={expanded === g.id}
-                  onToggleExpand={id => setExpanded(expanded === id ? null : id)}
-                />
-              ))}
-            </AnimatePresence>
-            <AddGuestRow user="kerwin" userMeta={USERS.kerwin} onAdd={addGuest} colSpan={totalCols} />
+            {filterSection !== 'dani' && <>
+              <SectionHeader
+                label="Kerwin's Guests"
+                count={kGuests.length}
+                plusOnes={kGuests.filter(g => g.plusOne).length}
+                kCount={kGuests.length}
+                dCount={0}
+                colSpan={totalCols}
+              />
+              <AnimatePresence>
+                {kGuests.map(g => (
+                  <GuestRow
+                    key={g.id}
+                    guest={g}
+                    userMeta={USERS.kerwin}
+                    onToggleBool={toggleBool}
+                    onUpdateText={updateText}
+                    onUpdate={updateGuest}
+                    onRemove={removeGuest}
+                    isExpanded={expanded === g.id}
+                    onToggleExpand={id => setExpanded(expanded === id ? null : id)}
+                  />
+                ))}
+              </AnimatePresence>
+              <AddGuestRow user="kerwin" userMeta={USERS.kerwin} onAdd={addGuest} colSpan={totalCols} />
+            </>}
 
             {/* Spacer */}
-            <tr><td colSpan={totalCols} style={{ height: 24 }} /></tr>
+            {filterSection === 'all' && <tr><td colSpan={totalCols} style={{ height: 24 }} /></tr>}
 
             {/* Dani's section */}
-            <SectionHeader
-              label="Dani's Guests"
-              count={dGuests.length}
-              plusOnes={dGuests.filter(g => g.plusOne).length}
-              kCount={0}
-              dCount={dGuests.length}
-              colSpan={totalCols}
-            />
-            <AnimatePresence>
-              {dGuests.map(g => (
-                <GuestRow
-                  key={g.id}
-                  guest={g}
-                  userMeta={USERS.dani}
-                  onToggleBool={toggleBool}
-                  onUpdateText={updateText}
-                  onUpdate={updateGuest}
-                  onRemove={removeGuest}
-                  isExpanded={expanded === g.id}
-                  onToggleExpand={id => setExpanded(expanded === id ? null : id)}
-                />
-              ))}
-            </AnimatePresence>
-            <AddGuestRow user="dani" userMeta={USERS.dani} onAdd={name => addGuest(name, 'dani')} colSpan={totalCols} />
+            {filterSection !== 'kerwin' && <>
+              <SectionHeader
+                label="Dani's Guests"
+                count={dGuests.length}
+                plusOnes={dGuests.filter(g => g.plusOne).length}
+                kCount={0}
+                dCount={dGuests.length}
+                colSpan={totalCols}
+              />
+              <AnimatePresence>
+                {dGuests.map(g => (
+                  <GuestRow
+                    key={g.id}
+                    guest={g}
+                    userMeta={USERS.dani}
+                    onToggleBool={toggleBool}
+                    onUpdateText={updateText}
+                    onUpdate={updateGuest}
+                    onRemove={removeGuest}
+                    isExpanded={expanded === g.id}
+                    onToggleExpand={id => setExpanded(expanded === id ? null : id)}
+                  />
+                ))}
+              </AnimatePresence>
+              <AddGuestRow user="dani" userMeta={USERS.dani} onAdd={name => addGuest(name, 'dani')} colSpan={totalCols} />
+            </>}
 
             {/* Unassigned guests (imported without addedBy) */}
             {guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani').length > 0 && (
