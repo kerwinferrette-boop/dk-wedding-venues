@@ -560,9 +560,12 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth())
   const [calMode, setCalMode]           = useState('select')
   const [pricingState, setPricingState] = useState('idle') // 'idle'|'loading'|'done'|'error'
-  const [lockedVenue,  setLockedVenue]  = useState(null)
-  const [lockedCinema, setLockedCinema] = useState(null)
-  const [guestStats,   setGuestStats]   = useState({ total: 0, plusOnes: 0, kerwin: 0, dani: 0 })
+  const [lockedVenue,    setLockedVenue]    = useState(null)
+  const [lockedCinema,   setLockedCinema]   = useState(null)
+  const [cinemaDiscount, setCinemaDiscount] = useState(0)
+  const [vendorLineup,   setVendorLineup]   = useState([]) // [{tabId, label, vendor, effectiveCost}]
+  const [venueQuote,     setVenueQuote]     = useState(null) // extracted_data from latest quote
+  const [guestStats,     setGuestStats]     = useState({ total: 0, plusOnes: 0, kerwin: 0, dani: 0 })
 
   // ── Load project_metadata + venues ────────────────────────────────────────
   useEffect(() => {
@@ -577,27 +580,50 @@ export default function Dashboard({ user, onSwitchUser }) {
       if (data) {
         setMeta(data)
         const bb = data.budget_breakdown || {}
-        if (Object.keys(bb).length > 0) {
-          setBreakdown({ ...DEFAULT_BREAKDOWN, ...bb })
-        }
+        const merged = Object.keys(bb).length > 0 ? { ...DEFAULT_BREAKDOWN, ...bb } : { ...DEFAULT_BREAKDOWN }
+
         if (bb._venue_id) setSelectedVenueId(bb._venue_id)
         if (bb._guests) setGuestCount(bb._guests)
         if (bb._pkg) setPkgSelections(bb._pkg)
         if (bb._cal_date) setSelectedDate(bb._cal_date)
         if (bb._cal_off)  setOffDays(bb._cal_off || [])
 
-        if (cinemaData) setLockedCinema(cinemaData)
+        if (cinemaData) {
+          setLockedCinema(cinemaData)
+          const disc = cinemaData.discount || 0
+          setCinemaDiscount(disc)
+          // Auto-populate photography line if not already set
+          if (!merged.photography && cinemaData.price) {
+            merged.photography = cinemaData.price - disc
+          }
+        }
+
+        setBreakdown(merged)
+
+        // Load vendor lineup from localStorage selections
+        loadVendorLineup()
+
+        // Load venue quote for locked venue
+        const locked = venueData?.find(v => v.locked)
+        if (locked) {
+          supabase.from('quote_files').select('*').eq('venue_id', locked.id)
+            .order('id', { ascending: false }).limit(1)
+            .then(({ data: qd }) => {
+              if (qd?.[0]?.extracted_data && !qd[0].extracted_data.parse_error) {
+                setVenueQuote(qd[0].extracted_data)
+              }
+            })
+        }
+
         if (guestData) {
           const plusOnes = guestData.filter(g => g.plus_one).length
           const kerwin   = guestData.filter(g => g.side === 'kerwin').length
           const dani     = guestData.filter(g => g.side === 'dani').length
           setGuestStats({ total: guestData.length, plusOnes, kerwin, dani })
         }
-        const locked = venueData?.find(v => v.locked)
         if (locked) {
           setLockedVenue(locked)
-          const bb2 = data.budget_breakdown || {}
-          if (!bb2._venue_id) setSelectedVenueId(locked.id)
+          if (!bb._venue_id) setSelectedVenueId(locked.id)
         }
       }
       setVenues(venueData || [])
@@ -640,6 +666,53 @@ export default function Dashboard({ user, onSwitchUser }) {
       setSaving(false)
     }, 600)
   }, [])
+
+  // ── Load vendor lineup from localStorage + DB ─────────────────────────────
+  async function loadVendorLineup() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('wos_vendor_selections') || '{}')
+      const TABS = [
+        { id: 'music',    label: 'Music',       table: 'musicians',        priceKey: 'price_estimate', budgetField: 'music' },
+        { id: 'catering', label: 'Catering',     table: 'caterers',         priceKey: 'price_pp',       budgetField: 'catering' },
+        { id: 'bar',      label: 'Bar',          table: 'bar_options',      priceKey: 'price_pp',       budgetField: 'bar' },
+        { id: 'cinema',   label: 'Cinema',       table: 'cinematographers', priceKey: 'price',          budgetField: 'photography' },
+        { id: 'florals',  label: 'Florals',      table: 'florists',         priceKey: 'price_estimate', budgetField: 'florals' },
+      ]
+      const entries = []
+      for (const tab of TABS) {
+        const selId = raw[tab.id]
+        if (!selId) continue
+        const { data } = await supabase.from(tab.table).select('*').eq('id', selId).single()
+        if (!data) continue
+        const rawPrice = data[tab.priceKey] || 0
+        const discount = tab.id === 'cinema' ? (data.discount || 0) : 0
+        entries.push({
+          tabId: tab.id,
+          label: tab.label,
+          budgetField: tab.budgetField,
+          vendor: data,
+          effectiveCost: rawPrice - discount,
+          discount,
+        })
+      }
+      setVendorLineup(entries)
+    } catch {}
+  }
+
+  // ── Cinema discount change ─────────────────────────────────────────────────
+  async function handleDiscountChange(newDiscount) {
+    const disc = Math.max(0, Math.min(newDiscount, lockedCinema?.price || 0))
+    setCinemaDiscount(disc)
+    if (lockedCinema) {
+      await supabase.from('cinematographers').update({ discount: disc }).eq('id', lockedCinema.id)
+      const effective = (lockedCinema.price || 0) - disc
+      updateLine('photography', effective)
+      // Update vendor lineup entry if present
+      setVendorLineup(prev => prev.map(e =>
+        e.tabId === 'cinema' ? { ...e, discount: disc, effectiveCost: effective } : e
+      ))
+    }
+  }
 
   // ── Compute package-driven costs from current selections + guests ──────────
   function applyPackageCosts(pkg, selections, guests, base) {
@@ -852,9 +925,16 @@ export default function Dashboard({ user, onSwitchUser }) {
             className="p-5 rounded-2xl mb-4"
             style={{ background: 'var(--card)', border: `1px solid ${userMeta.color}44` }}
           >
-            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: '0 0 14px' }}>
-              🔒 Confirmed
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+                🔒 Confirmed Picks
+              </h2>
+              {venueQuote?.total && (
+                <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', background: 'rgba(201,147,42,0.1)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
+                  Quote: {fmt(venueQuote.total)}
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {lockedVenue && (
                 <div style={{
@@ -898,19 +978,140 @@ export default function Dashboard({ user, onSwitchUser }) {
                 <div style={{
                   background: 'rgba(201,147,42,0.05)', border: '1px solid rgba(201,147,42,0.2)',
                   borderRadius: 12, padding: '12px 14px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}>
-                  <div>
-                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-                      {lockedCinema.name}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                        {lockedCinema.name}
+                      </div>
+                      <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {lockedCinema.package_name || 'Cinema'}
+                        {lockedCinema.price ? (
+                          <>
+                            {' · '}
+                            {cinemaDiscount > 0 ? (
+                              <>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>
+                                  ${lockedCinema.price.toLocaleString()}
+                                </span>
+                                {' '}
+                                <span style={{ color: '#22c55e', fontWeight: 700 }}>
+                                  ${(lockedCinema.price - cinemaDiscount).toLocaleString()}
+                                </span>
+                              </>
+                            ) : (
+                              `$${lockedCinema.price.toLocaleString()}`
+                            )}
+                          </>
+                        ) : ''}
+                      </div>
                     </div>
-                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {lockedCinema.package_name || 'Cinema'}{lockedCinema.price ? ` · $${lockedCinema.price.toLocaleString()}` : ''}
-                    </div>
+                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>CINEMA</span>
                   </div>
-                  <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>CINEMA</span>
+                  {/* Discount field */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-dim)', flexShrink: 0 }}>Discount $</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={lockedCinema.price || 9999}
+                      value={cinemaDiscount}
+                      onChange={e => handleDiscountChange(parseInt(e.target.value) || 0)}
+                      style={{
+                        width: 90, background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7,
+                        padding: '4px 8px', color: 'var(--text)',
+                        fontFamily: 'DM Sans', fontSize: 13, outline: 'none',
+                      }}
+                    />
+                    {cinemaDiscount > 0 && (
+                      <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#22c55e' }}>
+                        saving {fmt(cinemaDiscount)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Vendor Lineup ────────────────────────────────────────────── */}
+        {vendorLineup.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 rounded-2xl mb-4"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+                🎼 Vendor Lineup
+              </h2>
+              <button
+                onClick={() => navigate('/vendors')}
+                style={{ fontFamily: 'DM Sans', fontSize: '0.78rem', color: userMeta.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+              >
+                Edit →
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {vendorLineup.map(entry => {
+                const vendorName = entry.vendor.name || entry.vendor.provider || '—'
+                const rawPrice   = entry.vendor[
+                  entry.tabId === 'cinema'   ? 'price' :
+                  entry.tabId === 'catering' ? 'price_pp' :
+                  entry.tabId === 'bar'      ? 'price_pp' : 'price_estimate'
+                ] || 0
+                const isPP = entry.tabId === 'catering' || entry.tabId === 'bar'
+                return (
+                  <div key={entry.tabId} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    borderBottom: '1px solid var(--border)', paddingBottom: 10,
+                  }}>
+                    <div>
+                      <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: userMeta.color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                        {entry.label}
+                      </div>
+                      <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 14, color: 'var(--text)' }}>
+                        {vendorName}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {rawPrice > 0 && (
+                        <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                          {entry.discount > 0 ? (
+                            <>
+                              <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)', fontSize: 11, marginRight: 4 }}>
+                                {fmt(rawPrice)}{isPP ? '/pp' : ''}
+                              </span>
+                              <span style={{ color: '#22c55e' }}>
+                                {fmt(rawPrice - entry.discount)}{isPP ? '/pp' : ''}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              {fmt(rawPrice)}{isPP ? '/pp' : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => updateLine(entry.budgetField, entry.effectiveCost)}
+                        style={{
+                          marginTop: 4, padding: '3px 8px', borderRadius: 6,
+                          border: `1px solid ${userMeta.color}44`,
+                          background: `${userMeta.color}10`,
+                          color: userMeta.color, cursor: 'pointer',
+                          fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
+                        }}
+                      >
+                        → Budget
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </motion.div>
         )}
@@ -964,7 +1165,7 @@ export default function Dashboard({ user, onSwitchUser }) {
         >
           <div className="flex items-center justify-between mb-3">
             <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-              Wedding Date
+              {selectedDate ? '🔒 Wedding Date' : 'Wedding Date'}
             </h2>
             {selectedDate && (
               <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, fontWeight: 600 }}>
@@ -1180,6 +1381,35 @@ export default function Dashboard({ user, onSwitchUser }) {
                   </option>
                 ))}
               </select>
+              {/* Quote costs button — only when locked venue has a parsed quote */}
+              {venueQuote && lockedVenue && selectedVenueId === lockedVenue.id && (
+                <button
+                  onClick={() => {
+                    const q = venueQuote
+                    // Try to pull venue fee and per-person costs from extracted data
+                    const venueLine = q.line_items?.find(l => /venue|rental|site/i.test(l.label))
+                    const caterLine = q.line_items?.find(l => /catering|food|dinner|lunch|meal/i.test(l.label))
+                    const barLine   = q.line_items?.find(l => /bar|beverage|drink/i.test(l.label))
+                    const updates = {}
+                    if (venueLine) updates.venue = venueLine.amount
+                    if (caterLine) updates.catering = caterLine.amount
+                    if (barLine)   updates.bar = barLine.amount
+                    if (q.total && !venueLine) updates.venue = q.total
+                    const next = { ...breakdown, ...updates }
+                    setBreakdown(next)
+                    persistBreakdown(next)
+                  }}
+                  style={{
+                    marginTop: 8, width: '100%', padding: '8px 12px', borderRadius: 10,
+                    border: `1px solid ${userMeta.color}44`,
+                    background: `${userMeta.color}0E`,
+                    color: userMeta.color, cursor: 'pointer',
+                    fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
+                  }}
+                >
+                  🔒 Use La Valencia Quote Costs
+                </button>
+              )}
             </div>
           )}
 
