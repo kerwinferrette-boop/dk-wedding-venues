@@ -138,6 +138,159 @@ export const VENUE_PACKAGES = {
     ],
   },
 
+  // ── La Valencia Hotel ────────────────────────────────────────────────────────
+  49: {
+    defaultGuests: 150,
+    maxCap: 300,
+    note: 'All prices before 26% banquet fee + sales tax. F&B min: $22k Sat / $15k Fri / $10k Sun–Thu.',
+    inclusions: [
+      'White folding chairs for ceremony',
+      'Sound system for minister',
+      'House banquet chairs, round tables & high boys',
+      'White floor-length linens, napkins, glassware & silverware',
+      'Accessory tables — cake, gifts, place cards',
+      'One night stay in Ocean View Suite (honeymoon)',
+      'Bride Dressing Room & Groom Finishing Room',
+      'Spa water station',
+      '26% banquet fee + sales tax applied to all items',
+    ],
+    categories: [
+      {
+        key: 'venue',
+        label: 'Venue Fee',
+        budgetField: 'venue',
+        options: [
+          {
+            id: 'saturday',
+            label: 'Saturday Night',
+            desc: '$3,500 flat venue fee',
+            type: 'fixed',
+            amount: 3500,
+          },
+          {
+            id: 'fri_sun',
+            label: 'Friday or Sunday Night',
+            desc: '$3,000 flat venue fee',
+            type: 'fixed',
+            amount: 3000,
+          },
+          {
+            id: 'weekday',
+            label: 'Monday – Thursday',
+            desc: '$2,500 flat venue fee',
+            type: 'fixed',
+            amount: 2500,
+          },
+        ],
+      },
+      {
+        key: 'catering',
+        label: 'Catering Package',
+        budgetField: 'catering',
+        options: [
+          {
+            id: 'select_sat',
+            label: 'SELECT — Saturday',
+            desc: '$195/pp · Full dinner service, open bar included',
+            type: 'per_person',
+            rate: 195,
+          },
+          {
+            id: 'premier_sat',
+            label: 'PREMIER — Saturday',
+            desc: '$225/pp · Premium menu upgrades included',
+            type: 'per_person',
+            rate: 225,
+          },
+          {
+            id: 'icon_sat',
+            label: 'ICON — Saturday',
+            desc: '$325/pp · Top-tier, full premium experience',
+            type: 'per_person',
+            rate: 325,
+          },
+          {
+            id: 'select_fri_sun',
+            label: 'SELECT — Fri / Sun',
+            desc: '$180/pp · Friday or Sunday rate',
+            type: 'per_person',
+            rate: 180,
+          },
+        ],
+      },
+      {
+        key: 'bar',
+        label: 'Cocktail Bar',
+        budgetField: 'bar',
+        options: [
+          {
+            id: 'ranch_water',
+            label: 'Ranch Water Bar',
+            desc: '$39/pp · Texas-style Ranch Water station',
+            type: 'per_person',
+            rate: 39,
+          },
+          {
+            id: 'old_fashioned',
+            label: 'Old Fashioned Bar',
+            desc: '$42/pp · Classic cocktail station',
+            type: 'per_person',
+            rate: 42,
+          },
+          {
+            id: 'select_bar_3hr',
+            label: 'Select Bar — 3 hrs',
+            desc: '$87/pp · Full hosted bar, 3-hour service',
+            type: 'per_person',
+            rate: 87,
+          },
+          {
+            id: 'no_bar',
+            label: 'No Add-On Bar',
+            desc: 'Bar included in package or handled separately',
+            type: 'fixed',
+            amount: 0,
+          },
+        ],
+      },
+      {
+        key: 'late_night',
+        label: 'Late Night / Dessert',
+        budgetField: 'other',
+        options: [
+          {
+            id: 'none',
+            label: 'None',
+            desc: 'No late-night additions',
+            type: 'fixed',
+            amount: 0,
+          },
+          {
+            id: 'sliders',
+            label: 'Buffalo Chicken Sliders (2)',
+            desc: '$28/pp · Choice of 2 late-night options',
+            type: 'per_person',
+            rate: 28,
+          },
+          {
+            id: 'stations',
+            label: 'Late Night Stations (3)',
+            desc: '$38/pp · Choice of 3 displayed stations',
+            type: 'per_person',
+            rate: 38,
+          },
+          {
+            id: 'dessert',
+            label: 'Dessert Stations (3)',
+            desc: '$22/pp · Choice of 3 dessert stations',
+            type: 'per_person',
+            rate: 22,
+          },
+        ],
+      },
+    ],
+  },
+
   // ── Venue 808 ───────────────────────────────────────────────────────────────
   29: {
     defaultGuests: 150,

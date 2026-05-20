@@ -45,12 +45,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <InitialRedirect />
-      <div style={{
+      <div className="nav-glass" style={{
         position: 'sticky',
         top: 0,
         zIndex: 200,
-        background: 'var(--dark)',
-        borderBottom: '1px solid var(--border)',
         padding: '0 20px',
         height: 56,
       }}>

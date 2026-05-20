@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, USERS } from '../lib/supabase'
 
 const TABS = [
-  { id: 'music',        label: 'Music',        table: 'musicians',          icon: '🎵' },
-  { id: 'catering',     label: 'Catering',      table: 'caterers',           icon: '🍽️' },
-  { id: 'bar',          label: 'Bar',           table: 'bar_options',        icon: '🍾' },
-  { id: 'cinema',       label: 'Cinema',        table: 'cinematographers',   icon: '🎬' },
-  { id: 'florals',      label: 'Florals',       table: 'florists',           icon: '💐' },
-  { id: 'extras',       label: 'Extras',        table: 'extras',             icon: '✨' },
-  { id: 'rehearsal',    label: 'Rehearsal',     table: 'rehearsal_options',  icon: '🥂' },
+  { id: 'music',        label: 'Music',        table: 'musicians',          icon: '' },
+  { id: 'catering',     label: 'Catering',      table: 'caterers',           icon: '' },
+  { id: 'bar',          label: 'Bar',           table: 'bar_options',        icon: '' },
+  { id: 'cinema',       label: 'Cinema',        table: 'cinematographers',   icon: '' },
+  { id: 'florals',      label: 'Florals',       table: 'florists',           icon: '' },
+  { id: 'extras',       label: 'Extras',        table: 'extras',             icon: '' },
+  { id: 'rehearsal',    label: 'Rehearsal',     table: 'rehearsal_options',  icon: '' },
 ]
 
 const SEL_KEY = 'wos_vendor_selections'
@@ -153,7 +153,7 @@ function CinemaCard({ v, selected, color, onToggle, locked, onLock }) {
           cursor: 'pointer',
         }}
       >
-        {locked ? '🔒 Confirmed' : '🔓 Lock In'}
+        {locked ? 'Confirmed' : 'Lock In'}
       </button>
     </motion.div>
   )
@@ -584,7 +584,7 @@ function QuoteScanModal({ tab, user, onClose, onAdded }) {
                 {imagePreview
                   ? <img src={imagePreview} alt="Quote preview" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, objectFit: 'contain' }} />
                   : <>
-                      <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 28, margin: '0 0 8px' }}>📷</p>
+                      <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 28, margin: '0 0 8px', color: 'var(--text-dim)' }}>—</p>
                       <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Tap to upload or drag & drop</p>
                       <p style={{ fontFamily: '"DM Sans", sans-serif', fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }}>JPEG, PNG, or WebP · max 5MB</p>
                     </>
@@ -731,7 +731,7 @@ export default function Vendors({ user, onSwitchUser }) {
             onClick={() => setShowQuoteScan(true)}
             style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${userMeta.color}44`, background: `${userMeta.color}0D`, color: userMeta.color, fontFamily: '"DM Sans", sans-serif', fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            📄 Scan Quote
+            Scan Quote
           </button>
         </div>
 

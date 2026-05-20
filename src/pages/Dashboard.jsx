@@ -202,7 +202,7 @@ function TensionAlert({ tensionKey }) {
         border: '1px solid rgba(224,112,112,0.2)',
       }}
     >
-      <span style={{ color: 'var(--red)', fontSize: '0.9rem', marginTop: 1 }}>⚡</span>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0, marginTop: 6 }} />
       <div>
         <p
           style={{
@@ -231,25 +231,22 @@ function TensionAlert({ tensionKey }) {
 
 // ─── Nav Card ─────────────────────────────────────────────────────────────────
 
-function NavCard({ label, desc, icon, path, available, navigate }) {
+function NavCard({ label, desc, path, available, navigate }) {
   return (
     <motion.button
       whileHover={available ? { scale: 1.02 } : {}}
       whileTap={available ? { scale: 0.97 } : {}}
       onClick={() => available && navigate(path)}
-      className="w-full text-left p-4 rounded-2xl"
+      className="card-gatsby w-full text-left p-4 rounded-2xl"
       style={{
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
         cursor: available ? 'pointer' : 'default',
         opacity: available ? 1 : 0.45,
       }}
     >
-      <div className="flex items-center gap-3 mb-1">
-        <span style={{ fontSize: '1.25rem' }}>{icon}</span>
+      <div className="flex items-center justify-between mb-1">
         <span
           style={{
-            fontFamily: 'Playfair Display, serif',
+            fontFamily: '"Playfair Display", serif',
             fontSize: '0.95rem',
             color: 'var(--text)',
           }}
@@ -258,7 +255,7 @@ function NavCard({ label, desc, icon, path, available, navigate }) {
         </span>
         {!available && (
           <span
-            className="ml-auto text-xs px-2 py-0.5 rounded-full"
+            className="text-xs px-2 py-0.5 rounded-full"
             style={{
               background: 'var(--border)',
               color: 'var(--text-dim)',
@@ -296,11 +293,11 @@ function normalizeRegion(r) {
 
 function DashVenueCard({ venue, accentColor, onClick }) {
   const badges = []
-  if (venue.leader)      badges.push({ label: '⭐ Top Pick',    color: '#C9932A' })
-  if (venue.has_package) badges.push({ label: '📦 Package',     color: '#7B61FF' })
-  if (venue.aqua)        badges.push({ label: '🐟 Aquarium',    color: '#2B9FCC' })
-  if (venue.arch)        badges.push({ label: '🏛️ Historic',   color: '#9A7B5E' })
-  if (venue.planet)      badges.push({ label: '🔭 Planetarium', color: '#8A5FCC' })
+  if (venue.leader)      badges.push({ label: 'Top Pick',    color: '#C9932A' })
+  if (venue.has_package) badges.push({ label: 'Package',     color: '#7B61FF' })
+  if (venue.aqua)        badges.push({ label: 'Aquarium',    color: '#2B9FCC' })
+  if (venue.arch)        badges.push({ label: 'Historic',    color: '#9A7B5E' })
+  if (venue.planet)      badges.push({ label: 'Planetarium', color: '#8A5FCC' })
 
   const regionKey = normalizeRegion(venue.region)
   const regionLabel = REGION_LABEL[regionKey] || venue.region || null
@@ -550,6 +547,7 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [venues, setVenues] = useState([])
   const [selectedVenueId, setSelectedVenueId] = useState(null)
   const [guestCount, setGuestCount] = useState(150)
+  const [liveCount, setLiveCount]   = useState(false)
   const [pkgSelections, setPkgSelections] = useState({})
   const saveTimerRef = useRef(null)
 
@@ -566,6 +564,18 @@ export default function Dashboard({ user, onSwitchUser }) {
   const [vendorLineup,   setVendorLineup]   = useState([]) // [{tabId, label, vendor, effectiveCost}]
   const [venueQuote,     setVenueQuote]     = useState(null) // extracted_data from latest quote
   const [guestStats,     setGuestStats]     = useState({ total: 0, plusOnes: 0, kerwin: 0, dani: 0 })
+
+  // ── Hero photo rotation ────────────────────────────────────────────────────
+  const HERO_PHOTOS = [
+    '/hero1.webp',
+    '/hero2.webp',
+    '/hero3.webp',
+  ]
+  const [heroIdx, setHeroIdx] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setHeroIdx(i => (i + 1) % HERO_PHOTOS.length), 6000)
+    return () => clearInterval(id)
+  }, [])
 
   // ── Load project_metadata + venues ────────────────────────────────────────
   useEffect(() => {
@@ -730,13 +740,39 @@ export default function Dashboard({ user, onSwitchUser }) {
   async function handlePickDate(date) {
     setSelectedDate(date)
     setPricingState('idle')
-    const next = { ...breakdown, _cal_date: date, _cal_off: offDays }
-    setBreakdown(next)
+
+    // ── Auto-select package options based on day of week ──────────────────────
+    const pkg = VENUE_PACKAGES[selectedVenueId]
+    let newSels = { ...pkgSelections }
+    let pricedBreakdown = { ...breakdown, _cal_date: date, _cal_off: offDays }
+
+    if (pkg) {
+      const dow = new Date(date + 'T12:00:00').getDay() // 0=Sun 5=Fri 6=Sat
+      const isSat    = dow === 6
+      const isFriSun = dow === 0 || dow === 5
+
+      // Auto-select venue fee tier
+      newSels.venue = isSat ? 'saturday' : isFriSun ? 'fri_sun' : 'weekday'
+
+      // Snap catering to the right day variant
+      const satTiers   = ['select_sat', 'premier_sat', 'icon_sat']
+      const friSunTier = 'select_fri_sun'
+      if (isSat && newSels.catering === friSunTier) newSels.catering = 'select_sat'
+      if (!isSat && satTiers.includes(newSels.catering)) newSels.catering = friSunTier
+      if (!isSat && !newSels.catering) newSels.catering = friSunTier
+
+      pricedBreakdown = applyPackageCosts(pkg, newSels, guestCount, {
+        ...pricedBreakdown, _pkg: newSels,
+      })
+      setPkgSelections(newSels)
+    }
+
+    setBreakdown(pricedBreakdown)
     await supabase.from('project_metadata').update({
       wedding_date: formatCalDate(date),
-      budget_breakdown: next,
+      budget_breakdown: pricedBreakdown,
     }).eq('id', 1)
-    triggerAutoPricing(date, next)
+    triggerAutoPricing(date, pricedBreakdown)
   }
 
   async function handleToggleOffDay(date) {
@@ -843,17 +879,32 @@ export default function Dashboard({ user, onSwitchUser }) {
     persistBreakdown(next)
   }
 
+  // ── Live guest count fetch ─────────────────────────────────────────────────
+  async function fetchLiveGuestCount() {
+    const { data } = await supabase.from('guests').select('plus_one')
+    if (!data) return
+    const count = data.length + data.filter(g => g.plus_one).length
+    changeGuests(count)
+  }
+
+  useEffect(() => {
+    if (liveCount) fetchLiveGuestCount()
+  }, [liveCount]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Guest count change ─────────────────────────────────────────────────────
   function changeGuests(count) {
     const pkg = VENUE_PACKAGES[selectedVenueId]
-    if (!pkg) return
-    const clamped = Math.max(1, Math.min(pkg.maxCap || 999, count))
+    const clamped = Math.max(1, Math.min(pkg?.maxCap || 999, count))
     setGuestCount(clamped)
-    const next = applyPackageCosts(pkg, pkgSelections, clamped, {
-      ...breakdown, _guests: clamped,
-    })
-    setBreakdown(next)
-    persistBreakdown(next)
+    if (pkg) {
+      const next = applyPackageCosts(pkg, pkgSelections, clamped, {
+        ...breakdown, _guests: clamped,
+      })
+      setBreakdown(next)
+      persistBreakdown(next)
+    } else {
+      persistBreakdown({ ...breakdown, _guests: clamped })
+    }
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -884,50 +935,180 @@ export default function Dashboard({ user, onSwitchUser }) {
     )
   }
 
+  // Days-until counter
+  const daysUntil = selectedDate
+    ? Math.ceil((new Date(selectedDate + 'T12:00:00') - new Date()) / 86400000)
+    : null
+
   return (
     <div
       className="min-h-screen pb-16"
       style={{ background: 'var(--dark)' }}
     >
-      <div className="w-full max-w-md mx-auto px-4 pt-10">
+      {/* ── Full-bleed Hero — Claro layout ──────────────────────────────── */}
+      <div
+        style={{
+          height: 'calc(68vh - 56px)',
+          minHeight: 380,
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Crossfading photo layers */}
+        {HERO_PHOTOS.map((src, i) => (
+          <div key={src} style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${src})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 40%',
+            opacity: i === heroIdx ? 1 : 0,
+            transition: 'opacity 1.2s ease-in-out',
+          }} />
+        ))}
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="mb-8">
-          <div>
-            <h1
-              style={{
-                fontFamily: 'Playfair Display, serif',
-                fontSize: '1.6rem',
-                color: 'var(--text)',
-                lineHeight: 1.15,
-              }}
-            >
-              Command Center
-            </h1>
-            <p
-              style={{
-                fontFamily: 'DM Sans, sans-serif',
-                fontSize: '0.8rem',
-                color: 'var(--text-dim)',
-                marginTop: 4,
-              }}
-            >
-              Wedding OS · {meta?.wedding_date ?? 'Date TBD'}
-            </p>
+        {/* Dark overlay for text legibility */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to bottom, rgba(18,12,6,0.35) 0%, rgba(18,12,6,0.25) 50%, rgba(247,240,227,0.0) 75%, var(--dark) 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Art Deco tile overlay */}
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.04,
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%23C9A84C' stroke-width='0.8'/%3E%3Ccircle cx='30' cy='30' r='4' fill='none' stroke='%23C9A84C' stroke-width='0.6'/%3E%3C/svg%3E\")",
+          backgroundSize: '60px 60px',
+          pointerEvents: 'none',
+        }} />
+
+        {/* ── Hero content — centered like Claro ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 24px', width: '100%' }}
+        >
+          {/* Badge pill */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            border: '1px solid rgba(201,168,76,0.55)',
+            borderRadius: 99, padding: '5px 14px', marginBottom: 20,
+            background: 'rgba(28,18,8,0.35)',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', letterSpacing: '0.12em', color: 'rgba(232,213,163,0.9)', textTransform: 'uppercase' }}>
+              La Jolla · March 2027
+            </span>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
           </div>
-        </div>
+
+          {/* Main headline */}
+          <h1 style={{
+            fontFamily: '"Cinzel", Georgia, serif',
+            fontSize: 'clamp(1.8rem, 6vw, 2.8rem)',
+            fontWeight: 700,
+            color: '#F7F0E3',
+            letterSpacing: '0.05em',
+            lineHeight: 1.15,
+            marginBottom: 14,
+            textShadow: '0 2px 20px rgba(18,12,6,0.5)',
+          }}>
+            Plan Every Detail.<br />Make It Perfect.
+          </h1>
+
+          {/* Subtitle */}
+          <p style={{
+            fontFamily: '"Playfair Display", serif',
+            fontSize: '0.95rem',
+            fontStyle: 'italic',
+            color: 'rgba(232,213,163,0.8)',
+            marginBottom: 28,
+            maxWidth: 320,
+            margin: '0 auto 28px',
+            lineHeight: 1.6,
+          }}>
+            Dani &amp; Kerwin's Wedding OS — every venue, vendor, and guest in one place.
+          </p>
+
+        </motion.div>
+      </div>
+
+      {/* ── Floating stat card ─────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px', marginTop: -44, position: 'relative', zIndex: 10 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            width: '100%',
+            maxWidth: 420,
+            background: 'rgba(247, 240, 227, 0.88)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--gold-border)',
+            borderRadius: 20,
+            padding: '20px 24px 18px',
+            boxShadow: '0 8px 40px rgba(28,18,8,0.18), inset 0 0 0 1px rgba(255,255,255,0.35)',
+          }}
+        >
+          {/* D & K label */}
+          <p style={{
+            fontFamily: '"Cinzel", Georgia, serif',
+            fontSize: '0.62rem',
+            letterSpacing: '0.22em',
+            color: 'var(--gold)',
+            textAlign: 'center',
+            marginBottom: 12,
+            textTransform: 'uppercase',
+          }}>
+            Dani &amp; Kerwin
+          </p>
+
+          {/* Venue + countdown */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontFamily: '"Playfair Display", Georgia, serif',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              color: 'var(--ink)',
+              lineHeight: 1.2,
+              marginBottom: 6,
+            }}>
+              {lockedVenue?.name ?? 'Venue TBD'}
+            </div>
+            <div style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.02em',
+            }}>
+              {daysUntil != null
+                ? `${daysUntil} days to go`
+                : meta?.wedding_date ?? 'Date TBD'}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      <div className="w-full max-w-md mx-auto px-4" style={{ marginTop: 24 }}>
 
         {/* ── Confirmed Picks ──────────────────────────────────────────── */}
         {(lockedVenue || lockedCinema) && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-2xl mb-4"
-            style={{ background: 'var(--card)', border: `1px solid ${userMeta.color}44` }}
+            className="card-gatsby p-5 rounded-2xl mb-4"
+            style={{ borderColor: `${userMeta.color}55` }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-                🔒 Confirmed Picks
+                Confirmed Picks
               </h2>
               {venueQuote?.total && (
                 <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', background: 'rgba(201,147,42,0.1)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
@@ -1041,12 +1222,11 @@ export default function Dashboard({ user, onSwitchUser }) {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-2xl mb-4"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+            className="card-gatsby p-5 rounded-2xl mb-4"
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-                🎼 Vendor Lineup
+                Vendor Lineup
               </h2>
               <button
                 onClick={() => navigate('/vendors')}
@@ -1120,12 +1300,11 @@ export default function Dashboard({ user, onSwitchUser }) {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-5 rounded-2xl mb-4"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          className="card-gatsby p-5 rounded-2xl mb-4"
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-              👥 Guest List
+              Guest List
             </h2>
             <button onClick={() => navigate('/guests')}
               style={{ fontFamily: 'DM Sans', fontSize: '0.78rem', color: userMeta.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
@@ -1160,12 +1339,11 @@ export default function Dashboard({ user, onSwitchUser }) {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-5 rounded-2xl mb-4"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          className="card-gatsby p-5 rounded-2xl mb-4"
         >
           <div className="flex items-center justify-between mb-3">
             <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-              {selectedDate ? '🔒 Wedding Date' : 'Wedding Date'}
+              Wedding Date
             </h2>
             {selectedDate && (
               <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, fontWeight: 600 }}>
@@ -1205,91 +1383,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           )}
         </motion.div>
 
-        {/* ── Archetype Pair Card ────────────────────────────────────────── */}
-        {(kerwinArchetype || daniArchetype) && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-2xl mb-4"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col items-center">
-                <span
-                  style={{
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '0.7rem',
-                    color: USERS.kerwin.color,
-                    marginBottom: 8,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Kerwin
-                </span>
-                {kerwinArchetype ? (
-                  <ArchetypeBadge archetypeId={kerwinArchetype} size="md" />
-                ) : (
-                  <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif' }}>
-                    Quiz pending
-                  </span>
-                )}
-              </div>
-
-              {/* Compatibility score */}
-              {compatibility !== null && (
-                <div className="flex flex-col items-center">
-                  <p
-                    style={{
-                      fontFamily: 'Playfair Display, serif',
-                      fontSize: '2rem',
-                      color: 'var(--text)',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {compatibility}
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'DM Sans, sans-serif',
-                      fontSize: '0.65rem',
-                      color: 'var(--text-dim)',
-                      marginTop: 4,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    Match
-                  </p>
-                </div>
-              )}
-
-              <div className="flex flex-col items-center">
-                <span
-                  style={{
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '0.7rem',
-                    color: USERS.dani.color,
-                    marginBottom: 8,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Dani
-                </span>
-                {daniArchetype ? (
-                  <ArchetypeBadge archetypeId={daniArchetype} size="md" />
-                ) : (
-                  <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif' }}>
-                    Quiz pending
-                  </span>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* ── Tension Alerts ─────────────────────────────────────────────── */}
         <AnimatePresence>
@@ -1311,11 +1404,10 @@ export default function Dashboard({ user, onSwitchUser }) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="p-5 rounded-2xl mb-4"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          className="card-gatsby p-5 rounded-2xl mb-4"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4" style={{ gap: 8, flexWrap: 'wrap' }}>
             <h2
               style={{
                 fontFamily: 'Playfair Display, serif',
@@ -1325,6 +1417,42 @@ export default function Dashboard({ user, onSwitchUser }) {
             >
               Live Budget
             </h2>
+            {/* Guest count + LIVE toggle — always visible */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+              <span style={{ fontFamily: 'DM Sans', fontSize: '0.75rem', color: 'var(--text-dim)' }}>Guests</span>
+              <button
+                onClick={() => setLiveCount(v => !v)}
+                title={liveCount ? 'Switch to manual guest count' : 'Auto-fill from Guest Draft Board (all statuses + +1s)'}
+                style={{
+                  padding: '2px 8px', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700,
+                  fontFamily: 'DM Sans', cursor: 'pointer', letterSpacing: '0.04em',
+                  border: `1px solid ${liveCount ? '#22c55e' : 'var(--border)'}`,
+                  background: liveCount ? '#22c55e22' : 'none',
+                  color: liveCount ? '#22c55e' : 'var(--text-dim)',
+                  transition: 'all 0.15s',
+                }}
+              >LIVE</button>
+              {!liveCount && (
+                <button onClick={() => changeGuests(guestCount - 1)} style={{
+                  width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border)',
+                  background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
+                  fontSize: 12, fontWeight: 700, color: 'var(--text)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>−</button>
+              )}
+              <span style={{
+                fontFamily: 'DM Sans', fontSize: '0.9rem', fontWeight: 700,
+                color: liveCount ? '#22c55e' : 'var(--text)', minWidth: 28, textAlign: 'center',
+              }}>{guestCount}</span>
+              {!liveCount && (
+                <button onClick={() => changeGuests(guestCount + 1)} style={{
+                  width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border)',
+                  background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
+                  fontSize: 12, fontWeight: 700, color: 'var(--text)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>+</button>
+              )}
+            </div>
             {saving && (
               <span
                 style={{
@@ -1407,7 +1535,7 @@ export default function Dashboard({ user, onSwitchUser }) {
                     fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
                   }}
                 >
-                  🔒 Use La Valencia Quote Costs
+                  Use La Valencia Quote Costs
                 </button>
               )}
             </div>
@@ -1433,9 +1561,22 @@ export default function Dashboard({ user, onSwitchUser }) {
                 border: '1px solid var(--border)', marginBottom: 12,
               }}>
                 <span style={{ fontFamily: 'DM Sans', fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>
-                  👥 Guest Count
+                  Guest Count
                 </span>
-                {[[-10,'−−'],[-1,'−']].map(([d, lbl]) => (
+                {/* Live toggle */}
+                <button
+                  onClick={() => setLiveCount(v => !v)}
+                  title={liveCount ? 'Switch to manual' : 'Use live guest count from Guest Draft Board'}
+                  style={{
+                    padding: '2px 8px', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700,
+                    fontFamily: 'DM Sans', cursor: 'pointer', letterSpacing: '0.04em',
+                    border: `1px solid ${liveCount ? '#22c55e' : 'var(--border)'}`,
+                    background: liveCount ? '#22c55e22' : 'none',
+                    color: liveCount ? '#22c55e' : 'var(--text-dim)',
+                    transition: 'all 0.15s',
+                  }}
+                >LIVE</button>
+                {!liveCount && [[-10,'−−'],[-1,'−']].map(([d, lbl]) => (
                   <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
                     width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
                     background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
@@ -1446,15 +1587,17 @@ export default function Dashboard({ user, onSwitchUser }) {
                 <input
                   type="number"
                   value={guestCount}
-                  onChange={e => changeGuests(parseInt(e.target.value) || 1)}
+                  readOnly={liveCount}
+                  onChange={e => !liveCount && changeGuests(parseInt(e.target.value) || 1)}
                   style={{
                     width: 56, textAlign: 'center', fontFamily: 'DM Sans',
-                    fontSize: 15, fontWeight: 700, color: 'var(--text)',
-                    border: '1px solid var(--border)', borderRadius: 8,
+                    fontSize: 15, fontWeight: 700, color: liveCount ? '#22c55e' : 'var(--text)',
+                    border: `1px solid ${liveCount ? '#22c55e44' : 'var(--border)'}`, borderRadius: 8,
                     padding: '3px 4px', background: 'rgba(26,18,8,0.03)',
+                    cursor: liveCount ? 'default' : 'auto',
                   }}
                 />
-                {[[1,'+'],[10,'++']].map(([d, lbl]) => (
+                {!liveCount && [[1,'+'],[10,'++']].map(([d, lbl]) => (
                   <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
                     width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
                     background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
@@ -1742,7 +1885,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Venue Scouting"
             desc="36 venues across SoCal, Bay Area & Monterey. Rate, compare, and build packages."
-            icon="🏛"
             path="/venues"
             available={true}
             navigate={navigate}
@@ -1750,7 +1892,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Guest Draft Board"
             desc="Locked, Bubble Squad, and Practice Squad. Live headcount & budget impact."
-            icon="👥"
             path="/guests"
             available={true}
             navigate={navigate}
@@ -1758,7 +1899,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Vendor Windows"
             desc="Music, catering, bar, cinematography, florals, and more."
-            icon="🎼"
             path="/vendors"
             available={true}
             navigate={navigate}
@@ -1766,7 +1906,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Style Quiz"
             desc="10 questions to find your wedding archetype and planning style."
-            icon="🧬"
             path="/quiz"
             available={true}
             navigate={navigate}
@@ -1774,7 +1913,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Compatibility Report"
             desc="Your archetype match, tension points, and planning playbook."
-            icon="📊"
             path="/results"
             available={kerwinArchetype !== null && daniArchetype !== null}
             navigate={navigate}
@@ -1782,7 +1920,6 @@ export default function Dashboard({ user, onSwitchUser }) {
           <NavCard
             label="Vibe Scraper"
             desc="Drop a URL. We'll analyze the visual DNA and score it against your archetype."
-            icon="✨"
             path="/vibe"
             available={true}
             navigate={navigate}

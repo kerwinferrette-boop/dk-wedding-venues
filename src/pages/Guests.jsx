@@ -172,6 +172,17 @@ function parseCSV(text, addedBy) {
   }).filter(Boolean)
 }
 
+// ─── Google Sheets helpers ────────────────────────────────────────────────────
+
+function extractSheetId(url) {
+  const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/)
+  return m ? m[1] : null
+}
+
+function sheetToCsvUrl(sheetId) {
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CheckCell({ value, onChange, color }) {
@@ -700,6 +711,15 @@ export default function Guests({ user }) {
   const [importing, setImporting] = useState(false)
   const fileRef = useRef(null)
 
+  // ── Google Sheets sync ────────────────────────────────────────────────────
+  const [sheetUrl, setSheetUrl]           = useState(() => localStorage.getItem('wos_sheet_url') || '')
+  const [sheetInput, setSheetInput]       = useState('')
+  const [sheetOpen, setSheetOpen]         = useState(false)
+  const [lastSynced, setLastSynced]       = useState(null)
+  const [syncError, setSyncError]         = useState(false)
+  const sheetTimerRef                     = useRef(null)
+  const guestsRef                         = useRef([])
+
   // Load
   useEffect(() => {
     async function load() {
@@ -813,16 +833,76 @@ export default function Guests({ user }) {
     setImporting(false)
   }
 
+  // ─── Google Sheets sync logic ────────────────────────────────────────────────
+
+  async function syncFromSheet(url) {
+    const id = extractSheetId(url)
+    if (!id) return
+    try {
+      const res = await fetch(sheetToCsvUrl(id))
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const text = await res.text()
+      const newGuests = parseCSV(text, user)
+      setGuests(prev => {
+        const existingNames = new Set(prev.map(g => g.name.toLowerCase()))
+        const toAdd = newGuests.filter(g => g.name && !existingNames.has(g.name.toLowerCase()))
+        if (toAdd.length > 0) {
+          const updated = [...prev, ...toAdd]
+          saveLocal(updated)
+          supabase.from('guests').insert(toAdd.map(guestToDb)).then(() => {})
+          return updated
+        }
+        return prev
+      })
+      setSyncError(false)
+      setLastSynced(new Date())
+    } catch (err) {
+      console.error('Sheet sync failed:', err)
+      setSyncError(true)
+    }
+  }
+
+  function startSheetSync(url) {
+    clearInterval(sheetTimerRef.current)
+    syncFromSheet(url)
+    sheetTimerRef.current = setInterval(() => syncFromSheet(url), 60_000)
+  }
+
+  function connectSheet() {
+    const url = sheetInput.trim()
+    if (!extractSheetId(url)) return
+    localStorage.setItem('wos_sheet_url', url)
+    setSheetUrl(url)
+    setSheetOpen(false)
+    setSheetInput('')
+    startSheetSync(url)
+  }
+
+  function disconnectSheet() {
+    clearInterval(sheetTimerRef.current)
+    localStorage.removeItem('wos_sheet_url')
+    setSheetUrl('')
+    setLastSynced(null)
+    setSyncError(false)
+  }
+
+  // Start sync on mount if URL already saved
+  useEffect(() => {
+    if (sheetUrl) startSheetSync(sheetUrl)
+    return () => clearInterval(sheetTimerRef.current)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Filter / sort ──────────────────────────────────────────────────────────
 
   const [filterText,    setFilterText]    = useState('')
   const [filterSection, setFilterSection] = useState('all')
   const [filterRole,    setFilterRole]    = useState('all')
   const [filterStatus,  setFilterStatus]  = useState('all')
+  const [filterPlusOne, setFilterPlusOne] = useState('all')
   const [sortBy,        setSortBy]        = useState('default')
   const [sortDir,       setSortDir]       = useState('asc')
 
-  const anyFilterActive = filterText || filterSection !== 'all' || filterRole !== 'all' || filterStatus !== 'all' || sortBy !== 'default'
+  const anyFilterActive = filterText || filterSection !== 'all' || filterRole !== 'all' || filterStatus !== 'all' || filterPlusOne !== 'all' || sortBy !== 'default'
 
   function handleSort(key) {
     if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -834,6 +914,7 @@ export default function Guests({ user }) {
       .filter(g => !filterText || g.name.toLowerCase().includes(filterText.toLowerCase()))
       .filter(g => filterRole === 'all' || g.role === filterRole)
       .filter(g => filterStatus === 'all' || g.status === filterStatus)
+      .filter(g => filterPlusOne === 'all' || (filterPlusOne === 'yes' ? g.plusOne : !g.plusOne))
   }
 
   function applySort(list) {
@@ -892,8 +973,78 @@ export default function Guests({ user }) {
             {guests.length} names · {totalHeads} heads total · {plusOnes} +1s
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {importing && <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Importing…</span>}
+
+          {/* Google Sheets sync UI */}
+          {sheetUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: syncError ? '#f59e0b' : '#22c55e',
+                display: 'inline-block', flexShrink: 0,
+              }} />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}>
+                {syncError ? 'Sync failed' : lastSynced ? `Synced ${Math.round((Date.now() - lastSynced) / 60000)}m ago` : 'Syncing…'}
+              </span>
+              <button
+                onClick={disconnectSheet}
+                title="Disconnect Google Sheet"
+                style={{
+                  background: 'none', border: '1px solid var(--border)', borderRadius: 5,
+                  padding: '2px 7px', fontSize: '0.7rem', cursor: 'pointer',
+                  color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif',
+                }}
+              >✕</button>
+            </div>
+          ) : sheetOpen ? (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                value={sheetInput}
+                onChange={e => setSheetInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') connectSheet(); if (e.key === 'Escape') setSheetOpen(false) }}
+                placeholder="Paste Google Sheet URL…"
+                autoFocus
+                style={{
+                  background: 'var(--card)', border: `1px solid ${userMeta.color}`,
+                  borderRadius: 7, padding: '5px 10px', color: 'var(--text)',
+                  fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', outline: 'none', width: 220,
+                }}
+              />
+              <button
+                onClick={connectSheet}
+                disabled={!extractSheetId(sheetInput.trim())}
+                style={{
+                  background: userMeta.color, border: 'none', borderRadius: 7,
+                  padding: '5px 12px', color: '#fff', fontSize: '0.78rem',
+                  cursor: extractSheetId(sheetInput.trim()) ? 'pointer' : 'not-allowed',
+                  fontFamily: 'DM Sans, sans-serif', opacity: extractSheetId(sheetInput.trim()) ? 1 : 0.5,
+                }}
+              >Connect</button>
+              <button
+                onClick={() => setSheetOpen(false)}
+                style={{
+                  background: 'none', border: '1px solid var(--border)', borderRadius: 7,
+                  padding: '5px 10px', color: 'var(--text-dim)', fontSize: '0.78rem',
+                  cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                }}
+              >Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSheetOpen(true)}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 7,
+                padding: '5px 12px', color: 'var(--text-muted)', fontSize: '0.78rem',
+                cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = userMeta.color; e.currentTarget.style.color = userMeta.color }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              ⟳ Sheet
+            </button>
+          )}
+
           <button
             onClick={() => fileRef.current?.click()}
             style={{
@@ -1020,9 +1171,23 @@ export default function Guests({ user }) {
             >{label}</button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['all','All'],['yes','+1'],['no','No +1']].map(([v, label]) => (
+            <button key={v}
+              onClick={() => setFilterPlusOne(v)}
+              style={{
+                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+                background: filterPlusOne === v ? userMeta.color : 'none',
+                color: filterPlusOne === v ? '#fff' : 'var(--text-dim)',
+                border: `1px solid ${filterPlusOne === v ? 'transparent' : 'var(--border)'}`,
+              }}
+            >{label}</button>
+          ))}
+        </div>
         {anyFilterActive && (
           <button
-            onClick={() => { setFilterText(''); setFilterSection('all'); setFilterRole('all'); setFilterStatus('all'); setSortBy('default'); setSortDir('asc') }}
+            onClick={() => { setFilterText(''); setFilterSection('all'); setFilterRole('all'); setFilterStatus('all'); setFilterPlusOne('all'); setSortBy('default'); setSortDir('asc') }}
             style={{
               marginLeft: 'auto', padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem',
               cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',

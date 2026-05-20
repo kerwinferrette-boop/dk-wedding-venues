@@ -5,10 +5,10 @@ import { supabase, USERS } from '../lib/supabase'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const REGIONS = [
-  { key: 'all',      label: 'All',      icon: '🌍' },
-  { key: 'socal',    label: 'SoCal',    icon: '☀️' },
-  { key: 'bay',      label: 'Bay Area', icon: '🌉' },
-  { key: 'monterey', label: 'Monterey', icon: '🌊' },
+  { key: 'all',      label: 'All',      icon: '' },
+  { key: 'socal',    label: 'SoCal',    icon: '' },
+  { key: 'bay',      label: 'Bay Area', icon: '' },
+  { key: 'monterey', label: 'Monterey', icon: '' },
 ]
 
 const SORT_OPTIONS = [
@@ -168,12 +168,12 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
   const [editCat,  setEditCat]    = useState(venue.catering_pp || '')
 
   const badges = []
-  if (venue.leader)      badges.push({ label: '⭐ Top Pick',       color: '#C9932A' })
-  if (venue.has_package) badges.push({ label: '📦 Package',        color: '#7B61FF' })
-  if (venue.aqua)        badges.push({ label: '🐟 Aquarium',       color: '#2B9FCC' })
-  if (venue.arch)        badges.push({ label: '🏛️ Historic',      color: '#9A7B5E' })
-  if (venue.planet)      badges.push({ label: '🔭 Planetarium',    color: '#8A5FCC' })
-  if (venue.locked)      badges.push({ label: '🔒 Confirmed',      color: '#C9932A' })
+  if (venue.leader)      badges.push({ label: 'Top Pick',       color: '#C9932A' })
+  if (venue.has_package) badges.push({ label: 'Package',        color: '#7B61FF' })
+  if (venue.aqua)        badges.push({ label: 'Aquarium',       color: '#2B9FCC' })
+  if (venue.arch)        badges.push({ label: 'Historic',      color: '#9A7B5E' })
+  if (venue.planet)      badges.push({ label: 'Planetarium',    color: '#8A5FCC' })
+  if (venue.locked)      badges.push({ label: 'Confirmed',      color: '#C9932A' })
 
   const vibeTags = parseVibeTags(venue.vibe_tags)
 
@@ -263,7 +263,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
                 onMouseOver={e => { e.currentTarget.style.background = '#ef444488'; e.currentTarget.style.color = '#fff' }}
                 onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
               >
-                🗑
+                Del
               </button>
             )
           )}
@@ -283,7 +283,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
               transition: 'background 0.15s',
             }}
           >
-            ✏️
+            Edit
           </button>
           <RatingDots ratings={ratings} myUser={user} />
         </div>
@@ -370,7 +370,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
               cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans', fontWeight: 600,
             }}
           >
-            {venue.locked ? '🔒 Locked In' : '🔓 Lock In This Venue'}
+            {venue.locked ? 'Locked In' : 'Lock In This Venue'}
           </button>
         </div>
       )}
@@ -397,9 +397,9 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
 
         {/* Stats */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {fmtFee  && <StatPill icon="💰" label="Fee"      value={fmtFee} />}
-          {venue.max_cap && <StatPill icon="👥" label="Capacity" value={`${venue.max_cap}`} />}
-          {venue.catering_pp && <StatPill icon="🍽" label="Catering" value={`${fmt(venue.catering_pp)}/pp`} />}
+          {fmtFee  && <StatPill icon="" label="Fee"      value={fmtFee} />}
+          {venue.max_cap && <StatPill icon="" label="Capacity" value={`${venue.max_cap}`} />}
+          {venue.catering_pp && <StatPill icon="" label="Catering" value={`${fmt(venue.catering_pp)}/pp`} />}
         </div>
 
         {/* Estimated total */}
@@ -454,7 +454,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
           >
             {myRating
               ? <><Stars value={myRating.stars} size={11} color={userColor} /> Rated</>
-              : '⭐ Rate'}
+              : 'Rate'}
           </button>
 
           {/* Package button */}
@@ -469,7 +469,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
                 cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
               }}
             >
-              📦 Pkg
+              Pkg
             </button>
           )}
 
@@ -484,7 +484,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
               cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
             }}
           >
-            📄
+            View
           </button>
 
           {/* Quote view */}
@@ -497,7 +497,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
                 color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'DM Sans'
               }}
             >
-              📋 Quote
+              Quote
             </button>
           )}
 
@@ -514,7 +514,7 @@ function VenueCard({ venue, ratings, user, onRate, onPackage, onQuote, onDelete,
                 whiteSpace: 'nowrap',
               }}
             >
-              🌐
+              Link
             </a>
           )}
         </div>
@@ -698,7 +698,7 @@ function RatingModal({ venue, ratings, user, onClose, onSave }) {
 
 const PACKAGE_DATA = {
   25: {
-    emoji: '🏛️',
+    emoji: '',
     defaultGuests: 150,
     inclusions: [
       'Ceremony & reception spaces',
@@ -720,7 +720,7 @@ const PACKAGE_DATA = {
     ],
   },
   26: {
-    emoji: '🦒',
+    emoji: '',
     defaultGuests: 100,
     inclusions: [
       'Mkutano House exclusive rental',
@@ -741,7 +741,7 @@ const PACKAGE_DATA = {
     ],
   },
   29: {
-    emoji: '🎵',
+    emoji: '',
     defaultGuests: 180,
     inclusions: [
       'Full venue buyout (ceremony + reception)',
@@ -831,7 +831,7 @@ function QuoteDataModal({ venue, quotes, user, onClose }) {
                         border: flagged ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(255,255,255,0.06)',
                       }}>
                         <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: flagged ? '#FBB024' : 'rgba(255,255,255,0.85)' }}>
-                          {flagged && <span style={{ marginRight: 6 }}>⚠️</span>}{label}
+                          {flagged && <span style={{ marginRight: 6, color: "var(--wos-yellow)" }}>!</span>}{label}
                           {item.note && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 8 }}>{item.note}</span>}
                         </div>
                         <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600, color: flagged ? '#FBB024' : '#fff', whiteSpace: 'nowrap', marginLeft: 12 }}>{item.amount || item.price || item.cost || ''}</div>
@@ -853,7 +853,7 @@ function QuoteDataModal({ venue, quotes, user, onClose }) {
                     return (
                       <div key={i} style={{ fontFamily: 'DM Sans', fontSize: 13, color: flagged ? '#FBB024' : 'rgba(255,255,255,0.75)', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ color: userColor }}>✓</span>
-                        {flagged && <span>⚠️</span>}{text}
+                        {flagged && <span style={{ color: "var(--wos-yellow)" }}>!</span>}{text}
                       </div>
                     )
                   })}
@@ -1026,7 +1026,7 @@ function PackageModal({ venue, user, onClose }) {
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <span style={{ fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1 }}>
-            👥 Guest Count
+            Guest Count
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {[[-10,'−−'],[-1,'−']].map(([d, lbl]) => (
@@ -1273,7 +1273,7 @@ function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'Playfair Display', fontSize: 22, color: 'var(--text)' }}>
-              📄 Quote Upload
+              Quote Upload
             </h2>
             <p style={{ margin: '4px 0 0', fontFamily: 'DM Sans', fontSize: 14, color: 'var(--text-muted)' }}>
               {venue.name}
@@ -1288,8 +1288,8 @@ function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
           {[
-            { key: 'upload',  label: '⬆️ Upload New' },
-            { key: 'history', label: `📂 History (${pastQuotes.length})` },
+            { key: 'upload',  label: 'Upload New' },
+            { key: 'history', label: `History (${pastQuotes.length})` },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -1332,7 +1332,7 @@ function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
                     onChange={e => setFile(e.target.files[0] || null)}
                   />
                   <div style={{ fontSize: 32, marginBottom: 8 }}>
-                    {file ? (isPDF ? '📑' : '🖼️') : '📂'}
+                    {file ? (isPDF ? 'PDF' : 'IMG') : 'File'}
                   </div>
                   <div style={{ fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, color: file ? '#5DBB8A' : 'var(--text-muted)' }}>
                     {file ? file.name : 'Drop a quote here or click to browse'}
@@ -1350,7 +1350,7 @@ function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
                     borderRadius: 10, padding: '12px 16px', marginBottom: 16,
                     fontFamily: 'DM Sans', fontSize: 13, color: '#FF4B4B',
                   }}>
-                    ⚠️ {errorMsg}
+                    {errorMsg}
                   </div>
                 )}
 
@@ -1365,16 +1365,16 @@ function QuoteUploadModal({ venue, user, onClose, onSuccess }) {
                     cursor: validFile ? 'pointer' : 'not-allowed', transition: 'all 0.15s',
                   }}
                 >
-                  ✨ Extract with AI
+                  Extract with AI
                 </button>
               </>
             )}
 
             {status === 'uploading' && (
-              <QuoteStatusCard icon="⬆️" label="Uploading to storage…" color={userColor} />
+              <QuoteStatusCard icon="" label="Uploading to storage…" color={userColor} />
             )}
             {status === 'extracting' && (
-              <QuoteStatusCard icon="🤖" label="Claude is reading your quote…" color={userColor} />
+              <QuoteStatusCard icon="" label="Claude is reading your quote…" color={userColor} />
             )}
             {status === 'done' && extracted && (
               <QuoteExtractedView
@@ -1418,7 +1418,7 @@ function QuoteExtractedView({ data, userColor, onUploadAnother }) {
         borderRadius: 12, padding: '12px 16px', marginBottom: 20,
         fontFamily: 'DM Sans', fontSize: 13, color: '#5DBB8A', fontWeight: 600,
       }}>
-        ✅ Extraction complete!
+        Extraction complete!
       </div>
 
       {rows.length > 0 && (
@@ -1493,7 +1493,7 @@ function QuoteExtractedView({ data, userColor, onUploadAnother }) {
           cursor: 'pointer',
         }}
       >
-        ⬆️ Upload Another
+        Upload Another
       </button>
     </div>
   )
@@ -1503,7 +1503,7 @@ function QuoteHistoryTab({ quotes }) {
   if (quotes.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 24px', fontFamily: 'DM Sans', color: 'var(--text-dim)' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>📂</div>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>—</div>
         <div style={{ fontSize: 14 }}>No quotes uploaded yet</div>
       </div>
     )
@@ -1519,7 +1519,7 @@ function QuoteHistoryTab({ quotes }) {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                {q.user === 'kerwin' ? '🔴' : '🟢'} {q.user}
+                {q.user}
               </span>
               <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-dim)' }}>
                 {new Date(q.uploaded_at).toLocaleDateString()}
@@ -1547,7 +1547,7 @@ function QuoteHistoryTab({ quotes }) {
             </div>
             {d.parse_error && (
               <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: '#C9932A', marginTop: 6 }}>
-                ⚠️ Could not fully parse quote
+                Could not fully parse quote
               </div>
             )}
           </div>
@@ -1980,7 +1980,7 @@ export default function Venues({ user, onSwitchUser }) {
             {/* Guest count input */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                👥 Guests
+                Guests
               </span>
               <input
                 type="number"
@@ -2039,10 +2039,10 @@ export default function Venues({ user, onSwitchUser }) {
         }}>
           {/* Filter chips */}
           <Chip active={filterTopPicks} onClick={() => setFilterTopPicks(p => !p)} color="#C9932A">
-            ⭐ Top Picks
+            Top Picks
           </Chip>
           <Chip active={filterHasPackage} onClick={() => setFilterHasPackage(p => !p)} color="#7B61FF">
-            📦 Has Package
+            Has Package
           </Chip>
 
           <div style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 2px' }} />
@@ -2104,7 +2104,7 @@ export default function Venues({ user, onSwitchUser }) {
             textAlign: 'center', padding: '60px 20px',
             fontFamily: 'DM Sans', color: 'var(--text-muted)',
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>—</div>
             <p style={{ fontSize: 16, margin: '0 0 16px' }}>No venues match these filters.</p>
             <button
               onClick={() => {
