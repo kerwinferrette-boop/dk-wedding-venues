@@ -3,13 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { getCurrentUser, setCurrentUser, clearCurrentUser } from './lib/supabase'
 import NavBar from './components/NavBar'
 import UserSelect from './components/UserSelect'
-import Quiz from './pages/Quiz'
-import Results from './pages/Results'
 import Dashboard from './pages/Dashboard'
 import Guests from './pages/Guests'
 import Vendors from './pages/Vendors'
-import Venues from './pages/Venues'
-import VibeScan from './pages/VibeScan'
+import Budget from './pages/Budget'
 
 function InitialRedirect() {
   const navigate = useNavigate()
@@ -57,12 +54,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard user={user} onSwitchUser={handleSwitchUser} />} />
-        <Route path="/quiz" element={<Quiz user={user} onSwitchUser={handleSwitchUser} />} />
-        <Route path="/results" element={<Results user={user} onSwitchUser={handleSwitchUser} />} />
+        <Route path="/budget" element={<Budget user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/guests" element={<Guests user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/vendors" element={<Vendors user={user} onSwitchUser={handleSwitchUser} />} />
-        <Route path="/venues" element={<Venues user={user} onSwitchUser={handleSwitchUser} />} />
-        <Route path="/vibe" element={<VibeScan user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

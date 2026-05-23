@@ -4,10 +4,9 @@ import { USERS } from '../lib/supabase'
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Home' },
-  { path: '/venues',    label: 'Venues' },
+  { path: '/budget',    label: 'Budget' },
   { path: '/guests',    label: 'Guests' },
   { path: '/vendors',   label: 'Vendors' },
-  { path: '/vibe',      label: 'Vibe' },
 ]
 
 export default function NavBar({ user, onSwitchUser }) {

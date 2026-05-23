@@ -1,1353 +1,625 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+// Guest list - execution-phase cutdown manager.
+//
+// Goal: 200 -> 170 (La Valencia cap). This page lets us:
+//   - See the full list with the columns from our Google Sheet
+//     (side, know_from, has_met_dani, plans_to_meet, rsvp, notes)
+//   - Mark guests as "cut candidate" -> live count adjusts
+//   - Filter by side / rsvp / cut-candidate / met-dani
+//   - Import from .xlsx (the Google Sheet export)
+//   - Edit inline; writes flow back to Supabase
+//
+// IDs are auto-assigned by Postgres (bigint identity); we do NOT generate
+// client-side UUIDs on insert.
+
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
-import { supabase, USERS } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1JUtOiOq7kjNoVB8JEGysWZ7lm-TpVVlzEvnPNb6Q4z8/edit?gid=0#gid=0'
+const TARGET_CAP = 170
 
-const ROLE_LABELS = { best_man: 'BM', groomsman: 'GM' }
-const ROLE_COLORS = { best_man: '#A51C30', groomsman: '#2D6A4F' }
-
-const BOOL_COLS = [
-  { key: 'plusOne',             label: '+1',          short: '+1'  },
-  { key: 'hasMetDani',          label: 'Met Dani',    short: 'MD'  },
-  { key: 'plansToMeet',         label: 'Plans Meet',  short: 'PM'  },
-  { key: 'invitedEngagement',   label: 'Eng. Invite', short: 'EI'  },
-  { key: 'engagementPlusOne',   label: 'Eng. +1',     short: 'E+1' },
-  { key: 'goingEngagement',     label: 'Going Eng.',  short: 'GE'  },
-]
-
-const TEXT_COLS = [
-  { key: 'knowFrom',  label: 'Know From', width: 130 },
-  { key: 'residence', label: 'City',      width: 110 },
-]
-
-// XLSX column header → field key mapping (case-insensitive)
-const XLSX_MAP = {
-  'names':                        'name',
-  'name':                         'name',
-  'best man':                     'role:best_man',
-  'groomsmen':                    'role:groomsman',
-  'groomsman':                    'role:groomsman',
-  'plus one':                     'plusOne',
-  '+1':                           'plusOne',
-  'know from:':                   'knowFrom',
-  'know from':                    'knowFrom',
-  'has met dani':                 'hasMetDani',
-  'place of residence':           'residence',
-  'residence':                    'residence',
-  'city':                         'residence',
-  'plans to meet dani':           'plansToMeet',
-  'plans to meet':                'plansToMeet',
-  'invited to engagement party':  'invitedEngagement',
-  'engagement party +1':          'engagementPlusOne',
-  'engagement +1':                'engagementPlusOne',
-  'going to engagement party':    'goingEngagement',
-  'going to engagement':          'goingEngagement',
-  'notes':                        'notes',
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const SIDES = ['kerwin', 'dani', 'both', 'other']
+const RSVPS = ['yes', 'no', 'maybe', 'pending']
 
 function toBool(v) {
+  if (v == null) return false
   if (typeof v === 'boolean') return v
-  if (typeof v === 'number') return v === 1
-  if (typeof v === 'string') return ['true', 'yes', '1', 'x', '✓'].includes(v.toLowerCase().trim())
-  return false
+  const s = String(v).trim().toLowerCase()
+  return s === 'true' || s === 'yes' || s === 'y' || s === '1' || s === 'x' || s === '✓'
 }
 
-function makeGuest(fields, addedBy) {
-  return {
-    id: crypto.randomUUID(),
-    name: (fields.name || '').trim(),
-    status: fields.role ? 'locked' : (fields.status || 'bubble'),
-    plusOne: false,
-    addedBy,
-    role: fields.role || null,
-    knowFrom: fields.knowFrom || '',
-    hasMetDani: fields.hasMetDani || false,
-    residence: fields.residence || '',
-    plansToMeet: fields.plansToMeet || false,
-    invitedEngagement: fields.invitedEngagement || false,
-    engagementPlusOne: fields.engagementPlusOne || false,
-    goingEngagement: fields.goingEngagement || false,
-    notes: fields.notes || '',
-    phone: fields.phone || '',
-    email: fields.email || '',
-    rsvp: null,
-    createdAt: new Date().toISOString(),
-  }
+// Header name -> guests column name. Loose matching: lowercased + trimmed.
+const COLUMN_ALIASES = {
+  'name': 'name',
+  'guest': 'name',
+  'guest name': 'name',
+  'side': 'side',
+  'whose side': 'side',
+  'know from': 'know_from',
+  'how do we know': 'know_from',
+  'has met dani': 'has_met_dani',
+  'met dani': 'has_met_dani',
+  'plans to meet': 'plans_to_meet',
+  'plans to meet dani': 'plans_to_meet',
+  'plus one': 'plus_one',
+  'plus 1': 'plus_one',
+  '+1': 'plus_one',
+  'residence': 'residence',
+  'city': 'residence',
+  'where do they live': 'residence',
+  'rsvp': 'rsvp',
+  'email': 'email',
+  'phone': 'phone',
+  'notes': 'notes',
+  'invited engagement': 'invited_engagement',
+  'engagement plus one': 'engagement_plus_one',
+  'going engagement': 'going_engagement',
 }
 
-function dbToGuest(r) {
-  return {
-    id: r.id,
-    name: r.name,
-    status: r.status,
-    plusOne: r.plus_one,
-    addedBy: r.added_by,
-    role: r.role || null,
-    knowFrom: r.know_from || '',
-    hasMetDani: r.has_met_dani || false,
-    residence: r.residence || '',
-    plansToMeet: r.plans_to_meet || false,
-    invitedEngagement: r.invited_engagement || false,
-    engagementPlusOne: r.engagement_plus_one || false,
-    goingEngagement: r.going_engagement || false,
-    notes: r.notes || '',
-    phone: r.phone || '',
-    email: r.email || '',
-    rsvp: r.rsvp || null,
-    createdAt: r.created_at,
-  }
+const BOOLEAN_COLS = new Set([
+  'has_met_dani', 'plans_to_meet', 'plus_one', 'cut_candidate',
+  'invited_engagement', 'engagement_plus_one', 'going_engagement',
+])
+
+function normalizeRsvp(v) {
+  if (!v) return null
+  const s = String(v).trim().toLowerCase()
+  if (['yes', 'y', 'going', 'attending', 'accepted'].includes(s)) return 'yes'
+  if (['no', 'n', 'declined', 'not going'].includes(s)) return 'no'
+  if (['maybe', 'tentative'].includes(s)) return 'maybe'
+  return 'pending'
 }
 
-function guestToDb(g) {
-  return {
-    id: g.id,
-    name: g.name,
-    status: g.status,
-    plus_one: g.plusOne,
-    added_by: g.addedBy,
-    role: g.role,
-    know_from: g.knowFrom,
-    has_met_dani: g.hasMetDani,
-    residence: g.residence,
-    plans_to_meet: g.plansToMeet,
-    invited_engagement: g.invitedEngagement,
-    engagement_plus_one: g.engagementPlusOne,
-    going_engagement: g.goingEngagement,
-    notes: g.notes,
-    phone: g.phone,
-    email: g.email,
-    rsvp: g.rsvp,
-  }
+function normalizeSide(v) {
+  if (!v) return null
+  const s = String(v).trim().toLowerCase()
+  if (['kerwin', 'k', 'groom'].includes(s)) return 'kerwin'
+  if (['dani', 'd', 'bride'].includes(s)) return 'dani'
+  if (['both', 'shared', 'mutual'].includes(s)) return 'both'
+  return 'other'
 }
 
-function loadLocal() {
-  try { return JSON.parse(localStorage.getItem('wos_guests') || '[]') } catch { return [] }
-}
-function saveLocal(guests) {
-  localStorage.setItem('wos_guests', JSON.stringify(guests))
-}
-
-function parseXLSX(buffer, addedBy) {
+function parseGuestsXlsx(buffer) {
   const wb = XLSX.read(buffer, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 })
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
   if (!rows.length) return []
 
-  const headers = rows[0].map(h => String(h || '').trim())
+  const headers = rows[0].map(h => (h ? String(h).trim().toLowerCase() : ''))
   const dataRows = rows.slice(1)
 
   return dataRows.map(row => {
-    const fields = {}
+    const g = {}
     headers.forEach((h, i) => {
-      const mapped = XLSX_MAP[h.toLowerCase()]
-      if (!mapped) return
-      const val = row[i]
-      if (mapped.startsWith('role:')) {
-        if (toBool(val)) fields.role = mapped.split(':')[1]
-      } else if (['plusOne','hasMetDani','plansToMeet','invitedEngagement','engagementPlusOne','goingEngagement'].includes(mapped)) {
-        fields[mapped] = toBool(val)
-      } else {
-        fields[mapped] = val != null ? String(val).trim() : ''
-      }
+      const col = COLUMN_ALIASES[h]
+      if (!col) return
+      let val = row[i]
+      if (val == null || val === '') return
+      if (BOOLEAN_COLS.has(col)) g[col] = toBool(val)
+      else if (col === 'rsvp') g[col] = normalizeRsvp(val)
+      else if (col === 'side') g[col] = normalizeSide(val)
+      else g[col] = String(val).trim()
     })
-    if (!fields.name) return null
-    return makeGuest(fields, addedBy)
+    if (!g.name) return null
+    return g
   }).filter(Boolean)
 }
 
-function parseCSV(text, addedBy) {
-  const lines = text.trim().split('\n').filter(l => l.trim())
-  if (!lines.length) return []
-  const firstLower = lines[0].toLowerCase()
-  const hasHeader = firstLower.includes('name') || firstLower.includes('guest')
-  const dataLines = hasHeader ? lines.slice(1) : lines
-  return dataLines.map(line => {
-    const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''))
-    if (!cols[0]) return null
-    return makeGuest({ name: cols[0], status: cols[1] || 'bubble' }, addedBy)
-  }).filter(Boolean)
-}
-
-// ─── Google Sheets helpers ────────────────────────────────────────────────────
-
-function extractSheetId(url) {
-  const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/)
-  return m ? m[1] : null
-}
-
-function sheetToCsvUrl(sheetId) {
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function CheckCell({ value, onChange, color }) {
+function Pill({ label, value, color = 'var(--text)', sub }) {
   return (
-    <td
-      onClick={onChange}
-      style={{
-        textAlign: 'center',
-        cursor: 'pointer',
-        padding: '0 4px',
-        width: 44,
-        fontSize: '0.85rem',
-        color: value ? color : 'var(--border)',
-        transition: 'color 0.15s',
-        userSelect: 'none',
-      }}
-      title={value ? 'Click to uncheck' : 'Click to check'}
-    >
-      {value ? '✓' : '·'}
-    </td>
+    <div className="card-gatsby" style={{ padding: '12px 16px', minWidth: 120 }}>
+      <div style={{
+        fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-muted)',
+        textTransform: 'uppercase', fontFamily: 'DM Sans',
+      }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: 'Playfair Display', fontSize: 24, color, marginTop: 2, lineHeight: 1.1 }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans', marginTop: 2 }}>
+          {sub}
+        </div>
+      )}
+    </div>
   )
 }
 
-function TextCell({ value, onChange, width }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-  const ref = useRef(null)
+function Check({ checked, onToggle, color = 'var(--green)' }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        width: 18, height: 18, borderRadius: 4,
+        border: `1.5px solid ${checked ? color : 'var(--gold-border)'}`,
+        background: checked ? color : 'transparent',
+        color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1,
+        cursor: 'pointer', padding: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      title={checked ? 'Uncheck' : 'Check'}
+    >
+      {checked ? '✓' : ''}
+    </button>
+  )
+}
 
-  useEffect(() => { setDraft(value) }, [value])
+function Select({ value, onChange, options, placeholder }) {
+  return (
+    <select
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value || null)}
+      style={{
+        background: 'transparent', border: '1px solid var(--gold-border)',
+        borderRadius: 6, padding: '4px 8px', fontFamily: 'DM Sans',
+        fontSize: 12, color: 'var(--text)', cursor: 'pointer',
+      }}
+    >
+      <option value="">{placeholder || '—'}</option>
+      {options.map(o => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
+  )
+}
+
+function InlineText({ value, onChange, placeholder, width = 140 }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value || '')
+  const ref = useRef(null)
+  useEffect(() => { setDraft(value || '') }, [value])
   useEffect(() => { if (editing) ref.current?.focus() }, [editing])
 
   function commit() {
     setEditing(false)
-    if (draft !== value) onChange(draft)
+    if (draft !== (value || '')) onChange(draft || null)
   }
 
   if (editing) {
     return (
-      <td style={{ padding: '2px 6px', width }}>
-        <input
-          ref={ref}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
-          style={{
-            width: '100%',
-            background: 'var(--dark)',
-            border: '1px solid var(--accent)',
-            borderRadius: 4,
-            padding: '3px 6px',
-            color: 'var(--text)',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.8rem',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-      </td>
+      <input
+        ref={ref}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        style={{
+          background: 'transparent', border: '1px solid var(--gold-border)',
+          borderRadius: 4, padding: '2px 6px', fontFamily: 'DM Sans', fontSize: 12,
+          color: 'var(--text)', width,
+        }}
+      />
     )
   }
-
   return (
-    <td
+    <button
       onClick={() => setEditing(true)}
       style={{
-        padding: '0 8px',
-        width,
-        fontSize: '0.8rem',
-        color: value ? 'var(--text)' : 'var(--border)',
-        cursor: 'text',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        maxWidth: width,
+        background: 'none', border: 'none', cursor: 'pointer',
+        fontFamily: 'DM Sans', fontSize: 12,
+        color: value ? 'var(--text)' : 'var(--text-dim)',
+        padding: '2px 4px', textAlign: 'left', width,
       }}
+      title="Click to edit"
     >
-      {value || '—'}
-    </td>
+      {value || placeholder || '—'}
+    </button>
   )
 }
 
-function ExpandedRow({ guest, colSpan, userMeta, onUpdate, onRemove }) {
-  const [notes, setNotes] = useState(guest.notes || '')
-  const [phone, setPhone] = useState(guest.phone || '')
-  const [email, setEmail] = useState(guest.email || '')
-  const [rsvp,  setRsvp]  = useState(guest.rsvp  || null)
-
-  function saveNotes() {
-    if (notes !== guest.notes) onUpdate({ notes })
-  }
-
-  function savePhone() {
-    if (phone !== guest.phone) onUpdate({ phone })
-  }
-
-  function saveEmail() {
-    if (email !== guest.email) onUpdate({ email })
-  }
-
-  function toggleRsvp(v) {
-    const next = rsvp === v ? null : v
-    setRsvp(next)
-    onUpdate({ rsvp: next })
-  }
-
-  const inputStyle = {
-    background: 'var(--card)',
-    border: '1px solid var(--border)',
-    borderRadius: 6,
-    padding: '5px 10px',
-    color: 'var(--text)',
-    fontFamily: 'DM Sans, sans-serif',
-    fontSize: '0.8rem',
-    outline: 'none',
-    boxSizing: 'border-box',
-    width: '100%',
-  }
-
-  return (
-    <tr>
-      <td colSpan={colSpan} style={{ padding: 0 }}>
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.15 }}
-          style={{
-            background: `${userMeta.color}08`,
-            borderLeft: `3px solid ${userMeta.color}`,
-            padding: '12px 20px',
-            display: 'flex',
-            gap: 24,
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Notes */}
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes</div>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              onBlur={saveNotes}
-              placeholder="Add notes…"
-              rows={2}
-              style={{
-                ...inputStyle,
-                resize: 'vertical',
-              }}
-            />
-            {/* Contact */}
-            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-              <input
-                placeholder="Phone"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                onBlur={savePhone}
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              <input
-                placeholder="Email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onBlur={saveEmail}
-                style={{ ...inputStyle, flex: 1.5 }}
-              />
-            </div>
-          </div>
-
-          {/* Status + RSVP */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {[
-                { id: 'locked', label: 'Locked In',       color: '#22c55e' },
-                { id: 'bubble', label: 'The Bubble',      color: '#f59e0b' },
-                { id: 'squad',  label: 'Practice Squad',  color: '#64748b' },
-              ].map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => onUpdate({ status: s.id })}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 99,
-                    border: `1px solid ${guest.status === s.id ? s.color : 'var(--border)'}`,
-                    background: guest.status === s.id ? `${s.color}22` : 'none',
-                    color: guest.status === s.id ? s.color : 'var(--text-dim)',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontFamily: 'DM Sans, sans-serif',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 6 }}>RSVP</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {[
-                { v: 'yes',   label: 'Yes',   bg: '#2D6A4F' },
-                { v: 'no',    label: 'No',    bg: '#A51C30' },
-                { v: 'maybe', label: 'Maybe', bg: '#64748b' },
-              ].map(({ v, label, bg }) => (
-                <button
-                  key={v}
-                  onClick={() => toggleRsvp(v)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 99,
-                    border: `1px solid ${rsvp === v ? bg : 'var(--border)'}`,
-                    background: rsvp === v ? `${bg}22` : 'none',
-                    color: rsvp === v ? bg : 'var(--text-dim)',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontFamily: 'DM Sans, sans-serif',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Role */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Role</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {[
-                { id: 'best_man',   label: 'Best Man'  },
-                { id: 'groomsman',  label: 'Groomsman' },
-              ].map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => onUpdate({ role: guest.role === r.id ? null : r.id })}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 99,
-                    border: `1px solid ${guest.role === r.id ? '#A51C30' : 'var(--border)'}`,
-                    background: guest.role === r.id ? '#A51C3022' : 'none',
-                    color: guest.role === r.id ? '#A51C30' : 'var(--text-dim)',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontFamily: 'DM Sans, sans-serif',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={onRemove}
-            style={{
-              marginLeft: 'auto',
-              alignSelf: 'flex-start',
-              background: 'none',
-              border: '1px solid #ef444440',
-              borderRadius: 6,
-              padding: '5px 12px',
-              color: '#ef4444',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              fontFamily: 'DM Sans, sans-serif',
-            }}
-          >
-            Remove guest
-          </button>
-        </motion.div>
-      </td>
-    </tr>
-  )
-}
-
-function GuestRow({ guest, userMeta, onToggleBool, onUpdateText, onUpdate, onRemove, isExpanded, onToggleExpand }) {
-  const addedByMeta = USERS[guest.addedBy]
-  const totalCols = 2 + BOOL_COLS.length + TEXT_COLS.length + 1 // name + status + bools + texts + expand
-
-  return (
-    <>
-      <tr
-        style={{
-          borderBottom: '1px solid var(--border)',
-          background: isExpanded ? `${userMeta.color}06` : 'transparent',
-          transition: 'background 0.15s',
-        }}
-        onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--card)' }}
-        onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent' }}
-      >
-        {/* Name cell */}
-        <td
-          style={{
-            padding: '10px 12px',
-            minWidth: 160,
-            position: 'sticky',
-            left: 0,
-            background: isExpanded ? `${userMeta.color}06` : 'var(--dark)',
-            zIndex: 2,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            {/* Added-by stripe */}
-            <span style={{ width: 3, height: 28, borderRadius: 2, background: addedByMeta?.color || 'var(--border)', flexShrink: 0 }} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {guest.name}
-                </span>
-                {guest.role && (
-                  <span style={{
-                    fontSize: '0.6rem',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: ROLE_COLORS[guest.role] || '#A51C30',
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    letterSpacing: '0.05em',
-                    flexShrink: 0,
-                  }}>
-                    {ROLE_LABELS[guest.role]}
-                  </span>
-                )}
-                {!guest.hasMetDani && (
-                  <span title="Hasn't met Dani yet" style={{ fontSize: '0.65rem', color: '#f59e0b', flexShrink: 0 }}>★</span>
-                )}
-              </div>
-              <div style={{ fontSize: '0.62rem', color: addedByMeta?.color || 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', marginTop: 1 }}>
-                {addedByMeta?.label || guest.addedBy}
-              </div>
-            </div>
-          </div>
-        </td>
-
-        {/* Status cell */}
-        <td style={{ padding: '0 8px', width: 100 }}>
-          <span style={{
-            fontSize: '0.7rem',
-            fontFamily: 'DM Sans, sans-serif',
-            color: guest.status === 'locked' ? '#22c55e' : guest.status === 'bubble' ? '#f59e0b' : '#64748b',
-            background: guest.status === 'locked' ? '#22c55e18' : guest.status === 'bubble' ? '#f59e0b18' : '#64748b18',
-            padding: '2px 8px',
-            borderRadius: 99,
-            whiteSpace: 'nowrap',
-          }}>
-            {guest.status === 'locked' ? 'Locked In' : guest.status === 'bubble' ? 'Bubble' : 'Squad'}
-          </span>
-        </td>
-
-        {/* Boolean columns */}
-        {BOOL_COLS.map(col => (
-          <CheckCell
-            key={col.key}
-            value={guest[col.key]}
-            onChange={() => onToggleBool(guest.id, col.key)}
-            color={userMeta.color}
-          />
-        ))}
-
-        {/* Text columns */}
-        {TEXT_COLS.map(col => (
-          <TextCell
-            key={col.key}
-            value={guest[col.key]}
-            onChange={val => onUpdateText(guest.id, col.key, val)}
-            width={col.width}
-          />
-        ))}
-
-        {/* Expand toggle */}
-        <td style={{ width: 32, textAlign: 'center', padding: '0 4px' }}>
-          <button
-            onClick={() => onToggleExpand(guest.id)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: isExpanded ? userMeta.color : 'var(--text-dim)',
-              fontSize: '0.7rem',
-              padding: 4,
-              lineHeight: 1,
-              transition: 'color 0.15s, transform 0.15s',
-              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          >
-            ▾
-          </button>
-        </td>
-      </tr>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <ExpandedRow
-            key={`exp-${guest.id}`}
-            guest={guest}
-            colSpan={totalCols}
-            userMeta={userMeta}
-            onUpdate={fields => onUpdate(guest.id, fields)}
-            onRemove={() => onRemove(guest.id)}
-          />
-        )}
-      </AnimatePresence>
-    </>
-  )
-}
-
-function SectionHeader({ label, count, plusOnes, kCount, dCount, colSpan }) {
-  const kPct = count > 0 ? Math.round((kCount / count) * 100) : 50
-  return (
-    <tr>
-      <td
-        colSpan={colSpan}
-        style={{
-          padding: '12px 16px 8px',
-          background: 'var(--dark)',
-          position: 'sticky',
-          left: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '0.9rem', color: 'var(--text)' }}>
-            {label}
-          </span>
-          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            {count} guest{count !== 1 ? 's' : ''}{plusOnes > 0 ? ` · ${count - plusOnes} + ${plusOnes} (+1s)` : ''}
-          </span>
-          {/* K/D bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-            <span style={{ fontSize: '0.7rem', color: '#A51C30', fontFamily: 'DM Sans, sans-serif' }}>K {kCount}</span>
-            <div style={{ width: 80, height: 6, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
-              <div style={{ width: `${kPct}%`, height: '100%', background: '#A51C30', borderRadius: 99, transition: 'width 0.3s' }} />
-            </div>
-            <span style={{ fontSize: '0.7rem', color: '#2D6A4F', fontFamily: 'DM Sans, sans-serif' }}>D {dCount}</span>
-          </div>
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-function AddGuestRow({ user, userMeta, onAdd, colSpan }) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const ref = useRef(null)
-
-  useEffect(() => { if (open) ref.current?.focus() }, [open])
-
-  function submit() {
-    if (!name.trim()) return
-    onAdd(name.trim())
-    setName('')
-    setOpen(false)
-  }
-
-  if (!open) {
-    return (
-      <tr>
-        <td colSpan={colSpan} style={{ padding: '6px 12px' }}>
-          <button
-            onClick={() => setOpen(true)}
-            style={{
-              background: 'none',
-              border: '1px dashed var(--border)',
-              borderRadius: 7,
-              padding: '7px 16px',
-              color: 'var(--text-dim)',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              fontFamily: 'DM Sans, sans-serif',
-              transition: 'border-color 0.15s, color 0.15s',
-              width: '100%',
-              textAlign: 'left',
-            }}
-            onMouseOver={e => { e.currentTarget.style.borderColor = userMeta.color; e.currentTarget.style.color = userMeta.color }}
-            onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-dim)' }}
-          >
-            + Add guest to {userMeta.label}'s list
-          </button>
-        </td>
-      </tr>
-    )
-  }
-
-  return (
-    <tr>
-      <td colSpan={colSpan} style={{ padding: '6px 12px' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            ref={ref}
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setOpen(false); setName('') } }}
-            placeholder="Guest name…"
-            style={{
-              flex: 1,
-              background: 'var(--card)',
-              border: `1px solid ${userMeta.color}`,
-              borderRadius: 7,
-              padding: '7px 12px',
-              color: 'var(--text)',
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.875rem',
-              outline: 'none',
-            }}
-          />
-          <button onClick={submit} style={{ background: userMeta.color, color: '#fff', border: 'none', borderRadius: 7, padding: '7px 16px', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>Add</button>
-          <button onClick={() => { setOpen(false); setName('') }} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 12px', color: 'var(--text-dim)', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>×</button>
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function Guests({ user }) {
-  const userMeta = USERS[user]
-
+export default function Guests() {
   const [guests, setGuests] = useState([])
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(null)
   const [importing, setImporting] = useState(false)
-  const fileRef = useRef(null)
+  const [error, setError] = useState(null)
 
-  // ── Google Sheets sync ────────────────────────────────────────────────────
-  const [sheetUrl, setSheetUrl]           = useState(() => localStorage.getItem('wos_sheet_url') || '')
-  const [sheetInput, setSheetInput]       = useState('')
-  const [sheetOpen, setSheetOpen]         = useState(false)
-  const [lastSynced, setLastSynced]       = useState(null)
-  const [syncError, setSyncError]         = useState(false)
-  const sheetTimerRef                     = useRef(null)
-  const guestsRef                         = useRef([])
+  const [filterSide, setFilterSide] = useState('')
+  const [filterRsvp, setFilterRsvp] = useState('')
+  const [filterCut, setFilterCut] = useState('')   // '', 'cut', 'keep'
+  const [search, setSearch] = useState('')
 
-  // Load
+  const fileInputRef = useRef(null)
+
+  // Load guests + subscribe.
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase.from('guests').select('*').order('created_at', { ascending: true })
-        if (error) throw error
-        const mapped = data.map(dbToGuest)
-        setGuests(mapped)
-        saveLocal(mapped)
-      } catch {
-        setGuests(loadLocal())
-      }
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .order('created_at', { ascending: true })
+      if (cancelled) return
+      if (error) setError(error.message)
+      else setGuests(data || [])
       setLoading(false)
     }
     load()
-  }, [])
 
-  // Realtime
-  useEffect(() => {
     const ch = supabase
-      .channel('guests-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' }, () => {
-        supabase.from('guests').select('*').order('created_at', { ascending: true }).then(({ data }) => {
-          if (data) { const m = data.map(dbToGuest); setGuests(m); saveLocal(m) }
+      .channel('guests-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' },
+        async () => {
+          const { data } = await supabase.from('guests').select('*').order('created_at')
+          if (!cancelled) setGuests(data || [])
         })
-      })
       .subscribe()
-    return () => supabase.removeChannel(ch)
+
+    return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
 
-  // ─── Mutations ──────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const total = guests.length
+    const cut = guests.filter(g => g.cut_candidate).length
+    const kept = total - cut
+    const rsvpYes = guests.filter(g => g.rsvp === 'yes').length
+    const rsvpNo = guests.filter(g => g.rsvp === 'no').length
+    const rsvpMaybe = guests.filter(g => g.rsvp === 'maybe').length
+    const rsvpPending = total - rsvpYes - rsvpNo - rsvpMaybe
+    return { total, cut, kept, rsvpYes, rsvpNo, rsvpMaybe, rsvpPending }
+  }, [guests])
 
-  function optimistic(updated) { setGuests(updated); saveLocal(updated) }
+  const filtered = useMemo(() => {
+    return guests.filter(g => {
+      if (filterSide && g.side !== filterSide) return false
+      if (filterRsvp && (g.rsvp || 'pending') !== filterRsvp) return false
+      if (filterCut === 'cut' && !g.cut_candidate) return false
+      if (filterCut === 'keep' && g.cut_candidate) return false
+      if (search) {
+        const s = search.toLowerCase()
+        const hay = `${g.name || ''} ${g.know_from || ''} ${g.residence || ''} ${g.notes || ''}`.toLowerCase()
+        if (!hay.includes(s)) return false
+      }
+      return true
+    })
+  }, [guests, filterSide, filterRsvp, filterCut, search])
 
-  async function addGuest(name, addedBy = user) {
-    const g = makeGuest({ name }, addedBy)
-    setGuests(prev => { const updated = [...prev, g]; saveLocal(updated); return updated })
-    try {
-      await supabase.from('guests').insert(guestToDb(g))
-    } catch (err) {
-      console.error('addGuest error:', err)
+  async function update(id, patch) {
+    setGuests(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g))
+    const { error } = await supabase.from('guests').update(patch).eq('id', id)
+    if (error) {
+      setError(`Update failed: ${error.message}`)
     }
   }
 
-  async function removeGuest(id) {
-    optimistic(guests.filter(g => g.id !== id))
-    setExpanded(null)
-    try { await supabase.from('guests').delete().eq('id', id) } catch {}
-  }
-
-  async function toggleBool(id, field) {
-    const dbField = {
-      plusOne: 'plus_one', hasMetDani: 'has_met_dani', plansToMeet: 'plans_to_meet',
-      invitedEngagement: 'invited_engagement', engagementPlusOne: 'engagement_plus_one', goingEngagement: 'going_engagement',
-    }[field]
-    const updated = guests.map(g => g.id === id ? { ...g, [field]: !g[field] } : g)
-    optimistic(updated)
-    const g = updated.find(g => g.id === id)
-    try { await supabase.from('guests').update({ [dbField]: g[field] }).eq('id', id) } catch {}
-  }
-
-  async function updateText(id, field, val) {
-    const dbField = { knowFrom: 'know_from', residence: 'residence' }[field]
-    optimistic(guests.map(g => g.id === id ? { ...g, [field]: val } : g))
-    try { await supabase.from('guests').update({ [dbField]: val }).eq('id', id) } catch {}
-  }
-
-  async function updateGuest(id, fields) {
-    const dbFields = {}
-    const mapping = {
-      status: 'status', role: 'role', notes: 'notes',
-      plusOne: 'plus_one', hasMetDani: 'has_met_dani',
-      plansToMeet: 'plans_to_meet', invitedEngagement: 'invited_engagement',
-      engagementPlusOne: 'engagement_plus_one', goingEngagement: 'going_engagement',
-      knowFrom: 'know_from', residence: 'residence', rsvp: 'rsvp',
-      phone: 'phone', email: 'email',
-    }
-    Object.entries(fields).forEach(([k, v]) => { if (mapping[k]) dbFields[mapping[k]] = v })
-    optimistic(guests.map(g => g.id === id ? { ...g, ...fields } : g))
-    try { await supabase.from('guests').update(dbFields).eq('id', id) } catch (err) {
-      console.error('updateGuest error:', err)
+  async function deleteGuest(id) {
+    if (!confirm('Remove this guest from the list?')) return
+    const prev = guests
+    setGuests(g => g.filter(x => x.id !== id))
+    const { error } = await supabase.from('guests').delete().eq('id', id)
+    if (error) {
+      setError(`Delete failed: ${error.message}`)
+      setGuests(prev)
     }
   }
 
-  // ─── Import ─────────────────────────────────────────────────────────────────
+  async function addBlank() {
+    const blank = {
+      name: 'New guest',
+      status: 'bubble',
+      side: null,
+      rsvp: null,
+      cut_candidate: false,
+    }
+    const { data, error } = await supabase.from('guests').insert(blank).select().single()
+    if (error) setError(`Insert failed: ${error.message}`)
+    else if (data) setGuests(g => [...g, data])
+  }
 
-  async function handleImport(e) {
+  async function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    e.target.value = ''
     setImporting(true)
-
+    setError(null)
     try {
-      let newGuests = []
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const buf = await file.arrayBuffer()
-        newGuests = parseXLSX(new Uint8Array(buf), user)
-      } else {
-        const text = await file.text()
-        newGuests = parseCSV(text, user)
+      const buffer = await file.arrayBuffer()
+      const parsed = parseGuestsXlsx(buffer)
+      if (!parsed.length) {
+        setError('No rows parsed from the file.')
+        return
       }
-
-      if (!newGuests.length) { setImporting(false); return }
-      const updated = [...guests, ...newGuests]
-      optimistic(updated)
-      await supabase.from('guests').insert(newGuests.map(guestToDb))
+      // Skip rows whose name already exists (case-insensitive).
+      const existing = new Set(guests.map(g => (g.name || '').trim().toLowerCase()))
+      const toInsert = parsed.filter(g => !existing.has(g.name.toLowerCase()))
+      if (!toInsert.length) {
+        setError(`Parsed ${parsed.length} rows; all names already on the list.`)
+        return
+      }
+      const { data, error } = await supabase.from('guests').insert(toInsert).select()
+      if (error) setError(`Import failed: ${error.message}`)
+      else setGuests(g => [...g, ...(data || [])])
     } catch (err) {
-      console.error('Import failed:', err)
-    }
-    setImporting(false)
-  }
-
-  // ─── Google Sheets sync logic ────────────────────────────────────────────────
-
-  async function syncFromSheet(url) {
-    const id = extractSheetId(url)
-    if (!id) return
-    try {
-      const res = await fetch(sheetToCsvUrl(id))
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const text = await res.text()
-      const newGuests = parseCSV(text, user)
-      setGuests(prev => {
-        const existingNames = new Set(prev.map(g => g.name.toLowerCase()))
-        const toAdd = newGuests.filter(g => g.name && !existingNames.has(g.name.toLowerCase()))
-        if (toAdd.length > 0) {
-          const updated = [...prev, ...toAdd]
-          saveLocal(updated)
-          supabase.from('guests').insert(toAdd.map(guestToDb)).then(() => {})
-          return updated
-        }
-        return prev
-      })
-      setSyncError(false)
-      setLastSynced(new Date())
-    } catch (err) {
-      console.error('Sheet sync failed:', err)
-      setSyncError(true)
+      setError(err.message || String(err))
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
-  function startSheetSync(url) {
-    clearInterval(sheetTimerRef.current)
-    syncFromSheet(url)
-    sheetTimerRef.current = setInterval(() => syncFromSheet(url), 60_000)
-  }
-
-  function connectSheet() {
-    const url = sheetInput.trim()
-    if (!extractSheetId(url)) return
-    localStorage.setItem('wos_sheet_url', url)
-    setSheetUrl(url)
-    setSheetOpen(false)
-    setSheetInput('')
-    startSheetSync(url)
-  }
-
-  function disconnectSheet() {
-    clearInterval(sheetTimerRef.current)
-    localStorage.removeItem('wos_sheet_url')
-    setSheetUrl('')
-    setLastSynced(null)
-    setSyncError(false)
-  }
-
-  // Start sync on mount if URL already saved
-  useEffect(() => {
-    if (sheetUrl) startSheetSync(sheetUrl)
-    return () => clearInterval(sheetTimerRef.current)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Filter / sort ──────────────────────────────────────────────────────────
-
-  const [filterText,    setFilterText]    = useState('')
-  const [filterSection, setFilterSection] = useState('all')
-  const [filterRole,    setFilterRole]    = useState('all')
-  const [filterStatus,  setFilterStatus]  = useState('all')
-  const [filterPlusOne, setFilterPlusOne] = useState('all')
-  const [sortBy,        setSortBy]        = useState('default')
-  const [sortDir,       setSortDir]       = useState('asc')
-
-  const anyFilterActive = filterText || filterSection !== 'all' || filterRole !== 'all' || filterStatus !== 'all' || filterPlusOne !== 'all' || sortBy !== 'default'
-
-  function handleSort(key) {
-    if (sortBy === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortBy(key); setSortDir('asc') }
-  }
-
-  function applyFilters(list) {
-    return list
-      .filter(g => !filterText || g.name.toLowerCase().includes(filterText.toLowerCase()))
-      .filter(g => filterRole === 'all' || g.role === filterRole)
-      .filter(g => filterStatus === 'all' || g.status === filterStatus)
-      .filter(g => filterPlusOne === 'all' || (filterPlusOne === 'yes' ? g.plusOne : !g.plusOne))
-  }
-
-  function applySort(list) {
-    if (sortBy === 'default') return list
-    return [...list].sort((a, b) => {
-      const av = a[sortBy], bv = b[sortBy]
-      if (typeof av === 'boolean') return sortDir === 'asc' ? (bv ? 1 : -1) - (av ? 1 : -1) : (av ? 1 : -1) - (bv ? 1 : -1)
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      return 0
-    })
-  }
-
-  // ─── Stats ───────────────────────────────────────────────────────────────────
-
-  const kGuests = applySort(applyFilters(guests.filter(g => g.addedBy === 'kerwin')))
-  const dGuests = applySort(applyFilters(guests.filter(g => g.addedBy === 'dani')))
-  const totalHeads = guests.reduce((acc, g) => acc + 1 + (g.plusOne ? 1 : 0), 0)
-  const plusOnes = guests.filter(g => g.plusOne).length
-
-  // ─── Table columns count ─────────────────────────────────────────────────────
-
-  const totalCols = 2 + BOOL_COLS.length + TEXT_COLS.length + 1
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  const overTarget = stats.kept - TARGET_CAP
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 28, height: 28, border: `2px solid ${userMeta.color}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <div style={{ background: 'var(--dark)', minHeight: 'calc(100vh - 56px)', padding: 32 }}>
+        <div style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>Loading guests...</div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--dark)', fontFamily: 'DM Sans, sans-serif' }}>
+    <div style={{ background: 'var(--dark)', minHeight: 'calc(100vh - 56px)', padding: '24px 24px 64px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--dark)',
-        borderBottom: '1px solid var(--border)',
-        padding: '12px 20px',
-        position: 'sticky',
-        top: 56,
-        zIndex: 10,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-      }}>
-        <div>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', color: 'var(--text)', margin: 0 }}>
-            Guest Draft Board
-          </h1>
-          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-dim)' }}>
-            {guests.length} names · {totalHeads} heads total · {plusOnes} +1s
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {importing && <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Importing…</span>}
-
-          {/* Google Sheets sync UI */}
-          {sheetUrl ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: syncError ? '#f59e0b' : '#22c55e',
-                display: 'inline-block', flexShrink: 0,
-              }} />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif' }}>
-                {syncError ? 'Sync failed' : lastSynced ? `Synced ${Math.round((Date.now() - lastSynced) / 60000)}m ago` : 'Syncing…'}
-              </span>
-              <button
-                onClick={disconnectSheet}
-                title="Disconnect Google Sheet"
-                style={{
-                  background: 'none', border: '1px solid var(--border)', borderRadius: 5,
-                  padding: '2px 7px', fontSize: '0.7rem', cursor: 'pointer',
-                  color: 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif',
-                }}
-              >✕</button>
-            </div>
-          ) : sheetOpen ? (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                value={sheetInput}
-                onChange={e => setSheetInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') connectSheet(); if (e.key === 'Escape') setSheetOpen(false) }}
-                placeholder="Paste Google Sheet URL…"
-                autoFocus
-                style={{
-                  background: 'var(--card)', border: `1px solid ${userMeta.color}`,
-                  borderRadius: 7, padding: '5px 10px', color: 'var(--text)',
-                  fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', outline: 'none', width: 220,
-                }}
-              />
-              <button
-                onClick={connectSheet}
-                disabled={!extractSheetId(sheetInput.trim())}
-                style={{
-                  background: userMeta.color, border: 'none', borderRadius: 7,
-                  padding: '5px 12px', color: '#fff', fontSize: '0.78rem',
-                  cursor: extractSheetId(sheetInput.trim()) ? 'pointer' : 'not-allowed',
-                  fontFamily: 'DM Sans, sans-serif', opacity: extractSheetId(sheetInput.trim()) ? 1 : 0.5,
-                }}
-              >Connect</button>
-              <button
-                onClick={() => setSheetOpen(false)}
-                style={{
-                  background: 'none', border: '1px solid var(--border)', borderRadius: 7,
-                  padding: '5px 10px', color: 'var(--text-dim)', fontSize: '0.78rem',
-                  cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
-                }}
-              >Cancel</button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setSheetOpen(true)}
-              style={{
-                background: 'none', border: '1px solid var(--border)', borderRadius: 7,
-                padding: '5px 12px', color: 'var(--text-muted)', fontSize: '0.78rem',
-                cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', transition: 'border-color 0.15s, color 0.15s',
-              }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = userMeta.color; e.currentTarget.style.color = userMeta.color }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-            >
-              ⟳ Sheet
-            </button>
-          )}
-
-          <button
-            onClick={() => fileRef.current?.click()}
-            style={{
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 7,
-              padding: '5px 12px',
-              color: 'var(--text-muted)',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              fontFamily: 'DM Sans, sans-serif',
-              transition: 'border-color 0.15s, color 0.15s',
-            }}
-            onMouseOver={e => { e.currentTarget.style.borderColor = userMeta.color; e.currentTarget.style.color = userMeta.color }}
-            onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-          >
-            ↑ Import XLSX / CSV
-          </button>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,text/csv" style={{ display: 'none' }} onChange={handleImport} />
-        </div>
-      </div>
-
-      {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--card)',
-        borderBottom: '1px solid var(--border)',
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 28,
-        flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 1, fontFamily: 'DM Sans, sans-serif' }}>Total Guests</span>
-          <span style={{ fontSize: '1.1rem', color: userMeta.color, fontFamily: 'Playfair Display, serif' }}>{guests.length}</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 1, fontFamily: 'DM Sans, sans-serif' }}>Total Heads</span>
-          <span style={{ fontSize: '1.1rem', color: userMeta.color, fontFamily: 'Playfair Display, serif' }}>{totalHeads}</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 1, fontFamily: 'DM Sans, sans-serif' }}>+1s</span>
-          <span style={{ fontSize: '1.1rem', color: userMeta.color, fontFamily: 'Playfair Display, serif' }}>{plusOnes}</span>
-        </div>
-        {/* K/D bar */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '0.75rem', color: '#A51C30', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}>K {kGuests.length}</span>
-          <div style={{ width: 100, height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: `${guests.length > 0 ? (kGuests.length / guests.length) * 100 : 50}%`, background: '#A51C30', transition: 'width 0.3s' }} />
-            <div style={{ flex: 1, background: '#2D6A4F', transition: 'flex 0.3s' }} />
+        <div style={{ marginBottom: 16 }}>
+          <div style={{
+            fontSize: 11, letterSpacing: '0.18em', color: 'var(--gold)',
+            textTransform: 'uppercase', fontFamily: 'DM Sans', marginBottom: 4,
+          }}>
+            200 → 170 cutdown
           </div>
-          <span style={{ fontSize: '0.75rem', color: '#2D6A4F', fontFamily: 'DM Sans, sans-serif', fontWeight: 600 }}>D {dGuests.length}</span>
+          <h1 style={{ margin: 0, fontSize: 26 }}>Guest list</h1>
+          <div className="deco-divider" style={{ maxWidth: 220, marginTop: 6 }}>◆</div>
         </div>
-      </div>
 
-      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'var(--dark)',
-        borderBottom: '1px solid var(--border)',
-        padding: '8px 20px',
-        position: 'sticky',
-        top: 164,
-        zIndex: 8,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        flexWrap: 'wrap',
-      }}>
-        <input
-          value={filterText}
-          onChange={e => setFilterText(e.target.value)}
-          placeholder="Search by name…"
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 7,
-            padding: '5px 12px',
-            color: 'var(--text)',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.8rem',
-            outline: 'none',
-            width: 160,
-          }}
-        />
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['all', 'kerwin', 'dani'].map(v => (
-            <button key={v}
-              onClick={() => setFilterSection(v)}
-              style={{
-                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
-                fontFamily: 'DM Sans, sans-serif',
-                background: filterSection === v ? (v === 'kerwin' ? '#A51C30' : v === 'dani' ? '#2D6A4F' : userMeta.color) : 'none',
-                color: filterSection === v ? '#fff' : 'var(--text-dim)',
-                border: `1px solid ${filterSection === v ? 'transparent' : 'var(--border)'}`,
-              }}
-            >{v === 'all' ? 'All' : v.charAt(0).toUpperCase() + v.slice(1)}</button>
-          ))}
+        {/* Stats strip */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+          <Pill
+            label="On list"
+            value={stats.total}
+            sub={`${stats.kept} keep · ${stats.cut} cut`}
+          />
+          <Pill
+            label="Toward cap"
+            value={stats.kept}
+            color={overTarget > 0 ? 'var(--red)' : 'var(--green)'}
+            sub={overTarget > 0
+              ? `${overTarget} over ${TARGET_CAP}`
+              : `${Math.abs(overTarget)} under ${TARGET_CAP}`}
+          />
+          <Pill label="Yes" value={stats.rsvpYes} color="var(--green)" />
+          <Pill label="Maybe" value={stats.rsvpMaybe} color="var(--yellow)" />
+          <Pill label="No" value={stats.rsvpNo} color="var(--red)" />
+          <Pill label="Pending" value={stats.rsvpPending} />
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['all','All'],['best_man','BM'],['groomsman','GM']].map(([v, label]) => (
-            <button key={v}
-              onClick={() => setFilterRole(v)}
-              style={{
-                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
-                fontFamily: 'DM Sans, sans-serif',
-                background: filterRole === v ? userMeta.color : 'none',
-                color: filterRole === v ? '#fff' : 'var(--text-dim)',
-                border: `1px solid ${filterRole === v ? 'transparent' : 'var(--border)'}`,
-              }}
-            >{label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['all','All'],['locked','Locked'],['bubble','Bubble'],['squad','Squad']].map(([v, label]) => (
-            <button key={v}
-              onClick={() => setFilterStatus(v)}
-              style={{
-                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
-                fontFamily: 'DM Sans, sans-serif',
-                background: filterStatus === v ? userMeta.color : 'none',
-                color: filterStatus === v ? '#fff' : 'var(--text-dim)',
-                border: `1px solid ${filterStatus === v ? 'transparent' : 'var(--border)'}`,
-              }}
-            >{label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['all','All'],['yes','+1'],['no','No +1']].map(([v, label]) => (
-            <button key={v}
-              onClick={() => setFilterPlusOne(v)}
-              style={{
-                padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem', cursor: 'pointer',
-                fontFamily: 'DM Sans, sans-serif',
-                background: filterPlusOne === v ? userMeta.color : 'none',
-                color: filterPlusOne === v ? '#fff' : 'var(--text-dim)',
-                border: `1px solid ${filterPlusOne === v ? 'transparent' : 'var(--border)'}`,
-              }}
-            >{label}</button>
-          ))}
-        </div>
-        {anyFilterActive && (
-          <button
-            onClick={() => { setFilterText(''); setFilterSection('all'); setFilterRole('all'); setFilterStatus('all'); setFilterPlusOne('all'); setSortBy('default'); setSortDir('asc') }}
+
+        {/* Actions row */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 16,
+        }}>
+          <input
+            placeholder="Search name / city / how we know..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             style={{
-              marginLeft: 'auto', padding: '4px 10px', borderRadius: 99, fontSize: '0.72rem',
-              cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
-              background: 'none', color: '#ef4444', border: '1px solid #ef444440',
+              flex: '1 1 240px', minWidth: 200, background: 'var(--card)',
+              border: '1px solid var(--gold-border)', borderRadius: 8,
+              padding: '8px 12px', fontFamily: 'DM Sans', fontSize: 13,
+              color: 'var(--text)',
             }}
-          >Clear filters</button>
+          />
+          <Select value={filterSide} onChange={setFilterSide} options={SIDES} placeholder="All sides" />
+          <Select value={filterRsvp} onChange={setFilterRsvp} options={RSVPS} placeholder="Any rsvp" />
+          <Select value={filterCut} onChange={setFilterCut} options={['cut', 'keep']} placeholder="Cut status" />
+
+          <div style={{ flex: 1 }} />
+
+          <a
+            href={GOOGLE_SHEET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: 'transparent', border: '1px solid var(--gold-border)',
+              color: 'var(--gold)', borderRadius: 8, padding: '8px 12px',
+              fontFamily: 'DM Sans', fontSize: 12, textDecoration: 'none',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Open Google Sheet ↗
+          </a>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            style={{
+              background: 'transparent', border: '1px solid var(--gold-border)',
+              color: 'var(--gold)', borderRadius: 8, padding: '8px 12px',
+              fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer',
+            }}
+          >
+            {importing ? 'Importing...' : 'Import xlsx'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleFile}
+          />
+          <button
+            onClick={addBlank}
+            style={{
+              background: 'var(--gold)', border: 'none',
+              color: 'var(--card)', borderRadius: 8, padding: '8px 12px',
+              fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            + Add guest
+          </button>
+        </div>
+
+        {error && (
+          <div style={{
+            marginBottom: 12, padding: 10, borderRadius: 8,
+            background: 'rgba(224, 112, 112, 0.10)', color: 'var(--red)',
+            fontFamily: 'DM Sans', fontSize: 12,
+          }}>
+            {error}
+            <button
+              onClick={() => setError(null)}
+              style={{ marginLeft: 8, background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer' }}
+            >
+              dismiss
+            </button>
+          </div>
         )}
-      </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
-      <div style={{ overflowX: 'auto', padding: '20px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
-
-          {/* Sticky column headers */}
-          <thead style={{ position: 'sticky', top: 110, zIndex: 9 }}>
-            <tr style={{ borderBottom: '2px solid var(--border)' }}>
-              <th
-                onClick={() => handleSort('name')}
-                style={{
-                  textAlign: 'left',
-                  padding: '8px 12px',
-                  fontSize: '0.65rem',
-                  color: sortBy === 'name' ? userMeta.color : 'var(--text-dim)',
-                  fontFamily: 'DM Sans, sans-serif',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  fontWeight: 600,
-                  position: 'sticky',
-                  left: 0,
-                  background: 'var(--dark)',
-                  zIndex: 3,
-                  minWidth: 160,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
-                Name {sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th
-                onClick={() => handleSort('status')}
-                style={{ padding: '8px 8px', fontSize: '0.65rem', color: sortBy === 'status' ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: 100, whiteSpace: 'nowrap', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
-              >
-                Status {sortBy === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              {BOOL_COLS.map(col => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  style={{ padding: '8px 4px', fontSize: '0.62rem', color: sortBy === col.key ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: 44, textAlign: 'center', whiteSpace: 'nowrap', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
-                >
-                  {col.short}{sortBy === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-                </th>
-              ))}
-              {TEXT_COLS.map(col => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  style={{ padding: '8px 8px', fontSize: '0.65rem', color: sortBy === col.key ? userMeta.color : 'var(--text-dim)', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, width: col.width, textAlign: 'left', background: 'var(--dark)', cursor: 'pointer', userSelect: 'none' }}
-                >
-                  {col.label} {sortBy === col.key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-                </th>
-              ))}
-              <th style={{ width: 32, background: 'var(--dark)' }} />
-            </tr>
-          </thead>
-
-          <tbody>
-            {/* Kerwin's section */}
-            {filterSection !== 'dani' && <>
-              <SectionHeader
-                label="Kerwin's Guests"
-                count={kGuests.length}
-                plusOnes={kGuests.filter(g => g.plusOne).length}
-                kCount={kGuests.length}
-                dCount={0}
-                colSpan={totalCols}
-              />
-              <AnimatePresence>
-                {kGuests.map(g => (
-                  <GuestRow
-                    key={g.id}
-                    guest={g}
-                    userMeta={USERS.kerwin}
-                    onToggleBool={toggleBool}
-                    onUpdateText={updateText}
-                    onUpdate={updateGuest}
-                    onRemove={removeGuest}
-                    isExpanded={expanded === g.id}
-                    onToggleExpand={id => setExpanded(expanded === id ? null : id)}
-                  />
+        {/* Table */}
+        <div className="card-gatsby" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%', borderCollapse: 'collapse',
+              fontFamily: 'DM Sans', fontSize: 13,
+            }}>
+              <thead>
+                <tr style={{
+                  background: 'var(--dark2)',
+                  borderBottom: '1px solid var(--gold-border)',
+                }}>
+                  <Th>Name</Th>
+                  <Th center>Cut?</Th>
+                  <Th>Side</Th>
+                  <Th>Know from</Th>
+                  <Th>Residence</Th>
+                  <Th center>Met Dani</Th>
+                  <Th center>Plans to</Th>
+                  <Th center>+1</Th>
+                  <Th>RSVP</Th>
+                  <Th>Notes</Th>
+                  <Th />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} style={{
+                      padding: 32, textAlign: 'center', color: 'var(--text-dim)',
+                    }}>
+                      {guests.length === 0
+                        ? 'No guests yet. Import the .xlsx from your Google Sheet or add manually.'
+                        : 'No matches for the current filters.'}
+                    </td>
+                  </tr>
+                ) : filtered.map(g => (
+                  <tr key={g.id} style={{
+                    borderBottom: '1px solid var(--border)',
+                    background: g.cut_candidate ? 'rgba(224, 112, 112, 0.05)' : 'transparent',
+                    opacity: g.cut_candidate ? 0.7 : 1,
+                  }}>
+                    <td style={{ padding: '8px 10px' }}>
+                      <InlineText
+                        value={g.name}
+                        onChange={(v) => update(g.id, { name: v })}
+                        placeholder="name"
+                        width={180}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                      <Check
+                        checked={!!g.cut_candidate}
+                        onToggle={() => update(g.id, { cut_candidate: !g.cut_candidate })}
+                        color="var(--red)"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <Select
+                        value={g.side}
+                        onChange={(v) => update(g.id, { side: v })}
+                        options={SIDES}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <InlineText
+                        value={g.know_from}
+                        onChange={(v) => update(g.id, { know_from: v })}
+                        placeholder="—"
+                        width={140}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <InlineText
+                        value={g.residence}
+                        onChange={(v) => update(g.id, { residence: v })}
+                        placeholder="—"
+                        width={120}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                      <Check
+                        checked={!!g.has_met_dani}
+                        onToggle={() => update(g.id, { has_met_dani: !g.has_met_dani })}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                      <Check
+                        checked={!!g.plans_to_meet}
+                        onToggle={() => update(g.id, { plans_to_meet: !g.plans_to_meet })}
+                        color="var(--gold)"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                      <Check
+                        checked={!!g.plus_one}
+                        onToggle={() => update(g.id, { plus_one: !g.plus_one })}
+                        color="var(--teal)"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <Select
+                        value={g.rsvp}
+                        onChange={(v) => update(g.id, { rsvp: v })}
+                        options={RSVPS}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <InlineText
+                        value={g.notes}
+                        onChange={(v) => update(g.id, { notes: v })}
+                        placeholder="—"
+                        width={180}
+                      />
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                      <button
+                        onClick={() => deleteGuest(g.id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-dim)', fontSize: 14, padding: 4,
+                        }}
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
                 ))}
-              </AnimatePresence>
-              <AddGuestRow user="kerwin" userMeta={USERS.kerwin} onAdd={addGuest} colSpan={totalCols} />
-            </>}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            {/* Spacer */}
-            {filterSection === 'all' && <tr><td colSpan={totalCols} style={{ height: 24 }} /></tr>}
-
-            {/* Dani's section */}
-            {filterSection !== 'kerwin' && <>
-              <SectionHeader
-                label="Dani's Guests"
-                count={dGuests.length}
-                plusOnes={dGuests.filter(g => g.plusOne).length}
-                kCount={0}
-                dCount={dGuests.length}
-                colSpan={totalCols}
-              />
-              <AnimatePresence>
-                {dGuests.map(g => (
-                  <GuestRow
-                    key={g.id}
-                    guest={g}
-                    userMeta={USERS.dani}
-                    onToggleBool={toggleBool}
-                    onUpdateText={updateText}
-                    onUpdate={updateGuest}
-                    onRemove={removeGuest}
-                    isExpanded={expanded === g.id}
-                    onToggleExpand={id => setExpanded(expanded === id ? null : id)}
-                  />
-                ))}
-              </AnimatePresence>
-              <AddGuestRow user="dani" userMeta={USERS.dani} onAdd={name => addGuest(name, 'dani')} colSpan={totalCols} />
-            </>}
-
-            {/* Unassigned guests (imported without addedBy) */}
-            {guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani').length > 0 && (
-              <>
-                <tr><td colSpan={totalCols} style={{ height: 24 }} /></tr>
-                <SectionHeader
-                  label="Unassigned"
-                  count={guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani').length}
-                  plusOnes={guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani' && g.plusOne).length}
-                  kCount={0}
-                  dCount={0}
-                  colSpan={totalCols}
-                />
-                <AnimatePresence>
-                  {guests.filter(g => g.addedBy !== 'kerwin' && g.addedBy !== 'dani').map(g => (
-                    <GuestRow
-                      key={g.id}
-                      guest={g}
-                      userMeta={userMeta}
-                      onToggleBool={toggleBool}
-                      onUpdateText={updateText}
-                      onUpdate={updateGuest}
-                      onRemove={removeGuest}
-                      isExpanded={expanded === g.id}
-                      onToggleExpand={id => setExpanded(expanded === id ? null : id)}
-                    />
-                  ))}
-                </AnimatePresence>
-              </>
-            )}
-          </tbody>
-        </table>
+        <div style={{
+          marginTop: 10, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans',
+        }}>
+          Showing {filtered.length} of {guests.length} · Edits save automatically · Live with the Google Sheet via import
+        </div>
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
+  )
+}
+
+function Th({ children, center = false }) {
+  return (
+    <th style={{
+      textAlign: center ? 'center' : 'left',
+      padding: '10px 10px',
+      fontFamily: 'DM Sans',
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: '0.12em',
+      color: 'var(--text-muted)',
+      textTransform: 'uppercase',
+      whiteSpace: 'nowrap',
+    }}>
+      {children}
+    </th>
   )
 }

@@ -1,1930 +1,358 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+// Execution-phase dashboard.
+// Venue is locked (La Valencia, 3/27/27). This page is the one-glance status
+// of: where the budget stands at the current/projected guest count, what
+// vendors are still open, and what's due next on the timeline.
+
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { supabase, USERS } from '../lib/supabase'
-import ArchetypeBadge from '../components/ArchetypeBadge'
-import { VENUE_PACKAGES, calcOptionCost, defaultSelections } from '../lib/venuePackages'
+import { supabase } from '../lib/supabase'
+import {
+  fetchQuote,
+  fetchProjectMetadata,
+  computeBudget,
+  computeMarginalCostPerGuest,
+  budgetStatus,
+  formatUsd,
+  formatUsdPrecise,
+} from '../lib/budget'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const PAGE_BG = 'var(--dark)'
+const TODAY = new Date('2026-05-21')
+const WEDDING_DATE = new Date('2027-03-27')
 
-function fmt(val) {
-  if (!val) return '$0'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(val)
+function daysBetween(a, b) {
+  return Math.round((b - a) / (1000 * 60 * 60 * 24))
 }
 
-const DEFAULT_BREAKDOWN = {
-  venue: 0,
-  catering: 0,
-  bar: 0,
-  photography: 0,
-  florals: 0,
-  music: 0,
-  other: 0,
-  taxRate: 9.5,
-  gratRate: 20.0,
+function statusColor(s) {
+  if (s === 'green') return 'var(--green)'
+  if (s === 'yellow') return 'var(--yellow)'
+  if (s === 'red') return 'var(--red)'
+  return 'var(--text-muted)'
 }
 
-function calcTotal(b, multiplier = 1.25) {
-  const fnb = (b.catering || 0) + (b.bar || 0)
-  const taxAmt  = fnb * ((b.taxRate  ?? 9.5) / 100)
-  const gratAmt = fnb * ((b.gratRate ?? 20.0) / 100)
-  const variable = ((b.venue || 0) + (b.catering || 0) + (b.bar || 0)) * multiplier
-  const fixed = (b.photography || 0) + (b.florals || 0) + (b.music || 0) + (b.other || 0)
-  return { variable, fixed, taxAmt, gratAmt, total: variable + fixed + taxAmt + gratAmt }
-}
-
-// ─── Budget Line Row ──────────────────────────────────────────────────────────
-
-function BudgetRow({ label, field, value, onChange, accent, isVariable }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(String(value || ''))
-  const inputRef = useRef(null)
-
-  function commit() {
-    const parsed = parseInt(draft.replace(/[^0-9]/g, ''), 10) || 0
-    onChange(field, parsed)
-    setEditing(false)
-  }
-
-  useEffect(() => {
-    if (editing) inputRef.current?.focus()
-  }, [editing])
-
-  return (
-    <div
-      className="flex items-center justify-between py-2.5"
-      style={{ borderBottom: '1px solid var(--border)' }}
-    >
-      <div className="flex items-center gap-2">
-        {isVariable && (
-          <span
-            className="text-xs px-1.5 py-0.5 rounded"
-            style={{
-              background: `${accent}18`,
-              color: accent,
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.65rem',
-              letterSpacing: '0.05em',
-            }}
-          >
-            ×1.25
-          </span>
-        )}
-        <span
-          style={{
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.875rem',
-            color: 'var(--text-muted)',
-          }}
-        >
-          {label}
-        </span>
-      </div>
-
-      {editing ? (
-        <div className="flex items-center gap-1">
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>$</span>
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => e.key === 'Enter' && commit()}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `1px solid ${accent}`,
-              outline: 'none',
-              textAlign: 'right',
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.875rem',
-              color: 'var(--text)',
-              width: '90px',
-            }}
-          />
-        </div>
-      ) : (
-        <button
-          onClick={() => { setDraft(String(value || '')); setEditing(true) }}
-          style={{
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.875rem',
-            color: value ? 'var(--text)' : 'var(--text-dim)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '2px 4px',
-            borderRadius: 4,
-          }}
-        >
-          {value ? fmt(value) : 'tap to enter'}
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ─── Percent Row (tax / gratuity) ─────────────────────────────────────────────
-
-function PctRow({ label, field, value, base, onChange, accent }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(String(value ?? ''))
-  const inputRef = useRef(null)
-  const dollarAmt = base * ((value ?? 0) / 100)
-
-  function commit() {
-    const parsed = parseFloat(draft.replace(/[^0-9.]/g, '')) || 0
-    onChange(field, Math.min(parsed, 99))
-    setEditing(false)
-  }
-
-  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
-
-  return (
-    <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-      <div className="flex items-center gap-2">
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-          {label}
-        </span>
-        {editing ? (
-          <div className="flex items-center gap-1">
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={e => e.key === 'Enter' && commit()}
-              style={{
-                background: 'transparent', border: 'none', outline: 'none',
-                borderBottom: `1px solid ${accent}`,
-                fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text)',
-                width: 40, textAlign: 'right',
-              }}
-            />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
-          </div>
-        ) : (
-          <button
-            onClick={() => { setDraft(String(value ?? '')); setEditing(true) }}
-            style={{ background: `${accent}14`, border: 'none', cursor: 'pointer', borderRadius: 4, padding: '1px 6px', fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: accent, fontWeight: 600 }}
-          >
-            {value ?? 0}%
-          </button>
-        )}
-      </div>
-      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-        {dollarAmt > 0 ? fmt(dollarAmt) : '—'}
-      </span>
-    </div>
-  )
-}
-
-// ─── Tension Alert ────────────────────────────────────────────────────────────
-
-const TENSION_LABELS = {
-  vis_bud: { label: 'Vision vs. Budget', desc: 'One of you has big dreams; the other is watching costs.' },
-  cust_conv: { label: 'Customization vs. Simplicity', desc: 'One wants every detail perfect; the other wants it easy.' },
-  guest_count: { label: 'Guest Count', desc: "You're not aligned on how many people to invite." },
-  energy: { label: 'Party Energy', desc: 'Different expectations for the vibe and intensity.' },
-}
-
-function TensionAlert({ tensionKey }) {
-  const info = TENSION_LABELS[tensionKey] || { label: tensionKey, desc: '' }
-  return (
-    <div
-      className="flex items-start gap-3 px-4 py-3 rounded-xl"
-      style={{
-        background: 'rgba(224,112,112,0.08)',
-        border: '1px solid rgba(224,112,112,0.2)',
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0, marginTop: 6 }} />
-      <div>
-        <p
-          style={{
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.825rem',
-            fontWeight: 600,
-            color: 'var(--red)',
-          }}
-        >
-          {info.label}
-        </p>
-        <p
-          style={{
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.775rem',
-            color: 'var(--text-muted)',
-            marginTop: 2,
-          }}
-        >
-          {info.desc}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-// ─── Nav Card ─────────────────────────────────────────────────────────────────
-
-function NavCard({ label, desc, path, available, navigate }) {
-  return (
-    <motion.button
-      whileHover={available ? { scale: 1.02 } : {}}
-      whileTap={available ? { scale: 0.97 } : {}}
-      onClick={() => available && navigate(path)}
-      className="card-gatsby w-full text-left p-4 rounded-2xl"
-      style={{
-        cursor: available ? 'pointer' : 'default',
-        opacity: available ? 1 : 0.45,
-      }}
-    >
-      <div className="flex items-center justify-between mb-1">
-        <span
-          style={{
-            fontFamily: '"Playfair Display", serif',
-            fontSize: '0.95rem',
-            color: 'var(--text)',
-          }}
-        >
-          {label}
-        </span>
-        {!available && (
-          <span
-            className="text-xs px-2 py-0.5 rounded-full"
-            style={{
-              background: 'var(--border)',
-              color: 'var(--text-dim)',
-              fontFamily: 'DM Sans, sans-serif',
-            }}
-          >
-            soon
-          </span>
-        )}
-      </div>
-      <p
-        style={{
-          fontFamily: 'DM Sans, sans-serif',
-          fontSize: '0.775rem',
-          color: 'var(--text-muted)',
-          paddingLeft: '2.25rem',
-        }}
-      >
-        {desc}
-      </p>
-    </motion.button>
-  )
-}
-
-// ─── Dash Venue Card ──────────────────────────────────────────────────────────
-
-const REGION_LABEL = { socal: 'SoCal', bay: 'Bay Area', monterey: 'Monterey' }
-
-function normalizeRegion(r) {
-  if (!r) return null
-  const s = r.toLowerCase()
-  if (s === 'bay_area' || s === 'bay') return 'bay'
-  return s
-}
-
-function DashVenueCard({ venue, accentColor, onClick }) {
-  const badges = []
-  if (venue.leader)      badges.push({ label: 'Top Pick',    color: '#C9932A' })
-  if (venue.has_package) badges.push({ label: 'Package',     color: '#7B61FF' })
-  if (venue.aqua)        badges.push({ label: 'Aquarium',    color: '#2B9FCC' })
-  if (venue.arch)        badges.push({ label: 'Historic',    color: '#9A7B5E' })
-  if (venue.planet)      badges.push({ label: 'Planetarium', color: '#8A5FCC' })
-
-  const regionKey = normalizeRegion(venue.region)
-  const regionLabel = REGION_LABEL[regionKey] || venue.region || null
-
-  const feeLabel = venue.venue_fee
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(venue.venue_fee)
-    : venue.catering_pp ? 'Bundled' : null
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      style={{
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        overflow: 'hidden',
-        cursor: onClick ? 'pointer' : 'default',
-      }}
-      onClick={onClick}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      {/* Hero image */}
-      <div style={{
-        height: 110,
-        background: venue.image_url
-          ? `url(${venue.image_url}) center/cover no-repeat`
-          : `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}05 100%)`,
-        position: 'relative',
-      }}>
-        {venue.image_url && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5))',
-          }} />
-        )}
-        {regionLabel && (
-          <span style={{
-            position: 'absolute', bottom: 8, right: 10,
-            fontFamily: 'DM Sans, sans-serif', fontSize: 10, fontWeight: 700,
-            color: '#fff', background: 'rgba(0,0,0,0.45)',
-            padding: '2px 7px', borderRadius: 10, letterSpacing: '0.04em',
-          }}>
-            {regionLabel}
-          </span>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding: '10px 14px 12px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-          <span style={{
-            fontFamily: 'Playfair Display, serif', fontSize: '0.95rem',
-            color: 'var(--text)', lineHeight: 1.2,
-          }}>
-            {venue.name}
-          </span>
-          {feeLabel && (
-            <span style={{
-              fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem',
-              fontWeight: 600, color: accentColor, whiteSpace: 'nowrap',
-            }}>
-              {feeLabel}
-            </span>
-          )}
-        </div>
-
-        {badges.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {badges.map(b => (
-              <span key={b.label} style={{
-                fontFamily: 'DM Sans, sans-serif', fontSize: 10, fontWeight: 700,
-                color: b.color, background: `${b.color}18`,
-                padding: '2px 7px', borderRadius: 10, letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-              }}>
-                {b.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {venue.min_cap || venue.max_cap ? (
-          <p style={{
-            fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem',
-            color: 'var(--text-dim)', marginTop: 5,
-          }}>
-            {venue.min_cap && venue.max_cap
-              ? `${venue.min_cap}–${venue.max_cap} guests`
-              : venue.max_cap ? `Up to ${venue.max_cap} guests` : `${venue.min_cap}+ guests`}
-          </p>
-        ) : null}
-      </div>
-    </motion.div>
-  )
-}
-
-// ─── Wedding Calendar ─────────────────────────────────────────────────────────
-
-const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const CAL_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-
-function WeddingCalendar({ year, month, onNavMonth, selectedDate, offDays, calMode, onDayClick, onSetMode, accent }) {
-  const today    = new Date()
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
-  const firstDow = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  const cells = []
-  for (let i = 0; i < firstDow; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
-  }
-  while (cells.length % 7 !== 0) cells.push(null)
-
-  const navBtn = {
-    background: 'none', border: 'none', cursor: 'pointer',
-    padding: '4px 10px', borderRadius: 7, color: 'var(--text-muted)',
-    fontFamily: 'DM Sans, sans-serif', fontSize: '1rem', lineHeight: 1,
-  }
-
-  return (
-    <div>
-      {/* Month navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <button style={navBtn} onClick={() => onNavMonth(-1)}>‹</button>
-        <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '0.95rem', color: 'var(--text)' }}>
-          {CAL_MONTHS[month]} {year}
-        </span>
-        <button style={navBtn} onClick={() => onNavMonth(1)}>›</button>
-      </div>
-
-      {/* Day-of-week labels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
-        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-          <div key={d} style={{ textAlign: 'center', fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', color: 'var(--text-dim)', paddingBottom: 2 }}>
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* Date grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
-        {cells.map((iso, i) => {
-          if (!iso) return <div key={i} />
-          const isSelected = iso === selectedDate
-          const isOff      = offDays.includes(iso)
-          const isToday    = iso === todayIso
-          const blocked    = calMode === 'select' && isOff
-          const day        = parseInt(iso.split('-')[2], 10)
-
-          return (
-            <button
-              key={iso}
-              onClick={() => !blocked && onDayClick(iso)}
-              style={{
-                position: 'relative',
-                padding: '7px 2px',
-                borderRadius: 8,
-                border: isSelected
-                  ? `1.5px solid ${accent}`
-                  : isOff && calMode === 'off'
-                  ? '1.5px solid rgba(224,112,112,0.4)'
-                  : '1.5px solid transparent',
-                background: isSelected
-                  ? `${accent}22`
-                  : isOff
-                  ? 'rgba(224,112,112,0.09)'
-                  : 'none',
-                cursor: blocked ? 'not-allowed' : 'pointer',
-                opacity: blocked ? 0.4 : 1,
-                fontFamily: 'DM Sans, sans-serif',
-                fontSize: '0.8rem',
-                fontWeight: isSelected ? 700 : 400,
-                color: isSelected ? accent : isOff ? 'rgba(224,112,112,0.75)' : 'var(--text)',
-                textDecoration: isOff ? 'line-through' : 'none',
-                textAlign: 'center',
-                transition: 'all 0.12s',
-              }}
-            >
-              {day}
-              {isToday && (
-                <span style={{
-                  position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)',
-                  width: 3, height: 3, borderRadius: '50%',
-                  background: isSelected ? accent : 'var(--text-dim)',
-                  display: 'block',
-                }} />
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Mode toggle */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-        <button
-          onClick={() => onSetMode('select')}
-          style={{
-            flex: 1, padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
-            fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem',
-            fontWeight: calMode === 'select' ? 600 : 400,
-            background: calMode === 'select' ? `${accent}18` : 'rgba(0,0,0,0.05)',
-            color: calMode === 'select' ? accent : 'var(--text-muted)',
-            border: `1px solid ${calMode === 'select' ? accent + '40' : 'transparent'}`,
-            transition: 'all 0.12s',
-          }}
-        >
-          Pick Date
-        </button>
-        <button
-          onClick={() => onSetMode('off')}
-          style={{
-            flex: 1, padding: '6px 10px', borderRadius: 8, cursor: 'pointer',
-            fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem',
-            fontWeight: calMode === 'off' ? 600 : 400,
-            background: calMode === 'off' ? 'rgba(224,112,112,0.12)' : 'rgba(0,0,0,0.05)',
-            color: calMode === 'off' ? '#E07070' : 'var(--text-muted)',
-            border: `1px solid ${calMode === 'off' ? 'rgba(224,112,112,0.4)' : 'transparent'}`,
-            transition: 'all 0.12s',
-          }}
-        >
-          Block Off-Days
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function formatCalDate(iso) {
-  const d = new Date(iso + 'T12:00:00')
-  return `${CAL_DAYS[d.getDay()]}, ${CAL_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
-}
-
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
-
-export default function Dashboard({ user, onSwitchUser }) {
+export default function Dashboard() {
   const navigate = useNavigate()
-  const userMeta = USERS[user]
 
+  const [quote, setQuote] = useState([])
   const [meta, setMeta] = useState(null)
-  const [breakdown, setBreakdown] = useState(DEFAULT_BREAKDOWN)
-  const [saving, setSaving] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const [venues, setVenues] = useState([])
-  const [selectedVenueId, setSelectedVenueId] = useState(null)
-  const [guestCount, setGuestCount] = useState(150)
-  const [liveCount, setLiveCount]   = useState(false)
-  const [pkgSelections, setPkgSelections] = useState({})
-  const saveTimerRef = useRef(null)
+  const [vendors, setVendors] = useState([])
+  const [milestones, setMilestones] = useState([])
+  const [guests, setGuests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  // ── Calendar ─────────────────────────────────────────────────────────────────
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [offDays, setOffDays]           = useState([])
-  const [calYear, setCalYear]           = useState(() => new Date().getFullYear())
-  const [calMonth, setCalMonth]         = useState(() => new Date().getMonth())
-  const [calMode, setCalMode]           = useState('select')
-  const [pricingState, setPricingState] = useState('idle') // 'idle'|'loading'|'done'|'error'
-  const [lockedVenue,    setLockedVenue]    = useState(null)
-  const [lockedCinema,   setLockedCinema]   = useState(null)
-  const [cinemaDiscount, setCinemaDiscount] = useState(0)
-  const [vendorLineup,   setVendorLineup]   = useState([]) // [{tabId, label, vendor, effectiveCost}]
-  const [venueQuote,     setVenueQuote]     = useState(null) // extracted_data from latest quote
-  const [guestStats,     setGuestStats]     = useState({ total: 0, plusOnes: 0, kerwin: 0, dani: 0 })
+  // Guest count slider state - initialized to current_guest_list_count once meta loads.
+  const [projectedGuests, setProjectedGuests] = useState(170)
 
-  // ── Hero photo rotation ────────────────────────────────────────────────────
-  const HERO_PHOTOS = [
-    '/hero1.webp',
-    '/hero2.webp',
-    '/hero3.webp',
-  ]
-  const [heroIdx, setHeroIdx] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => setHeroIdx(i => (i + 1) % HERO_PHOTOS.length), 6000)
-    return () => clearInterval(id)
-  }, [])
-
-  // ── Load project_metadata + venues ────────────────────────────────────────
-  useEffect(() => {
+    let cancelled = false
     async function load() {
-      const [{ data }, { data: venueData }, { data: cinemaData }, { data: guestData }] = await Promise.all([
-        supabase.from('project_metadata').select('*').eq('id', 1).single(),
-        supabase.from('venues').select('*').neq('archived', true).order('name'),
-        supabase.from('cinematographers').select('*').eq('locked', true).single(),
-        supabase.from('guests').select('status, plus_one, side').eq('status', 'locked'),
-      ])
-
-      if (data) {
-        setMeta(data)
-        const bb = data.budget_breakdown || {}
-        const merged = Object.keys(bb).length > 0 ? { ...DEFAULT_BREAKDOWN, ...bb } : { ...DEFAULT_BREAKDOWN }
-
-        if (bb._venue_id) setSelectedVenueId(bb._venue_id)
-        if (bb._guests) setGuestCount(bb._guests)
-        if (bb._pkg) setPkgSelections(bb._pkg)
-        if (bb._cal_date) setSelectedDate(bb._cal_date)
-        if (bb._cal_off)  setOffDays(bb._cal_off || [])
-
-        if (cinemaData) {
-          setLockedCinema(cinemaData)
-          const disc = cinemaData.discount || 0
-          setCinemaDiscount(disc)
-          // Auto-populate photography line if not already set
-          if (!merged.photography && cinemaData.price) {
-            merged.photography = cinemaData.price - disc
-          }
-        }
-
-        setBreakdown(merged)
-
-        // Load vendor lineup from localStorage selections
-        loadVendorLineup()
-
-        // Load venue quote for locked venue
-        const locked = venueData?.find(v => v.locked)
-        if (locked) {
-          supabase.from('quote_files').select('*').eq('venue_id', locked.id)
-            .order('id', { ascending: false }).limit(1)
-            .then(({ data: qd }) => {
-              if (qd?.[0]?.extracted_data && !qd[0].extracted_data.parse_error) {
-                setVenueQuote(qd[0].extracted_data)
-              }
-            })
-        }
-
-        if (guestData) {
-          const plusOnes = guestData.filter(g => g.plus_one).length
-          const kerwin   = guestData.filter(g => g.side === 'kerwin').length
-          const dani     = guestData.filter(g => g.side === 'dani').length
-          setGuestStats({ total: guestData.length, plusOnes, kerwin, dani })
-        }
-        if (locked) {
-          setLockedVenue(locked)
-          if (!bb._venue_id) setSelectedVenueId(locked.id)
-        }
+      try {
+        const [q, m, v, t, g] = await Promise.all([
+          fetchQuote(),
+          fetchProjectMetadata(),
+          supabase.from('vendor_pipeline').select('*').order('priority', { ascending: true }),
+          supabase
+            .from('timeline_milestones')
+            .select('*')
+            .eq('status', 'pending')
+            .order('due_date', { ascending: true })
+            .limit(5),
+          supabase.from('guests').select('id, rsvp'),
+        ])
+        if (cancelled) return
+        setQuote(q)
+        setMeta(m)
+        setVendors(v.data || [])
+        setMilestones(t.data || [])
+        setGuests(g.data || [])
+        const start = m?.budget_breakdown?.current_guest_list_count ?? m?.target_headcount ?? 170
+        setProjectedGuests(start)
+      } catch (e) {
+        if (!cancelled) setError(e.message || String(e))
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setVenues(venueData || [])
-      setLoaded(true)
     }
     load()
+    return () => { cancelled = true }
   }, [])
 
-  // ── Realtime subscription on project_metadata ──────────────────────────────
+  // Real-time subscriptions so skills writing into Supabase reflect live.
   useEffect(() => {
-    const channel = supabase
-      .channel('dashboard_meta')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'project_metadata', filter: 'id=eq.1' },
-        (payload) => {
-          setMeta(payload.new)
-          if (payload.new.budget_breakdown && Object.keys(payload.new.budget_breakdown).length > 0) {
-            setBreakdown((prev) => ({ ...prev, ...payload.new.budget_breakdown }))
-          }
-          const bb = payload.new.budget_breakdown || {}
-          if (bb._venue_id) setSelectedVenueId(bb._venue_id)
-          if (bb._guests) setGuestCount(bb._guests)
-          if (bb._pkg) setPkgSelections(bb._pkg)
-          if (bb._cal_date) setSelectedDate(bb._cal_date)
-          if (bb._cal_off)  setOffDays(bb._cal_off || [])
-        }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
-
-  // ── Persist breakdown to Supabase (debounced) ─────────────────────────────
-  const persistBreakdown = useCallback((next) => {
-    clearTimeout(saveTimerRef.current)
-    setSaving(true)
-    saveTimerRef.current = setTimeout(async () => {
-      await supabase.from('project_metadata').update({ budget_breakdown: next }).eq('id', 1)
-      setSaving(false)
-    }, 600)
-  }, [])
-
-  // ── Load vendor lineup from localStorage + DB ─────────────────────────────
-  async function loadVendorLineup() {
-    try {
-      const raw = JSON.parse(localStorage.getItem('wos_vendor_selections') || '{}')
-      const TABS = [
-        { id: 'music',    label: 'Music',       table: 'musicians',        priceKey: 'price_estimate', budgetField: 'music' },
-        { id: 'catering', label: 'Catering',     table: 'caterers',         priceKey: 'price_pp',       budgetField: 'catering' },
-        { id: 'bar',      label: 'Bar',          table: 'bar_options',      priceKey: 'price_pp',       budgetField: 'bar' },
-        { id: 'cinema',   label: 'Cinema',       table: 'cinematographers', priceKey: 'price',          budgetField: 'photography' },
-        { id: 'florals',  label: 'Florals',      table: 'florists',         priceKey: 'price_estimate', budgetField: 'florals' },
-      ]
-      const entries = []
-      for (const tab of TABS) {
-        const selId = raw[tab.id]
-        if (!selId) continue
-        const { data } = await supabase.from(tab.table).select('*').eq('id', selId).single()
-        if (!data) continue
-        const rawPrice = data[tab.priceKey] || 0
-        const discount = tab.id === 'cinema' ? (data.discount || 0) : 0
-        entries.push({
-          tabId: tab.id,
-          label: tab.label,
-          budgetField: tab.budgetField,
-          vendor: data,
-          effectiveCost: rawPrice - discount,
-          discount,
+    const ch = supabase
+      .channel('dashboard-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_pipeline' },
+        async () => {
+          const { data } = await supabase.from('vendor_pipeline').select('*').order('priority')
+          setVendors(data || [])
         })
-      }
-      setVendorLineup(entries)
-    } catch {}
-  }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'timeline_milestones' },
+        async () => {
+          const { data } = await supabase.from('timeline_milestones').select('*')
+            .eq('status', 'pending').order('due_date').limit(5)
+          setMilestones(data || [])
+        })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' },
+        async () => {
+          const { data } = await supabase.from('guests').select('id, rsvp')
+          setGuests(data || [])
+        })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
 
-  // ── Cinema discount change ─────────────────────────────────────────────────
-  async function handleDiscountChange(newDiscount) {
-    const disc = Math.max(0, Math.min(newDiscount, lockedCinema?.price || 0))
-    setCinemaDiscount(disc)
-    if (lockedCinema) {
-      await supabase.from('cinematographers').update({ discount: disc }).eq('id', lockedCinema.id)
-      const effective = (lockedCinema.price || 0) - disc
-      updateLine('photography', effective)
-      // Update vendor lineup entry if present
-      setVendorLineup(prev => prev.map(e =>
-        e.tabId === 'cinema' ? { ...e, discount: disc, effectiveCost: effective } : e
-      ))
+  const budget = useMemo(() => {
+    if (!quote.length) return null
+    return computeBudget(quote, projectedGuests, { vendorCount: 6 })
+  }, [quote, projectedGuests])
+
+  const marginal = useMemo(() => {
+    if (!quote.length) return 0
+    return computeMarginalCostPerGuest(quote, projectedGuests, { vendorCount: 6 })
+  }, [quote, projectedGuests])
+
+  const target = meta?.budget_target || 58000
+  const status = budget ? budgetStatus(budget.total, target) : 'gray'
+  const over = budget ? Math.max(0, budget.total - target) : 0
+  const under = budget ? Math.max(0, target - budget.total) : 0
+
+  const rsvpStats = useMemo(() => {
+    const counts = { yes: 0, no: 0, maybe: 0, pending: 0 }
+    for (const g of guests) {
+      const k = (g.rsvp || 'pending').toLowerCase()
+      if (counts[k] != null) counts[k]++
+      else counts.pending++
     }
-  }
+    return counts
+  }, [guests])
 
-  // ── Compute package-driven costs from current selections + guests ──────────
-  function applyPackageCosts(pkg, selections, guests, base) {
-    const next = { ...base }
-    for (const cat of pkg.categories) {
-      const selId = selections[cat.key] ?? cat.options[0].id
-      const opt = cat.options.find(o => o.id === selId) ?? cat.options[0]
-      next[cat.budgetField] = calcOptionCost(opt, guests)
+  const vendorStats = useMemo(() => {
+    const totals = { needed: 0, sourcing: 0, contacted: 0, shortlisted: 0, booked: 0, passed: 0 }
+    for (const v of vendors) {
+      const k = v.status || 'needed'
+      if (totals[k] != null) totals[k]++
     }
-    return next
-  }
+    return totals
+  }, [vendors])
 
-  // ── Calendar handlers ─────────────────────────────────────────────────────
+  const daysOut = daysBetween(TODAY, WEDDING_DATE)
+  const venueCap = meta?.budget_breakdown?.venue_cap ?? 170
+  const overCap = Math.max(0, projectedGuests - venueCap)
 
-  async function handlePickDate(date) {
-    setSelectedDate(date)
-    setPricingState('idle')
-
-    // ── Auto-select package options based on day of week ──────────────────────
-    const pkg = VENUE_PACKAGES[selectedVenueId]
-    let newSels = { ...pkgSelections }
-    let pricedBreakdown = { ...breakdown, _cal_date: date, _cal_off: offDays }
-
-    if (pkg) {
-      const dow = new Date(date + 'T12:00:00').getDay() // 0=Sun 5=Fri 6=Sat
-      const isSat    = dow === 6
-      const isFriSun = dow === 0 || dow === 5
-
-      // Auto-select venue fee tier
-      newSels.venue = isSat ? 'saturday' : isFriSun ? 'fri_sun' : 'weekday'
-
-      // Snap catering to the right day variant
-      const satTiers   = ['select_sat', 'premier_sat', 'icon_sat']
-      const friSunTier = 'select_fri_sun'
-      if (isSat && newSels.catering === friSunTier) newSels.catering = 'select_sat'
-      if (!isSat && satTiers.includes(newSels.catering)) newSels.catering = friSunTier
-      if (!isSat && !newSels.catering) newSels.catering = friSunTier
-
-      pricedBreakdown = applyPackageCosts(pkg, newSels, guestCount, {
-        ...pricedBreakdown, _pkg: newSels,
-      })
-      setPkgSelections(newSels)
-    }
-
-    setBreakdown(pricedBreakdown)
-    await supabase.from('project_metadata').update({
-      wedding_date: formatCalDate(date),
-      budget_breakdown: pricedBreakdown,
-    }).eq('id', 1)
-    triggerAutoPricing(date, pricedBreakdown)
-  }
-
-  async function handleToggleOffDay(date) {
-    const next = offDays.includes(date)
-      ? offDays.filter(d => d !== date)
-      : [...offDays, date]
-    setOffDays(next)
-    const newDate = next.includes(selectedDate) ? null : selectedDate
-    if (newDate !== selectedDate) setSelectedDate(newDate)
-    const bb = { ...breakdown, _cal_off: next, _cal_date: newDate }
-    setBreakdown(bb)
-    await supabase.from('project_metadata').update({
-      budget_breakdown: bb,
-      ...(newDate !== selectedDate ? { wedding_date: null } : {}),
-    }).eq('id', 1)
-  }
-
-  async function triggerAutoPricing(date, currentBreakdown) {
-    const venueUrl = venues.find(v => v.id === selectedVenueId)?.url ?? null
-    const quotes   = currentBreakdown._quotes ?? []
-    if (!venueUrl && quotes.length === 0) return
-    setPricingState('loading')
-    try {
-      const res = await fetch('/.netlify/functions/date-pricing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, venueUrl, quotes }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const pricing = await res.json()
-      if (pricing.error) throw new Error(pricing.error)
-
-      const merged = { ...currentBreakdown }
-      for (const field of ['venue','catering','bar','photography','florals','music','other']) {
-        if ((pricing[field] ?? 0) > 0) merged[field] = pricing[field]
-      }
-      merged._pricing_notes = pricing.notes
-      merged._pricing_date  = date
-
-      setBreakdown(merged)
-      setPricingState('done')
-      await supabase.from('project_metadata').update({
-        plus_plus_multiplier: pricing.multiplier ?? 1.25,
-        budget_breakdown: merged,
-      }).eq('id', 1)
-    } catch {
-      setPricingState('error')
-    }
-  }
-
-  function handleCalNav(dir) {
-    let m = calMonth + dir
-    let y = calYear
-    if (m < 0)  { m = 11; y-- }
-    if (m > 11) { m = 0;  y++ }
-    setCalMonth(m)
-    setCalYear(y)
-  }
-
-  // ── Budget line update (manual rows) ──────────────────────────────────────
-  async function updateLine(field, val) {
-    const next = { ...breakdown, [field]: val }
-    setBreakdown(next)
-    persistBreakdown(next)
-  }
-
-  // ── Venue selection ────────────────────────────────────────────────────────
-  function selectVenue(rawId) {
-    const venueId = rawId != null && rawId !== '' ? Number(rawId) : null
-    setSelectedVenueId(venueId)
-
-    const pkg = venueId ? VENUE_PACKAGES[venueId] : null
-    let next
-
-    if (pkg) {
-      const sels = defaultSelections(pkg)
-      const guests = pkg.defaultGuests
-      setPkgSelections(sels)
-      setGuestCount(guests)
-      next = applyPackageCosts(pkg, sels, guests, {
-        ...breakdown, _venue_id: venueId, _guests: guests, _pkg: sels,
-      })
-    } else {
-      // No package — just use venue_fee from venues list
-      const venue = venues.find(v => v.id === venueId)
-      const fee = venue?.venue_fee ? Number(venue.venue_fee) : 0
-      next = { ...breakdown, venue: fee, _venue_id: venueId }
-    }
-
-    setBreakdown(next)
-    persistBreakdown(next)
-  }
-
-  // ── Package option selection ───────────────────────────────────────────────
-  function selectPkgOption(catKey, optionId) {
-    const pkg = VENUE_PACKAGES[selectedVenueId]
-    if (!pkg) return
-    const newSels = { ...pkgSelections, [catKey]: optionId }
-    setPkgSelections(newSels)
-    const next = applyPackageCosts(pkg, newSels, guestCount, {
-      ...breakdown, _pkg: newSels,
-    })
-    setBreakdown(next)
-    persistBreakdown(next)
-  }
-
-  // ── Live guest count fetch ─────────────────────────────────────────────────
-  async function fetchLiveGuestCount() {
-    const { data } = await supabase.from('guests').select('plus_one')
-    if (!data) return
-    const count = data.length + data.filter(g => g.plus_one).length
-    changeGuests(count)
-  }
-
-  useEffect(() => {
-    if (liveCount) fetchLiveGuestCount()
-  }, [liveCount]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Guest count change ─────────────────────────────────────────────────────
-  function changeGuests(count) {
-    const pkg = VENUE_PACKAGES[selectedVenueId]
-    const clamped = Math.max(1, Math.min(pkg?.maxCap || 999, count))
-    setGuestCount(clamped)
-    if (pkg) {
-      const next = applyPackageCosts(pkg, pkgSelections, clamped, {
-        ...breakdown, _guests: clamped,
-      })
-      setBreakdown(next)
-      persistBreakdown(next)
-    } else {
-      persistBreakdown({ ...breakdown, _guests: clamped })
-    }
-  }
-
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const activePackage = selectedVenueId ? VENUE_PACKAGES[selectedVenueId] ?? null : null
-  const multiplier = meta?.plus_plus_multiplier ?? 1.25
-  const { variable, fixed, taxAmt, gratAmt, total } = calcTotal(breakdown, multiplier)
-  const budget = meta?.budget_target ?? 0
-  const overBudget = budget > 0 && total > budget
-  const pct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0
-
-  const tensions = meta?.tension_points ?? []
-
-  const compatibility = meta?.compatibility_score ?? null
-  const kerwinArchetype = meta?.kerwin_archetype ?? null
-  const daniArchetype = meta?.dani_archetype ?? null
-
-  if (!loaded) {
+  if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'var(--dark)' }}
-      >
-        <div
-          className="w-8 h-8 rounded-full border-2 animate-spin"
-          style={{ borderColor: userMeta.color, borderTopColor: 'transparent' }}
-        />
+      <div style={{ background: PAGE_BG, minHeight: 'calc(100vh - 56px)', padding: 32 }}>
+        <div style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>Loading...</div>
       </div>
     )
   }
 
-  // Days-until counter
-  const daysUntil = selectedDate
-    ? Math.ceil((new Date(selectedDate + 'T12:00:00') - new Date()) / 86400000)
-    : null
+  if (error) {
+    return (
+      <div style={{ background: PAGE_BG, minHeight: 'calc(100vh - 56px)', padding: 32 }}>
+        <div style={{ color: 'var(--red)' }}>Error loading dashboard: {error}</div>
+      </div>
+    )
+  }
 
   return (
-    <div
-      className="min-h-screen pb-16"
-      style={{ background: 'var(--dark)' }}
-    >
-      {/* ── Full-bleed Hero — Claro layout ──────────────────────────────── */}
-      <div
-        style={{
-          height: 'calc(68vh - 56px)',
-          minHeight: 380,
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Crossfading photo layers */}
-        {HERO_PHOTOS.map((src, i) => (
-          <div key={src} style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: `url(${src})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 40%',
-            opacity: i === heroIdx ? 1 : 0,
-            transition: 'opacity 1.2s ease-in-out',
-          }} />
-        ))}
+    <div style={{ background: PAGE_BG, minHeight: 'calc(100vh - 56px)', padding: '24px 24px 64px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
-        {/* Dark overlay for text legibility */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to bottom, rgba(18,12,6,0.35) 0%, rgba(18,12,6,0.25) 50%, rgba(247,240,227,0.0) 75%, var(--dark) 100%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Art Deco tile overlay */}
-        <div style={{
-          position: 'absolute', inset: 0, opacity: 0.04,
-          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%23C9A84C' stroke-width='0.8'/%3E%3Ccircle cx='30' cy='30' r='4' fill='none' stroke='%23C9A84C' stroke-width='0.6'/%3E%3C/svg%3E\")",
-          backgroundSize: '60px 60px',
-          pointerEvents: 'none',
-        }} />
-
-        {/* ── Hero content — centered like Claro ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 24px', width: '100%' }}
-        >
-          {/* Badge pill */}
+        {/* ── Header ───────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 24 }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            border: '1px solid rgba(201,168,76,0.55)',
-            borderRadius: 99, padding: '5px 14px', marginBottom: 20,
-            background: 'rgba(28,18,8,0.35)',
-            backdropFilter: 'blur(8px)',
+            fontFamily: 'DM Sans', fontSize: 11, letterSpacing: '0.18em',
+            color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 4,
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', letterSpacing: '0.12em', color: 'rgba(232,213,163,0.9)', textTransform: 'uppercase' }}>
-              La Jolla · March 2027
-            </span>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+            La Valencia Hotel · 3.27.27
           </div>
-
-          {/* Main headline */}
-          <h1 style={{
-            fontFamily: '"Cinzel", Georgia, serif',
-            fontSize: 'clamp(1.8rem, 6vw, 2.8rem)',
-            fontWeight: 700,
-            color: '#F7F0E3',
-            letterSpacing: '0.05em',
-            lineHeight: 1.15,
-            marginBottom: 14,
-            textShadow: '0 2px 20px rgba(18,12,6,0.5)',
-          }}>
-            Plan Every Detail.<br />Make It Perfect.
+          <h1 style={{ margin: 0, fontSize: 28, color: 'var(--text)' }}>
+            Wedding HQ
           </h1>
-
-          {/* Subtitle */}
-          <p style={{
-            fontFamily: '"Playfair Display", serif',
-            fontSize: '0.95rem',
-            fontStyle: 'italic',
-            color: 'rgba(232,213,163,0.8)',
-            marginBottom: 28,
-            maxWidth: 320,
-            margin: '0 auto 28px',
-            lineHeight: 1.6,
+          <div className="deco-divider" style={{ maxWidth: 260, marginTop: 8 }}>◆</div>
+          <div style={{
+            color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 13, marginTop: 6,
           }}>
-            Dani &amp; Kerwin's Wedding OS — every venue, vendor, and guest in one place.
-          </p>
-
-        </motion.div>
-      </div>
-
-      {/* ── Floating stat card ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px', marginTop: -44, position: 'relative', zIndex: 10 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            width: '100%',
-            maxWidth: 420,
-            background: 'rgba(247, 240, 227, 0.88)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid var(--gold-border)',
-            borderRadius: 20,
-            padding: '20px 24px 18px',
-            boxShadow: '0 8px 40px rgba(28,18,8,0.18), inset 0 0 0 1px rgba(255,255,255,0.35)',
-          }}
-        >
-          {/* D & K label */}
-          <p style={{
-            fontFamily: '"Cinzel", Georgia, serif',
-            fontSize: '0.62rem',
-            letterSpacing: '0.22em',
-            color: 'var(--gold)',
-            textAlign: 'center',
-            marginBottom: 12,
-            textTransform: 'uppercase',
-          }}>
-            Dani &amp; Kerwin
-          </p>
-
-          {/* Venue + countdown */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontFamily: '"Playfair Display", Georgia, serif',
-              fontSize: '1.15rem',
-              fontWeight: 700,
-              color: 'var(--ink)',
-              lineHeight: 1.2,
-              marginBottom: 6,
-            }}>
-              {lockedVenue?.name ?? 'Venue TBD'}
-            </div>
-            <div style={{
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              letterSpacing: '0.02em',
-            }}>
-              {daysUntil != null
-                ? `${daysUntil} days to go`
-                : meta?.wedding_date ?? 'Date TBD'}
-            </div>
+            {daysOut} days out · Kerwin &amp; Dani
           </div>
-        </motion.div>
-      </div>
+        </div>
 
-      {/* ── Content ───────────────────────────────────────────────────────── */}
-      <div className="w-full max-w-md mx-auto px-4" style={{ marginTop: 24 }}>
+        {/* ── Top row: Budget + Guest Slider ──────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 16 }}>
 
-        {/* ── Confirmed Picks ──────────────────────────────────────────── */}
-        {(lockedVenue || lockedCinema) && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card-gatsby p-5 rounded-2xl mb-4"
-            style={{ borderColor: `${userMeta.color}55` }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-                Confirmed Picks
-              </h2>
-              {venueQuote?.total && (
-                <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', background: 'rgba(201,147,42,0.1)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
-                  Quote: {fmt(venueQuote.total)}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {lockedVenue && (
-                <div style={{
-                  background: 'rgba(201,147,42,0.08)', border: '1px solid rgba(201,147,42,0.3)',
-                  borderRadius: 12, padding: '12px 14px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
-                      {lockedVenue.name}
-                    </div>
-                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>VENUE</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)' }}>
-                      {lockedVenue.region_label || lockedVenue.region}
-                    </div>
-                    {lockedVenue.url && (
-                      <a href={lockedVenue.url} target="_blank" rel="noreferrer"
-                        style={{ fontFamily: 'DM Sans', fontSize: 12, color: userMeta.color, textDecoration: 'none', fontWeight: 600 }}>
-                        Visit →
-                      </a>
-                    )}
-                  </div>
-                  {(lockedVenue.venue_fee || lockedVenue.catering_pp) && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      {lockedVenue.venue_fee && (
-                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)' }}>
-                          Venue fee: <strong style={{ color: 'var(--text)' }}>${lockedVenue.venue_fee.toLocaleString()}</strong>
-                        </span>
-                      )}
-                      {lockedVenue.catering_pp && (
-                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)' }}>
-                          · Catering: <strong style={{ color: 'var(--text)' }}>${lockedVenue.catering_pp}/pp</strong>
-                        </span>
-                      )}
-                    </div>
-                  )}
+          {/* Budget headline card */}
+          <div className="card-gatsby" style={{ padding: 20 }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12,
+            }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Projected total
                 </div>
-              )}
-              {lockedCinema && (
-                <div style={{
-                  background: 'rgba(201,147,42,0.05)', border: '1px solid rgba(201,147,42,0.2)',
-                  borderRadius: 12, padding: '12px 14px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-                        {lockedCinema.name}
-                      </div>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        {lockedCinema.package_name || 'Cinema'}
-                        {lockedCinema.price ? (
-                          <>
-                            {' · '}
-                            {cinemaDiscount > 0 ? (
-                              <>
-                                <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>
-                                  ${lockedCinema.price.toLocaleString()}
-                                </span>
-                                {' '}
-                                <span style={{ color: '#22c55e', fontWeight: 700 }}>
-                                  ${(lockedCinema.price - cinemaDiscount).toLocaleString()}
-                                </span>
-                              </>
-                            ) : (
-                              `$${lockedCinema.price.toLocaleString()}`
-                            )}
-                          </>
-                        ) : ''}
-                      </div>
-                    </div>
-                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#C9932A', fontWeight: 600, letterSpacing: '0.06em' }}>CINEMA</span>
-                  </div>
-                  {/* Discount field */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-dim)', flexShrink: 0 }}>Discount $</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={lockedCinema.price || 9999}
-                      value={cinemaDiscount}
-                      onChange={e => handleDiscountChange(parseInt(e.target.value) || 0)}
-                      style={{
-                        width: 90, background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7,
-                        padding: '4px 8px', color: 'var(--text)',
-                        fontFamily: 'DM Sans', fontSize: 13, outline: 'none',
-                      }}
-                    />
-                    {cinemaDiscount > 0 && (
-                      <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#22c55e' }}>
-                        saving {fmt(cinemaDiscount)}
-                      </span>
-                    )}
-                  </div>
+                <div style={{ fontFamily: 'Playfair Display', fontSize: 36, color: statusColor(status), marginTop: 4 }}>
+                  {formatUsd(budget?.total)}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── Vendor Lineup ────────────────────────────────────────────── */}
-        {vendorLineup.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card-gatsby p-5 rounded-2xl mb-4"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-                Vendor Lineup
-              </h2>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Target {formatUsd(target)} ·{' '}
+                  {status === 'green' && <span style={{ color: 'var(--green)' }}>under by {formatUsd(under)}</span>}
+                  {status === 'yellow' && <span style={{ color: 'var(--yellow)' }}>over by {formatUsd(over)}</span>}
+                  {status === 'red' && <span style={{ color: 'var(--red)' }}>over by {formatUsd(over)}</span>}
+                </div>
+              </div>
               <button
-                onClick={() => navigate('/vendors')}
-                style={{ fontFamily: 'DM Sans', fontSize: '0.78rem', color: userMeta.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                onClick={() => navigate('/budget')}
+                style={{
+                  background: 'transparent', border: '1px solid var(--gold-border)',
+                  color: 'var(--gold)', borderRadius: 8, padding: '6px 12px',
+                  cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, letterSpacing: '0.05em',
+                }}
               >
-                Edit →
+                Drill down →
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {vendorLineup.map(entry => {
-                const vendorName = entry.vendor.name || entry.vendor.provider || '—'
-                const rawPrice   = entry.vendor[
-                  entry.tabId === 'cinema'   ? 'price' :
-                  entry.tabId === 'catering' ? 'price_pp' :
-                  entry.tabId === 'bar'      ? 'price_pp' : 'price_estimate'
-                ] || 0
-                const isPP = entry.tabId === 'catering' || entry.tabId === 'bar'
-                return (
-                  <div key={entry.tabId} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    borderBottom: '1px solid var(--border)', paddingBottom: 10,
-                  }}>
-                    <div>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: userMeta.color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
-                        {entry.label}
-                      </div>
-                      <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 14, color: 'var(--text)' }}>
-                        {vendorName}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {rawPrice > 0 && (
-                        <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                          {entry.discount > 0 ? (
-                            <>
-                              <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)', fontSize: 11, marginRight: 4 }}>
-                                {fmt(rawPrice)}{isPP ? '/pp' : ''}
-                              </span>
-                              <span style={{ color: '#22c55e' }}>
-                                {fmt(rawPrice - entry.discount)}{isPP ? '/pp' : ''}
-                              </span>
-                            </>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)' }}>
-                              {fmt(rawPrice)}{isPP ? '/pp' : ''}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => updateLine(entry.budgetField, entry.effectiveCost)}
-                        style={{
-                          marginTop: 4, padding: '3px 8px', borderRadius: 6,
-                          border: `1px solid ${userMeta.color}44`,
-                          background: `${userMeta.color}10`,
-                          color: userMeta.color, cursor: 'pointer',
-                          fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
-                        }}
-                      >
-                        → Budget
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
 
-        {/* ── Guest Count ──────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card-gatsby p-5 rounded-2xl mb-4"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-              Guest List
-            </h2>
-            <button onClick={() => navigate('/guests')}
-              style={{ fontFamily: 'DM Sans', fontSize: '0.78rem', color: userMeta.color, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
-              Manage →
-            </button>
-          </div>
-          {guestStats.total === 0 ? (
-            <p style={{ fontFamily: 'DM Sans', fontSize: '0.8rem', color: 'var(--text-dim)', margin: 0 }}>
-              No locked guests yet. Head to <button onClick={() => navigate('/guests')} style={{ background: 'none', border: 'none', color: userMeta.color, cursor: 'pointer', fontFamily: 'DM Sans', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}>Guest Draft Board</button> to start building your list.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { label: 'Total', value: guestStats.total + guestStats.plusOnes, sub: `${guestStats.total} + ${guestStats.plusOnes} (+1s)` },
-                { label: 'Kerwin', value: guestStats.kerwin, sub: 'side' },
-                { label: 'Dani', value: guestStats.dani, sub: 'side' },
-              ].map(({ label, value, sub }) => (
-                <div key={label} style={{
-                  flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: 10,
-                  padding: '10px 12px', textAlign: 'center',
-                }}>
-                  <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
-                  <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
-                  {sub !== 'side' && <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: 'var(--text-dim)', marginTop: 1 }}>{sub}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* ── Wedding Date Calendar ──────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card-gatsby p-5 rounded-2xl mb-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-              Wedding Date
-            </h2>
-            {selectedDate && (
-              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, fontWeight: 600 }}>
-                {formatCalDate(selectedDate).split(', ').slice(1).join(', ')}
-              </span>
-            )}
-          </div>
-
-          <WeddingCalendar
-            year={calYear}
-            month={calMonth}
-            onNavMonth={handleCalNav}
-            selectedDate={selectedDate}
-            offDays={offDays}
-            calMode={calMode}
-            onDayClick={date => calMode === 'select' ? handlePickDate(date) : handleToggleOffDay(date)}
-            onSetMode={setCalMode}
-            accent={userMeta.color}
-          />
-
-          {pricingState === 'loading' && (
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Burn bar */}
+            <div style={{ height: 8, background: 'var(--dark3)', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{
-                width: 15, height: 15, borderRadius: '50%',
-                border: `2px solid ${userMeta.color}`, borderTopColor: 'transparent',
-                animation: 'spin 0.7s linear infinite', flexShrink: 0,
+                height: '100%',
+                width: `${Math.min(100, ((budget?.total || 0) / target) * 100)}%`,
+                background: statusColor(status),
+                transition: 'width 200ms',
               }} />
-              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Reading quotes &amp; venue site…
-              </span>
             </div>
-          )}
-          {pricingState === 'error' && (
-            <p style={{ marginTop: 10, fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: '#E07070', margin: '10px 0 0' }}>
-              Couldn't auto-fill pricing. Check venue URL or try again.
-            </p>
-          )}
-        </motion.div>
 
-
-        {/* ── Tension Alerts ─────────────────────────────────────────────── */}
-        <AnimatePresence>
-          {tensions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col gap-2 mb-4"
-            >
-              {tensions.map((t) => (
-                <TensionAlert key={t} tensionKey={t} />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Budget Calculator ───────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="card-gatsby p-5 rounded-2xl mb-4"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <h2
-              style={{
-                fontFamily: 'Playfair Display, serif',
-                fontSize: '1.05rem',
-                color: 'var(--text)',
-              }}
-            >
-              Live Budget
-            </h2>
-            {/* Guest count + LIVE toggle — always visible */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-              <span style={{ fontFamily: 'DM Sans', fontSize: '0.75rem', color: 'var(--text-dim)' }}>Guests</span>
-              <button
-                onClick={() => setLiveCount(v => !v)}
-                title={liveCount ? 'Switch to manual guest count' : 'Auto-fill from Guest Draft Board (all statuses + +1s)'}
-                style={{
-                  padding: '2px 8px', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700,
-                  fontFamily: 'DM Sans', cursor: 'pointer', letterSpacing: '0.04em',
-                  border: `1px solid ${liveCount ? '#22c55e' : 'var(--border)'}`,
-                  background: liveCount ? '#22c55e22' : 'none',
-                  color: liveCount ? '#22c55e' : 'var(--text-dim)',
-                  transition: 'all 0.15s',
-                }}
-              >LIVE</button>
-              {!liveCount && (
-                <button onClick={() => changeGuests(guestCount - 1)} style={{
-                  width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border)',
-                  background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
-                  fontSize: 12, fontWeight: 700, color: 'var(--text)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>−</button>
-              )}
-              <span style={{
-                fontFamily: 'DM Sans', fontSize: '0.9rem', fontWeight: 700,
-                color: liveCount ? '#22c55e' : 'var(--text)', minWidth: 28, textAlign: 'center',
-              }}>{guestCount}</span>
-              {!liveCount && (
-                <button onClick={() => changeGuests(guestCount + 1)} style={{
-                  width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border)',
-                  background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
-                  fontSize: 12, fontWeight: 700, color: 'var(--text)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>+</button>
-              )}
+            <div style={{
+              marginTop: 14, fontSize: 12, color: 'var(--text-muted)',
+              fontFamily: 'DM Sans', display: 'flex', gap: 16, flexWrap: 'wrap',
+            }}>
+              <span>Subtotal {formatUsd(budget?.subtotal)}</span>
+              <span>Marginal {formatUsdPrecise(marginal)}/guest</span>
+              <span>Source: La Valencia Winter Special</span>
             </div>
-            {saving && (
-              <span
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.7rem',
-                  color: 'var(--text-dim)',
-                }}
-              >
-                Saving…
-              </span>
-            )}
           </div>
 
-          {/* Venue selector */}
-          {venues.length > 0 && (
-            <div className="mb-4">
-              <p
-                style={{
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.7rem',
-                  color: 'var(--text-dim)',
-                  marginBottom: 6,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Venue
-              </p>
-              <select
-                value={selectedVenueId || ''}
-                onChange={e => selectVenue(e.target.value ? Number(e.target.value) : null)}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${selectedVenueId ? userMeta.color + '88' : 'rgba(255,255,255,0.12)'}`,
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '0.875rem',
-                  color: selectedVenueId ? 'var(--text)' : 'var(--text-dim)',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  appearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px center',
-                  paddingRight: 32,
-                }}
-              >
-                <option value="" style={{ background: '#1a1a1a' }}>Select a venue…</option>
-                {venues.map(v => (
-                  <option key={v.id} value={v.id} style={{ background: '#1a1a1a' }}>
-                    {v.name}{v.venue_fee ? ` — ${fmt(v.venue_fee)}` : ''}
-                  </option>
-                ))}
-              </select>
-              {/* Quote costs button — only when locked venue has a parsed quote */}
-              {venueQuote && lockedVenue && selectedVenueId === lockedVenue.id && (
-                <button
-                  onClick={() => {
-                    const q = venueQuote
-                    // Try to pull venue fee and per-person costs from extracted data
-                    const venueLine = q.line_items?.find(l => /venue|rental|site/i.test(l.label))
-                    const caterLine = q.line_items?.find(l => /catering|food|dinner|lunch|meal/i.test(l.label))
-                    const barLine   = q.line_items?.find(l => /bar|beverage|drink/i.test(l.label))
-                    const updates = {}
-                    if (venueLine) updates.venue = venueLine.amount
-                    if (caterLine) updates.catering = caterLine.amount
-                    if (barLine)   updates.bar = barLine.amount
-                    if (q.total && !venueLine) updates.venue = q.total
-                    const next = { ...breakdown, ...updates }
-                    setBreakdown(next)
-                    persistBreakdown(next)
-                  }}
-                  style={{
-                    marginTop: 8, width: '100%', padding: '8px 12px', borderRadius: 10,
-                    border: `1px solid ${userMeta.color}44`,
-                    background: `${userMeta.color}0E`,
-                    color: userMeta.color, cursor: 'pointer',
-                    fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
-                  }}
-                >
-                  Use La Valencia Quote Costs
-                </button>
-              )}
+          {/* Guest count slider */}
+          <div className="card-gatsby" style={{ padding: 20 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Guest count
             </div>
-          )}
-
-          {/* Variable costs (×1.25) */}
-          <p style={{
-            fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem',
-            color: 'var(--text-dim)', marginBottom: activePackage ? 8 : 4,
-            textTransform: 'uppercase', letterSpacing: '0.06em',
-          }}>
-            Variable costs (×{multiplier})
-          </p>
-
-          {activePackage ? (
-            /* ── Package Configurator ── */
-            <div style={{ marginBottom: 4 }}>
-              {/* Guest count stepper */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', borderRadius: 12,
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border)', marginBottom: 12,
-              }}>
-                <span style={{ fontFamily: 'DM Sans', fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>
-                  Guest Count
-                </span>
-                {/* Live toggle */}
-                <button
-                  onClick={() => setLiveCount(v => !v)}
-                  title={liveCount ? 'Switch to manual' : 'Use live guest count from Guest Draft Board'}
-                  style={{
-                    padding: '2px 8px', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700,
-                    fontFamily: 'DM Sans', cursor: 'pointer', letterSpacing: '0.04em',
-                    border: `1px solid ${liveCount ? '#22c55e' : 'var(--border)'}`,
-                    background: liveCount ? '#22c55e22' : 'none',
-                    color: liveCount ? '#22c55e' : 'var(--text-dim)',
-                    transition: 'all 0.15s',
-                  }}
-                >LIVE</button>
-                {!liveCount && [[-10,'−−'],[-1,'−']].map(([d, lbl]) => (
-                  <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
-                    width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
-                    background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
-                    fontSize: 13, fontWeight: 700, color: 'var(--text)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{lbl}</button>
-                ))}
-                <input
-                  type="number"
-                  value={guestCount}
-                  readOnly={liveCount}
-                  onChange={e => !liveCount && changeGuests(parseInt(e.target.value) || 1)}
-                  style={{
-                    width: 56, textAlign: 'center', fontFamily: 'DM Sans',
-                    fontSize: 15, fontWeight: 700, color: liveCount ? '#22c55e' : 'var(--text)',
-                    border: `1px solid ${liveCount ? '#22c55e44' : 'var(--border)'}`, borderRadius: 8,
-                    padding: '3px 4px', background: 'rgba(26,18,8,0.03)',
-                    cursor: liveCount ? 'default' : 'auto',
-                  }}
-                />
-                {!liveCount && [[1,'+'],[10,'++']].map(([d, lbl]) => (
-                  <button key={lbl} onClick={() => changeGuests(guestCount + d)} style={{
-                    width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)',
-                    background: 'transparent', cursor: 'pointer', fontFamily: 'DM Sans',
-                    fontSize: 13, fontWeight: 700, color: 'var(--text)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{lbl}</button>
-                ))}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+              <div style={{ fontFamily: 'Playfair Display', fontSize: 36, color: 'var(--text)' }}>
+                {projectedGuests}
               </div>
-
-              {/* Option cards per category */}
-              {activePackage.categories.map(cat => {
-                const selId = pkgSelections[cat.key] ?? cat.options[0].id
-                return (
-                  <div key={cat.key} style={{ marginBottom: 10 }}>
-                    <p style={{
-                      fontFamily: 'DM Sans', fontSize: '0.7rem', color: 'var(--text-dim)',
-                      marginBottom: 6, letterSpacing: '0.04em',
-                    }}>
-                      {cat.label}
-                    </p>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {cat.options.map(opt => {
-                        const cost = calcOptionCost(opt, guestCount)
-                        const selected = selId === opt.id
-                        return (
-                          <button
-                            key={opt.id}
-                            onClick={() => selectPkgOption(cat.key, opt.id)}
-                            style={{
-                              flex: '1 1 140px', textAlign: 'left',
-                              padding: '10px 12px', borderRadius: 12,
-                              border: `1.5px solid ${selected ? userMeta.color : 'rgba(255,255,255,0.1)'}`,
-                              background: selected ? `${userMeta.color}18` : 'rgba(255,255,255,0.03)',
-                              cursor: 'pointer', transition: 'all 0.15s',
-                            }}
-                          >
-                            <div style={{
-                              fontFamily: 'DM Sans', fontSize: '0.8rem', fontWeight: 600,
-                              color: selected ? 'var(--text)' : 'var(--text-muted)', marginBottom: 2,
-                            }}>
-                              {opt.label}
-                            </div>
-                            <div style={{
-                              fontFamily: 'DM Sans', fontSize: '0.7rem',
-                              color: selected ? userMeta.color : 'var(--text-dim)',
-                              fontWeight: selected ? 700 : 400,
-                            }}>
-                              {cost === 0 ? 'Included' : fmt(cost)}
-                            </div>
-                            <div style={{
-                              fontFamily: 'DM Sans', fontSize: '0.65rem',
-                              color: 'var(--text-dim)', marginTop: 2, lineHeight: 1.35,
-                            }}>
-                              {opt.desc}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+              <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-muted)' }}>
+                of {venueCap} cap
+              </div>
             </div>
-          ) : (
-            /* ── Manual rows ── */
-            <>
-              {[
-                { field: 'venue', label: 'Venue' },
-                { field: 'catering', label: 'Catering' },
-                { field: 'bar', label: 'Bar' },
-              ].map(({ field, label }) => (
-                <BudgetRow
-                  key={field}
-                  field={field}
-                  label={label}
-                  value={breakdown[field]}
-                  onChange={updateLine}
-                  accent={userMeta.color}
-                  isVariable
-                />
-              ))}
-            </>
-          )}
 
-          {/* Fixed costs */}
-          <p
+            <input
+              type="range"
+              min={100}
+              max={210}
+              value={projectedGuests}
+              onChange={(e) => setProjectedGuests(parseInt(e.target.value, 10))}
+              style={{ width: '100%', marginTop: 12, accentColor: 'var(--gold)' }}
+            />
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans',
+            }}>
+              <span>100</span><span>170 cap</span><span>210</span>
+            </div>
+
+            {overCap > 0 && (
+              <div style={{
+                marginTop: 12, padding: 8, borderRadius: 6,
+                background: 'rgba(224, 112, 112, 0.10)',
+                color: 'var(--red)', fontFamily: 'DM Sans', fontSize: 12,
+              }}>
+                {overCap} over La Valencia cap · need to cut or get exception
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Bottom row: Vendors + RSVP + Next milestones ────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+
+          {/* Vendors */}
+          <button
+            onClick={() => navigate('/vendors')}
+            className="card-gatsby"
             style={{
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '0.7rem',
-              color: 'var(--text-dim)',
-              marginTop: 16,
-              marginBottom: 4,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              padding: 18, textAlign: 'left', cursor: 'pointer',
+              background: 'var(--card)', font: 'inherit', color: 'inherit',
             }}
           >
-            Fixed costs
-          </p>
-
-          {[
-            { field: 'photography', label: 'Photography / Video' },
-            { field: 'florals', label: 'Florals' },
-            { field: 'music', label: 'Music / Entertainment' },
-            { field: 'other', label: 'Other' },
-          ].map(({ field, label }) => (
-            <BudgetRow
-              key={field}
-              field={field}
-              label={label}
-              value={breakdown[field]}
-              onChange={updateLine}
-              accent={userMeta.color}
-              isVariable={false}
-            />
-          ))}
-
-          {/* Tax & Gratuity */}
-          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: 16, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Tax &amp; Gratuity <span style={{ fontSize: '0.6rem', letterSpacing: 0, textTransform: 'none', color: 'var(--text-dim)' }}>(applied to F&amp;B)</span>
-          </p>
-          <PctRow label="Sales Tax" field="taxRate" value={breakdown.taxRate ?? 9.5} base={(breakdown.catering || 0) + (breakdown.bar || 0)} onChange={updateLine} accent={userMeta.color} />
-          <PctRow label="Gratuity" field="gratRate" value={breakdown.gratRate ?? 20.0} base={(breakdown.catering || 0) + (breakdown.bar || 0)} onChange={updateLine} accent={userMeta.color} />
-
-          {/* Formula breakdown */}
-          <div
-            className="mt-4 pt-4 flex flex-col gap-1.5"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            {[
-              { label: `Variable subtotal (×${multiplier})`, val: variable },
-              { label: 'Fixed costs', val: fixed },
-              { label: `Tax (${breakdown.taxRate ?? 9.5}%)`, val: taxAmt },
-              { label: `Gratuity (${breakdown.gratRate ?? 20.0}%)`, val: gratAmt },
-            ].map(({ label, val }) => (
-              <div key={label} className="flex justify-between">
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fmt(val)}</span>
-              </div>
-            ))}
-
-            <div
-              className="flex justify-between pt-2 mt-1"
-              style={{ borderTop: '1px solid var(--border)' }}
-            >
-              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: overBudget ? 'var(--red)' : 'var(--text)' }}>
-                Total
-              </span>
-              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: overBudget ? 'var(--red)' : 'var(--text)' }}>
-                {fmt(total)}
-              </span>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Vendors
             </div>
+            <div style={{ fontFamily: 'Playfair Display', fontSize: 28, color: 'var(--text)', marginTop: 4 }}>
+              {vendorStats.booked}
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> booked</span>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
+              {vendorStats.needed} needed · {vendorStats.sourcing + vendorStats.contacted + vendorStats.shortlisted} in motion
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gold)', fontFamily: 'DM Sans' }}>
+              Manage →
+            </div>
+          </button>
+
+          {/* RSVP */}
+          <button
+            onClick={() => navigate('/guests')}
+            className="card-gatsby"
+            style={{
+              padding: 18, textAlign: 'left', cursor: 'pointer',
+              background: 'var(--card)', font: 'inherit', color: 'inherit',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Guest list
+            </div>
+            <div style={{ fontFamily: 'Playfair Display', fontSize: 28, color: 'var(--text)', marginTop: 4 }}>
+              {guests.length}
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> on list</span>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
+              {rsvpStats.yes} yes · {rsvpStats.no} no · {rsvpStats.maybe} maybe · {rsvpStats.pending} pending
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gold)', fontFamily: 'DM Sans' }}>
+              Manage →
+            </div>
+          </button>
+
+          {/* Next milestones */}
+          <div className="card-gatsby" style={{ padding: 18 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Next up
+            </div>
+            {milestones.length === 0 ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
+                Run the 12-month timeline skill to populate milestones.
+              </div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0' }}>
+                {milestones.map(m => (
+                  <li key={m.id} style={{
+                    padding: '6px 0', borderBottom: '1px solid var(--border)',
+                    fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)',
+                    display: 'flex', justifyContent: 'space-between', gap: 8,
+                  }}>
+                    <span>{m.title}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                      {m.due_date}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-
-          {/* AI pricing notes banner */}
-          {breakdown._pricing_notes && breakdown._pricing_date === selectedDate && (
-            <div
-              className="mt-3 px-3 py-2.5 rounded-xl"
-              style={{ background: `${userMeta.color}0E`, border: `1px solid ${userMeta.color}28` }}
-            >
-              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: userMeta.color, margin: '0 0 8px', lineHeight: 1.5 }}>
-                ✦ {breakdown._pricing_notes}
-              </p>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={() => triggerAutoPricing(selectedDate, breakdown)}
-                  disabled={pricingState === 'loading'}
-                  style={{
-                    padding: '4px 10px', borderRadius: 6, border: `1px solid ${userMeta.color}50`,
-                    background: 'none', color: userMeta.color, cursor: 'pointer',
-                    fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', fontWeight: 600,
-                    opacity: pricingState === 'loading' ? 0.5 : 1,
-                  }}
-                >
-                  ↺ Re-run
-                </button>
-                <button
-                  onClick={async () => {
-                    const cleared = { ...breakdown }
-                    delete cleared._pricing_notes
-                    delete cleared._pricing_date
-                    for (const f of ['venue','catering','bar','photography','florals','music','other']) {
-                      cleared[f] = 0
-                    }
-                    setBreakdown(cleared)
-                    setPricingState('idle')
-                    persistBreakdown(cleared)
-                  }}
-                  style={{
-                    padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                    background: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                    fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem',
-                  }}
-                >
-                  ✕ Clear
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Budget progress bar */}
-          {budget > 0 && (
-            <div className="mt-3">
-              <div
-                className="h-1 w-full rounded-full"
-                style={{ background: 'var(--border)' }}
-              >
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: overBudget ? 'var(--red)' : userMeta.color }}
-                  animate={{ width: `${pct}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              <div className="flex justify-between mt-1">
-                <span
-                  style={{
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '0.7rem',
-                    color: overBudget ? 'var(--red)' : 'var(--text-dim)',
-                  }}
-                >
-                  {overBudget ? `${fmt(total - budget)} over budget` : `${fmt(budget - total)} remaining`}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '0.7rem',
-                    color: 'var(--text-dim)',
-                  }}
-                >
-                  Target: {fmt(budget)}
-                </span>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* ── Top Venues ──────────────────────────────────────────────────── */}
-        {venues.filter(v => v.locked || v.leader).length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-            className="mb-4"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
-                Top Venues
-              </h2>
-              <button
-                onClick={() => navigate('/venues')}
-                style={{
-                  fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem',
-                  color: userMeta.color, background: 'none', border: 'none',
-                  cursor: 'pointer', fontWeight: 600, padding: 0,
-                }}
-              >
-                See all →
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[...venues]
-                .filter(v => v.locked || v.leader)
-                .slice(0, 3)
-                .map(v => (
-                  <DashVenueCard
-                    key={v.id}
-                    venue={v}
-                    accentColor={userMeta.color}
-                    onClick={() => navigate('/venues')}
-                  />
-                ))
-              }
-            </div>
-          </motion.div>
-        )}
-
-        {/* ── Navigation Hub ──────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex flex-col gap-3"
-        >
-          <NavCard
-            label="Venue Scouting"
-            desc="36 venues across SoCal, Bay Area & Monterey. Rate, compare, and build packages."
-            path="/venues"
-            available={true}
-            navigate={navigate}
-          />
-          <NavCard
-            label="Guest Draft Board"
-            desc="Locked, Bubble Squad, and Practice Squad. Live headcount & budget impact."
-            path="/guests"
-            available={true}
-            navigate={navigate}
-          />
-          <NavCard
-            label="Vendor Windows"
-            desc="Music, catering, bar, cinematography, florals, and more."
-            path="/vendors"
-            available={true}
-            navigate={navigate}
-          />
-          <NavCard
-            label="Style Quiz"
-            desc="10 questions to find your wedding archetype and planning style."
-            path="/quiz"
-            available={true}
-            navigate={navigate}
-          />
-          <NavCard
-            label="Compatibility Report"
-            desc="Your archetype match, tension points, and planning playbook."
-            path="/results"
-            available={kerwinArchetype !== null && daniArchetype !== null}
-            navigate={navigate}
-          />
-          <NavCard
-            label="Vibe Scraper"
-            desc="Drop a URL. We'll analyze the visual DNA and score it against your archetype."
-            path="/vibe"
-            available={true}
-            navigate={navigate}
-          />
-        </motion.div>
+        </div>
 
       </div>
     </div>

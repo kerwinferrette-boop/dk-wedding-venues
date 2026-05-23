@@ -3,3 +3,11 @@ dist
 .env
 .env.local
 .DS_Store
+
+# Vite dev server temp files
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Local quote PDFs (folder name contains ':' which breaks on some platforms)
+La Valencia Quote:PDF/
+
