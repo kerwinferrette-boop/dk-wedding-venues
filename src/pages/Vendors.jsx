@@ -88,7 +88,7 @@ function VendorCard({ vendor, onUpdate, onDelete }) {
   function commit() {
     const patch = {}
     const fields = [
-      'vendor_name', 'priority', 'estimated_cost', 'actual_cost',
+      'vendor_type', 'vendor_name', 'priority', 'estimated_cost', 'actual_cost',
       'deposit_amount',
       'contact_name', 'contact_email', 'contact_phone',
       'website_url', 'instagram_url',
@@ -192,6 +192,8 @@ function VendorCard({ vendor, onUpdate, onDelete }) {
           marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)',
           display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10,
         }}>
+          <EditField label="Category (vendor type)" value={edit.vendor_type}
+            onChange={(v) => setEdit(e => ({ ...e, vendor_type: v }))} onBlur={commit} />
           <EditField label="Vendor name" value={edit.vendor_name}
             onChange={(v) => setEdit(e => ({ ...e, vendor_name: v }))} onBlur={commit} />
           <EditSelect label="Status" value={edit.status} options={STATUSES} labels={STATUS_LABEL}
