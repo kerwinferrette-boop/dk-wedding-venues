@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 
 const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1JUtOiOq7kjNoVB8JEGysWZ7lm-TpVVlzEvnPNb6Q4z8/edit?gid=0#gid=0'
+const GOOGLE_SHEET_EMBED_URL = 'https://docs.google.com/spreadsheets/d/1JUtOiOq7kjNoVB8JEGysWZ7lm-TpVVlzEvnPNb6Q4z8/htmlview?gid=0'
 const TARGET_CAP = 170
 
 const SIDES = ['kerwin', 'dani', 'both', 'other']
@@ -31,11 +32,13 @@ function toBool(v) {
 // Header name -> guests column name. Loose matching: lowercased + trimmed.
 const COLUMN_ALIASES = {
   'name': 'name',
+  'names': 'name',
   'guest': 'name',
   'guest name': 'name',
   'side': 'side',
   'whose side': 'side',
   'know from': 'know_from',
+  'know from:': 'know_from',
   'how do we know': 'know_from',
   'has met dani': 'has_met_dani',
   'met dani': 'has_met_dani',
@@ -46,14 +49,19 @@ const COLUMN_ALIASES = {
   '+1': 'plus_one',
   'residence': 'residence',
   'city': 'residence',
+  'place of residence': 'residence',
   'where do they live': 'residence',
   'rsvp': 'rsvp',
   'email': 'email',
   'phone': 'phone',
   'notes': 'notes',
   'invited engagement': 'invited_engagement',
+  'invited to engagement party': 'invited_engagement',
   'engagement plus one': 'engagement_plus_one',
+  'engagement party +1': 'engagement_plus_one',
   'going engagement': 'going_engagement',
+  'going to engagement party': 'going_engagement',
+  'going to engagement party ': 'going_engagement',
 }
 
 const BOOLEAN_COLS = new Set([
@@ -79,16 +87,10 @@ function normalizeSide(v) {
   return 'other'
 }
 
-function parseGuestsXlsx(buffer) {
-  const wb = XLSX.read(buffer, { type: 'array' })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+function rowsToGuests(rows) {
   if (!rows.length) return []
-
   const headers = rows[0].map(h => (h ? String(h).trim().toLowerCase() : ''))
-  const dataRows = rows.slice(1)
-
-  return dataRows.map(row => {
+  return rows.slice(1).map(row => {
     const g = {}
     headers.forEach((h, i) => {
       const col = COLUMN_ALIASES[h]
@@ -103,6 +105,18 @@ function parseGuestsXlsx(buffer) {
     if (!g.name) return null
     return g
   }).filter(Boolean)
+}
+
+function parseGuestsXlsx(buffer) {
+  const wb = XLSX.read(buffer, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  return rowsToGuests(XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }))
+}
+
+function parseGuestsCsv(csvText) {
+  const wb = XLSX.read(csvText, { type: 'string' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  return rowsToGuests(XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }))
 }
 
 function Pill({ label, value, color = 'var(--text)', sub }) {
@@ -212,12 +226,14 @@ export default function Guests() {
   const [guests, setGuests] = useState([])
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
+  const [syncing, setSyncing] = useState(null) // sheet name being synced, or null
   const [error, setError] = useState(null)
 
-  const [filterSide, setFilterSide] = useState('')
   const [filterRsvp, setFilterRsvp] = useState('')
   const [filterCut, setFilterCut] = useState('')   // '', 'cut', 'keep'
   const [search, setSearch] = useState('')
+  const [showEmbed, setShowEmbed] = useState(false)
+  const [openBlocks, setOpenBlocks] = useState({ kerwin: true, dani: true, other: false })
 
   const fileInputRef = useRef(null)
 
@@ -249,30 +265,39 @@ export default function Guests() {
   }, [])
 
   const stats = useMemo(() => {
-    const total = guests.length
-    const cut = guests.filter(g => g.cut_candidate).length
+    function headcount(list) {
+      return list.reduce((sum, g) => sum + 1 + (g.plus_one ? 1 : 0), 0)
+    }
+    const total = headcount(guests)
+    const cut = headcount(guests.filter(g => g.cut_candidate))
     const kept = total - cut
-    const rsvpYes = guests.filter(g => g.rsvp === 'yes').length
-    const rsvpNo = guests.filter(g => g.rsvp === 'no').length
-    const rsvpMaybe = guests.filter(g => g.rsvp === 'maybe').length
+    const rsvpYes = headcount(guests.filter(g => g.rsvp === 'yes'))
+    const rsvpNo = headcount(guests.filter(g => g.rsvp === 'no'))
+    const rsvpMaybe = headcount(guests.filter(g => g.rsvp === 'maybe'))
     const rsvpPending = total - rsvpYes - rsvpNo - rsvpMaybe
     return { total, cut, kept, rsvpYes, rsvpNo, rsvpMaybe, rsvpPending }
   }, [guests])
 
-  const filtered = useMemo(() => {
-    return guests.filter(g => {
-      if (filterSide && g.side !== filterSide) return false
-      if (filterRsvp && (g.rsvp || 'pending') !== filterRsvp) return false
-      if (filterCut === 'cut' && !g.cut_candidate) return false
-      if (filterCut === 'keep' && g.cut_candidate) return false
-      if (search) {
-        const s = search.toLowerCase()
-        const hay = `${g.name || ''} ${g.know_from || ''} ${g.residence || ''} ${g.notes || ''}`.toLowerCase()
-        if (!hay.includes(s)) return false
-      }
-      return true
-    })
-  }, [guests, filterSide, filterRsvp, filterCut, search])
+  const grouped = useMemo(() => {
+    function applyFilters(list) {
+      return list.filter(g => {
+        if (filterRsvp && (g.rsvp || 'pending') !== filterRsvp) return false
+        if (filterCut === 'cut' && !g.cut_candidate) return false
+        if (filterCut === 'keep' && g.cut_candidate) return false
+        if (search) {
+          const s = search.toLowerCase()
+          const hay = `${g.name || ''} ${g.know_from || ''} ${g.residence || ''} ${g.notes || ''}`.toLowerCase()
+          if (!hay.includes(s)) return false
+        }
+        return true
+      })
+    }
+    return {
+      kerwin: applyFilters(guests.filter(g => g.side === 'kerwin')),
+      dani: applyFilters(guests.filter(g => g.side === 'dani')),
+      other: applyFilters(guests.filter(g => !g.side || g.side === 'both' || g.side === 'other')),
+    }
+  }, [guests, filterRsvp, filterCut, search])
 
   async function update(id, patch) {
     setGuests(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g))
@@ -333,6 +358,66 @@ export default function Guests() {
     } finally {
       setImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function syncFromSheet(sheetName) {
+    const SIDE_MAP = { "Kerwin's List": 'kerwin', "Dani's List": 'dani' }
+    const side = SIDE_MAP[sheetName] || null
+
+    setSyncing(sheetName)
+    setError(null)
+    try {
+      const res = await fetch(`/.netlify/functions/fetch-sheet?sheet=${encodeURIComponent(sheetName)}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+        setError(`Sync failed: ${err.error || res.status}`)
+        return
+      }
+      const csv = await res.text()
+      const parsed = parseGuestsCsv(csv)
+      if (!parsed.length) {
+        setError(`No rows found in "${sheetName}".`)
+        return
+      }
+
+      const existingMap = new Map(guests.map(g => [(g.name || '').trim().toLowerCase(), g]))
+
+      // Batch-update side on already-imported guests that don't have it set yet
+      if (side) {
+        const needsUpdate = parsed
+          .map(g => existingMap.get(g.name.toLowerCase()))
+          .filter(Boolean)
+          .filter(g => g.side !== side && g.side !== 'both')
+
+        const toSetSide = needsUpdate.filter(g => !g.side).map(g => g.id)
+        const toSetBoth = needsUpdate.filter(g => g.side && g.side !== side).map(g => g.id)
+
+        if (toSetSide.length) {
+          await supabase.from('guests').update({ side }).in('id', toSetSide)
+          setGuests(prev => prev.map(p => toSetSide.includes(p.id) ? { ...p, side } : p))
+        }
+        if (toSetBoth.length) {
+          await supabase.from('guests').update({ side: 'both' }).in('id', toSetBoth)
+          setGuests(prev => prev.map(p => toSetBoth.includes(p.id) ? { ...p, side: 'both' } : p))
+        }
+      }
+
+      const toInsert = parsed
+        .filter(g => !existingMap.has(g.name.toLowerCase()))
+        .map(g => ({ ...g, ...(side ? { side } : {}) }))
+
+      if (!toInsert.length) {
+        setError(`"${sheetName}" synced — all ${parsed.length} names already in the list.`)
+        return
+      }
+      const { data, error } = await supabase.from('guests').insert(toInsert).select()
+      if (error) setError(`Sync failed: ${error.message}`)
+      else if (data) setGuests(g => [...g, ...data])
+    } catch (err) {
+      setError(err.message || String(err))
+    } finally {
+      setSyncing(null)
     }
   }
 
@@ -397,25 +482,41 @@ export default function Guests() {
               color: 'var(--text)',
             }}
           />
-          <Select value={filterSide} onChange={setFilterSide} options={SIDES} placeholder="All sides" />
           <Select value={filterRsvp} onChange={setFilterRsvp} options={RSVPS} placeholder="Any rsvp" />
           <Select value={filterCut} onChange={setFilterCut} options={['cut', 'keep']} placeholder="Cut status" />
 
           <div style={{ flex: 1 }} />
 
-          <a
-            href={GOOGLE_SHEET_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setShowEmbed(v => !v)}
             style={{
-              background: 'transparent', border: '1px solid var(--gold-border)',
-              color: 'var(--gold)', borderRadius: 8, padding: '8px 12px',
-              fontFamily: 'DM Sans', fontSize: 12, textDecoration: 'none',
+              background: showEmbed ? 'var(--gold)' : 'transparent',
+              border: '1px solid var(--gold-border)',
+              color: showEmbed ? 'var(--card)' : 'var(--gold)',
+              borderRadius: 8, padding: '8px 12px',
+              fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer',
               letterSpacing: '0.04em',
             }}
           >
-            Open Google Sheet ↗
-          </a>
+            {showEmbed ? 'Hide Sheet' : 'Show Sheet'}
+          </button>
+          {["Kerwin's List", "Dani's List"].map(sheet => (
+            <button
+              key={sheet}
+              onClick={() => syncFromSheet(sheet)}
+              disabled={!!syncing}
+              style={{
+                background: 'transparent', border: '1px solid var(--gold-border)',
+                color: 'var(--gold)', borderRadius: 8, padding: '8px 12px',
+                fontFamily: 'DM Sans', fontSize: 12,
+                cursor: syncing ? 'wait' : 'pointer',
+              }}
+            >
+              {syncing === sheet
+                ? 'Syncing…'
+                : `Sync ${sheet === "Kerwin's List" ? "Kerwin's" : "Dani's"}`}
+            </button>
+          ))}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
@@ -446,6 +547,34 @@ export default function Guests() {
           </button>
         </div>
 
+        {showEmbed && (
+          <div className="card-gatsby" style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 14px', borderBottom: '1px solid var(--gold-border)',
+            }}>
+              <span style={{ fontFamily: 'DM Sans', fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Google Sheet (read-only)
+              </span>
+              <a
+                href={GOOGLE_SHEET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--gold)', textDecoration: 'none' }}
+              >
+                Open in Sheets ↗
+              </a>
+            </div>
+            <iframe
+              src={GOOGLE_SHEET_EMBED_URL}
+              title="Guest list Google Sheet"
+              width="100%"
+              height="480"
+              style={{ display: 'block', border: 'none' }}
+            />
+          </div>
+        )}
+
         {error && (
           <div style={{
             marginBottom: 12, padding: 10, borderRadius: 8,
@@ -462,144 +591,113 @@ export default function Guests() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="card-gatsby" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%', borderCollapse: 'collapse',
-              fontFamily: 'DM Sans', fontSize: 13,
-            }}>
-              <thead>
-                <tr style={{
-                  background: 'var(--dark2)',
-                  borderBottom: '1px solid var(--gold-border)',
-                }}>
-                  <Th>Name</Th>
-                  <Th center>Cut?</Th>
-                  <Th>Side</Th>
-                  <Th>Know from</Th>
-                  <Th>Residence</Th>
-                  <Th center>Met Dani</Th>
-                  <Th center>Plans to</Th>
-                  <Th center>+1</Th>
-                  <Th>RSVP</Th>
-                  <Th>Notes</Th>
-                  <Th />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} style={{
-                      padding: 32, textAlign: 'center', color: 'var(--text-dim)',
-                    }}>
-                      {guests.length === 0
-                        ? 'No guests yet. Import the .xlsx from your Google Sheet or add manually.'
-                        : 'No matches for the current filters.'}
-                    </td>
-                  </tr>
-                ) : filtered.map(g => (
-                  <tr key={g.id} style={{
-                    borderBottom: '1px solid var(--border)',
-                    background: g.cut_candidate ? 'rgba(224, 112, 112, 0.05)' : 'transparent',
-                    opacity: g.cut_candidate ? 0.7 : 1,
-                  }}>
-                    <td style={{ padding: '8px 10px' }}>
-                      <InlineText
-                        value={g.name}
-                        onChange={(v) => update(g.id, { name: v })}
-                        placeholder="name"
-                        width={180}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      <Check
-                        checked={!!g.cut_candidate}
-                        onToggle={() => update(g.id, { cut_candidate: !g.cut_candidate })}
-                        color="var(--red)"
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <Select
-                        value={g.side}
-                        onChange={(v) => update(g.id, { side: v })}
-                        options={SIDES}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <InlineText
-                        value={g.know_from}
-                        onChange={(v) => update(g.id, { know_from: v })}
-                        placeholder="—"
-                        width={140}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <InlineText
-                        value={g.residence}
-                        onChange={(v) => update(g.id, { residence: v })}
-                        placeholder="—"
-                        width={120}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      <Check
-                        checked={!!g.has_met_dani}
-                        onToggle={() => update(g.id, { has_met_dani: !g.has_met_dani })}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      <Check
-                        checked={!!g.plans_to_meet}
-                        onToggle={() => update(g.id, { plans_to_meet: !g.plans_to_meet })}
-                        color="var(--gold)"
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      <Check
-                        checked={!!g.plus_one}
-                        onToggle={() => update(g.id, { plus_one: !g.plus_one })}
-                        color="var(--teal)"
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <Select
-                        value={g.rsvp}
-                        onChange={(v) => update(g.id, { rsvp: v })}
-                        options={RSVPS}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <InlineText
-                        value={g.notes}
-                        onChange={(v) => update(g.id, { notes: v })}
-                        placeholder="—"
-                        width={180}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right' }}>
-                      <button
-                        onClick={() => deleteGuest(g.id)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          color: 'var(--text-dim)', fontSize: 14, padding: 4,
-                        }}
-                        title="Remove"
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {[
+          { key: 'kerwin', label: "Kerwin's Guests" },
+          { key: 'dani',   label: "Dani's Guests" },
+          { key: 'other',  label: 'Shared / Unassigned' },
+        ].map(({ key, label }) => {
+          const list = grouped[key]
+          const isOpen = openBlocks[key]
+          const toggle = () => setOpenBlocks(prev => ({ ...prev, [key]: !prev[key] }))
+          return (
+            <div key={key} className="card-gatsby" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+              <button
+                onClick={toggle}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', background: 'var(--dark2)', border: 'none',
+                  borderBottom: isOpen ? '1px solid var(--gold-border)' : 'none',
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <span style={{ fontFamily: 'Playfair Display', fontSize: 15, color: 'var(--text)' }}>
+                  {label}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)' }}>
+                    {list.length} {list.length === 1 ? 'guest' : 'guests'}
+                    {list.some(g => g.plus_one) && ` · ${list.filter(g => g.plus_one).length} +1s`}
+                  </span>
+                  <span style={{ color: 'var(--gold)', fontSize: 11 }}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+              </button>
 
-        <div style={{
-          marginTop: 10, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans',
-        }}>
-          Showing {filtered.length} of {guests.length} · Edits save automatically · Live with the Google Sheet via import
+              {isOpen && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--dark2)', borderBottom: '1px solid var(--gold-border)' }}>
+                        <Th>Name</Th>
+                        <Th center>Cut?</Th>
+                        <Th>Know from</Th>
+                        <Th>Residence</Th>
+                        <Th center>Met Dani</Th>
+                        <Th center>Plans to</Th>
+                        <Th center>+1</Th>
+                        <Th>RSVP</Th>
+                        <Th>Notes</Th>
+                        <Th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} style={{ padding: 24, textAlign: 'center', color: 'var(--text-dim)' }}>
+                            {guests.length === 0 ? 'No guests yet — sync from sheet or add manually.' : 'No matches.'}
+                          </td>
+                        </tr>
+                      ) : list.map(g => (
+                        <tr key={g.id} style={{
+                          borderBottom: '1px solid var(--border)',
+                          background: g.cut_candidate ? 'rgba(224, 112, 112, 0.05)' : 'transparent',
+                          opacity: g.cut_candidate ? 0.7 : 1,
+                        }}>
+                          <td style={{ padding: '8px 10px' }}>
+                            <InlineText value={g.name} onChange={v => update(g.id, { name: v })} placeholder="name" width={180} />
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <Check checked={!!g.cut_candidate} onToggle={() => update(g.id, { cut_candidate: !g.cut_candidate })} color="var(--red)" />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <InlineText value={g.know_from} onChange={v => update(g.id, { know_from: v })} placeholder="—" width={140} />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <InlineText value={g.residence} onChange={v => update(g.id, { residence: v })} placeholder="—" width={120} />
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <Check checked={!!g.has_met_dani} onToggle={() => update(g.id, { has_met_dani: !g.has_met_dani })} />
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <Check checked={!!g.plans_to_meet} onToggle={() => update(g.id, { plans_to_meet: !g.plans_to_meet })} color="var(--gold)" />
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <Check checked={!!g.plus_one} onToggle={() => update(g.id, { plus_one: !g.plus_one })} color="var(--teal)" />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <Select value={g.rsvp} onChange={v => update(g.id, { rsvp: v })} options={RSVPS} />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <InlineText value={g.notes} onChange={v => update(g.id, { notes: v })} placeholder="—" width={180} />
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => deleteGuest(g.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 14, padding: 4 }}
+                              title="Remove"
+                            >×</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
+          {guests.length} guests total · Edits save automatically
         </div>
       </div>
     </div>
