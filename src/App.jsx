@@ -7,6 +7,10 @@ import Dashboard from './pages/Dashboard'
 import Guests from './pages/Guests'
 import Vendors from './pages/Vendors'
 import Budget from './pages/Budget'
+import Timeline from './pages/Timeline'
+import Research from './pages/Research'
+import Branding from './pages/Branding'
+import Inbox from './pages/Inbox'
 
 function InitialRedirect() {
   const navigate = useNavigate()
@@ -57,6 +61,10 @@ export default function App() {
         <Route path="/budget" element={<Budget user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/guests" element={<Guests user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/vendors" element={<Vendors user={user} onSwitchUser={handleSwitchUser} />} />
+        <Route path="/timeline" element={<Timeline user={user} />} />
+        <Route path="/research" element={<Research user={user} />} />
+        <Route path="/branding" element={<Branding user={user} />} />
+        <Route path="/inbox" element={<Inbox user={user} />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

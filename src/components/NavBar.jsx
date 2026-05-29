@@ -7,6 +7,10 @@ const NAV_ITEMS = [
   { path: '/budget',    label: 'Budget' },
   { path: '/guests',    label: 'Guests' },
   { path: '/vendors',   label: 'Vendors' },
+  { path: '/timeline',  label: 'Timeline' },
+  { path: '/inbox',     label: 'Inbox' },
+  { path: '/research',  label: 'Research' },
+  { path: '/branding',  label: 'Branding' },
 ]
 
 export default function NavBar({ user, onSwitchUser }) {
