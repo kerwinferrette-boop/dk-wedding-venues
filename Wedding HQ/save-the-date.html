@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Save-the-Date — K &amp; D — 3.27.27</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0A0A0A;
+      --ivory: #F5F0E6;
+      --gold:  #C9A96E;
+      --gold-lt: #DEC88C;
+      --gold-dk: #B8936A;
+      --espresso: #3D2410;
+      --warm-white: #FAF8F2;
+      --crimson: #8B1A1A;
+    }
+
+    body {
+      background: #1A1812;
+      font-family: 'Jost', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 60px 40px;
+    }
+
+    /* ─── PAGE HEADER ─── */
+    .page-header {
+      max-width: 1360px;
+      margin: 0 auto 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid rgba(201,169,110,0.15);
+      padding-bottom: 24px;
+    }
+    .page-header h1 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 7px;
+      color: rgba(245,240,230,0.35);
+      text-transform: uppercase;
+    }
+    .page-header p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--gold-dk);
+    }
+
+    /* ─── COMPARISON LAYOUT ─── */
+    .comparison {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+    }
+
+    /* ─── OPTION LABEL ─── */
+    .option-header {
+      margin-bottom: 32px;
+    }
+    .option-tag {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      margin-bottom: 8px;
+    }
+    .option-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 18px;
+      letter-spacing: 4px;
+      color: var(--ivory);
+      margin-bottom: 8px;
+    }
+    .option-subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(245,240,230,0.4);
+    }
+
+    /* ─── CARD BASE ─── */
+    .card-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .card-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.2);
+      margin-bottom: 10px;
+    }
+
+    /* ─── CARD A: "LA NUIT" DARK ─── */
+    .card-a-front {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: #0A0A0A;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.8), 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-a-front::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 80%, rgba(201,169,110,0.05) 0%, transparent 100%);
+    }
+
+    .card-a-back {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: #0D0C0A;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.8), 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 40px;
+      position: relative;
+    }
+
+    /* ─── CARD B: "MATIN D'OR" IVORY ─── */
+    .card-b-front {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: var(--ivory);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.2);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 36px;
+      position: relative;
+    }
+
+    .card-b-back {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: var(--warm-white);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.2);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 36px;
+    }
+
+    /* ─── GOLD FOIL TEXT EFFECT ─── */
+    .foil-text {
+      background: linear-gradient(135deg, #C9A96E 0%, #E8D080 35%, #C9A96E 55%, #9A7740 80%, #C9A96E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ─── DIVIDERS ─── */
+    .divider-gold {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    .dline { flex: 1; height: 1px; background: var(--gold); }
+    .ddiamond {
+      width: 7px;
+      height: 7px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+      margin: 0 10px;
+    }
+
+    /* ─── DESIGNER'S PICK ─── */
+    .verdict {
+      max-width: 1360px;
+      margin: 72px auto 0;
+      border-top: 1px solid rgba(201,169,110,0.12);
+      padding-top: 48px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .verdict-badge {
+      background: var(--gold);
+      color: var(--black);
+      font-family: 'Jost', sans-serif;
+      font-weight: 400;
+      font-size: 7px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      white-space: nowrap;
+    }
+    .verdict-text h3 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 4px;
+      color: var(--ivory);
+      margin-bottom: 12px;
+    }
+    .verdict-text p {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 17px;
+      line-height: 1.8;
+      color: rgba(245,240,230,0.55);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1>Save-the-Date &nbsp;&mdash;&nbsp; Design Options</h1>
+    <p>5 &times; 7 in &nbsp;&middot;&nbsp; Print-Ready Format &nbsp;&middot;&nbsp; K &amp; D &nbsp;&middot;&nbsp; 3.27.27</p>
+  </div>
+
+  <!-- COMPARISON GRID -->
+  <div class="comparison">
+
+    <!-- OPTION A: LA NUIT -->
+    <div>
+      <div class="option-header">
+        <div class="option-tag">Option A</div>
+        <div class="option-title">&ldquo;La Nuit&rdquo;</div>
+        <div class="option-subtitle">Noir black &middot; Champagne gold foil &middot; Full drama</div>
+      </div>
+
+      <div class="card-stack">
+        <!-- FRONT -->
+        <div>
+          <div class="card-label">Front Face</div>
+          <div class="card-a-front">
+
+            <!-- Top thin frame lines -->
+            <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+              <!-- Outer frame -->
+              <rect x="16" y="16" width="368" height="528" stroke="#C9A96E" stroke-width="1.2" opacity="0.6"/>
+              <!-- Inner frame -->
+              <rect x="26" y="26" width="348" height="508" stroke="#C9A96E" stroke-width="0.4" opacity="0.35"/>
+              <!-- Corner ornaments TL -->
+              <rect x="16" y="16" width="10" height="10" fill="#C9A96E"/>
+              <!-- TR -->
+              <rect x="374" y="16" width="10" height="10" fill="#C9A96E"/>
+              <!-- BL -->
+              <rect x="16" y="534" width="10" height="10" fill="#C9A96E"/>
+              <!-- BR -->
+              <rect x="374" y="534" width="10" height="10" fill="#C9A96E"/>
+              <!-- Mid-side ticks -->
+              <line x1="16" y1="280" x2="26" y2="280" stroke="#C9A96E" stroke-width="1" opacity="0.5"/>
+              <line x1="374" y1="280" x2="384" y2="280" stroke="#C9A96E" stroke-width="1" opacity="0.5"/>
+            </svg>
+
+            <!-- Content -->
+            <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:0;width:100%;">
+
+              <!-- Save the Date -->
+              <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:9px;letter-spacing:8px;text-transform:uppercase;color:rgba(201,169,110,0.7);margin-bottom:28px;">Save the Date</div>
+
+              <!-- Oval Monogram SVG -->
+              <div style="background:#F5F0E6;padding:10px;margin-bottom:28px;width:120px;">
+                <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+              </div>
+
+              <!-- Names -->
+              <div class="foil-text" style="font-family:'Great Vibes',cursive;font-size:42px;line-height:1.1;margin-bottom:20px;text-align:center;">Kerwin &amp; Danielle</div>
+
+              <!-- Divider -->
+              <div class="divider-gold" style="margin-bottom:20px;">
+                <div class="dline" style="opacity:0.3;"></div>
+                <div class="ddiamond" style="opacity:0.6;"></div>
+                <div class="dline" style="opacity:0.3;"></div>
+              </div>
+
+              <!-- Date -->
+              <div style="font-family:'Cinzel',serif;font-weight:400;font-size:12px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">March 27, 2027</div>
+
+              <!-- Venue -->
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(245,240,230,0.4);letter-spacing:1.5px;text-align:center;">La Valencia Hotel &middot; La Jolla</div>
+
+              <!-- Bottom -->
+              <div style="margin-top:24px;font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.3);">Formal Invitation to Follow</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- BACK -->
+        <div>
+          <div class="card-label">Back Face</div>
+          <div class="card-a-back">
+            <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+              <rect x="16" y="16" width="368" height="528" stroke="#C9A96E" stroke-width="0.6" opacity="0.2"/>
+            </svg>
+
+            <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;">
+              <!-- Small centered monogram top -->
+              <div style="background:#F5F0E6;padding:8px;margin-bottom:36px;width:72px;opacity:0.5;">
+                <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+              </div>
+
+              <!-- Address area label -->
+              <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:5px;text-transform:uppercase;color:rgba(201,169,110,0.35);margin-bottom:20px;">Mailing Address</div>
+
+              <!-- Guest address lines -->
+              <div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:rgba(245,240,230,0.45);text-align:center;line-height:2;">
+                [Guest Name]<br>
+                [Address Line 1]<br>
+                [City, State ZIP]
+              </div>
+
+              <!-- Sender bottom -->
+              <div style="margin-top:auto;text-align:center;">
+                <div style="width:32px;height:1px;background:var(--gold);opacity:0.2;margin:32px auto 12px;"></div>
+                <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:3px;text-transform:uppercase;color:rgba(201,169,110,0.25);">3.27.27 &nbsp;&middot;&nbsp; La Valencia &nbsp;&middot;&nbsp; La Jolla, CA</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTION B: MATIN D'OR -->
+    <div>
+      <div class="option-header">
+        <div class="option-tag">Option B</div>
+        <div class="option-title">&ldquo;Matin d&apos;Or&rdquo;</div>
+        <div class="option-subtitle">Warm ivory &middot; Black ink &middot; Gold frame &middot; Mediterranean morning</div>
+      </div>
+
+      <div class="card-stack">
+        <!-- FRONT -->
+        <div>
+          <div class="card-label">Front Face</div>
+          <div class="card-b-front">
+
+            <!-- Multi-line gold frame SVG -->
+            <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+              <!-- Outermost line -->
+              <rect x="12" y="12" width="376" height="536" stroke="#C9A96E" stroke-width="1.8"/>
+              <!-- Second line -->
+              <rect x="20" y="20" width="360" height="520" stroke="#C9A96E" stroke-width="0.5"/>
+              <!-- Innermost light -->
+              <rect x="28" y="28" width="344" height="504" stroke="#C9A96E" stroke-width="0.25" opacity="0.5"/>
+              <!-- Corner squares filled -->
+              <rect x="12" y="12" width="12" height="12" fill="#C9A96E"/>
+              <rect x="376" y="12" width="12" height="12" fill="#C9A96E"/>
+              <rect x="12" y="536" width="12" height="12" fill="#C9A96E"/>
+              <rect x="376" y="536" width="12" height="12" fill="#C9A96E"/>
+              <!-- Midpoint ticks -->
+              <line x1="12" y1="280" x2="28" y2="280" stroke="#C9A96E" stroke-width="1"/>
+              <line x1="372" y1="280" x2="388" y2="280" stroke="#C9A96E" stroke-width="1"/>
+              <line x1="200" y1="12" x2="200" y2="28" stroke="#C9A96E" stroke-width="1"/>
+              <line x1="200" y1="532" x2="200" y2="548" stroke="#C9A96E" stroke-width="1"/>
+            </svg>
+
+            <!-- Content -->
+            <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;">
+
+              <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:8px;letter-spacing:7px;text-transform:uppercase;color:var(--gold-dk);margin-bottom:26px;">Save the Date</div>
+
+              <!-- Real Logo PNG -->
+                <div style="background:#F5F0E6;padding:10px;margin-bottom:0;width:110px;">
+                <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+              </div>
+              </div>
+
+              <!-- Names (dark, on ivory) -->
+              <div style="font-family:'Great Vibes',cursive;font-size:40px;color:var(--espresso);line-height:1.1;margin-bottom:20px;text-align:center;">Kerwin &amp; Danielle</div>
+
+              <!-- Divider -->
+              <div class="divider-gold" style="margin-bottom:18px;">
+                <div class="dline" style="background:var(--espresso);opacity:0.15;"></div>
+                <div class="ddiamond" style="background:var(--gold);opacity:0.8;"></div>
+                <div class="dline" style="background:var(--espresso);opacity:0.15;"></div>
+              </div>
+
+              <!-- Date -->
+              <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:5px;color:var(--espresso);text-transform:uppercase;margin-bottom:8px;">March 27, 2027</div>
+
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(61,36,16,0.5);letter-spacing:1.5px;text-align:center;margin-bottom:28px;">La Valencia Hotel &middot; La Jolla, California</div>
+
+              <!-- Wave ornament (sea glass Mediterranean) -->
+              <svg width="160" height="20" viewBox="0 0 160 20" fill="none">
+                <path d="M0,10 C12,4 24,16 36,10 S60,4 80,10 S104,16 120,10 S144,4 160,7"
+                      stroke="#8FB5B0" stroke-width="0.7"/>
+              </svg>
+
+              <div style="margin-top:16px;font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(61,36,16,0.3);">Formal Invitation to Follow</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- BACK -->
+        <div>
+          <div class="card-label">Back Face</div>
+          <div class="card-b-back">
+            <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+              <rect x="12" y="12" width="376" height="536" stroke="#C9A96E" stroke-width="0.8" opacity="0.4"/>
+              <rect x="20" y="20" width="360" height="520" stroke="#C9A96E" stroke-width="0.3" opacity="0.2"/>
+            </svg>
+
+            <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;height:100%;justify-content:space-between;">
+              <!-- Sender address (top) -->
+              <div style="text-align:center;margin-top:40px;">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:rgba(61,36,16,0.5);line-height:1.9;">
+                  Kerwin &amp; Danielle<br>
+                  [Return Address]<br>
+                  [City, State ZIP]
+                </div>
+              </div>
+
+              <!-- Center monogram watermark -->
+              <div style="opacity:0.07;">
+                <div style="background:#F5F0E6;padding:8px;margin-bottom:0;width:80px;opacity:0.7;">
+                <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+              </div>
+              </div>
+
+              <!-- Guest address (bottom) -->
+              <div style="text-align:center;margin-bottom:60px;">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:rgba(61,36,16,0.55);line-height:2;">
+                  [Guest Name]<br>
+                  [Address Line 1]<br>
+                  [City, State ZIP]
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /comparison -->
+
+  <!-- DESIGNER'S PICK -->
+  <div class="verdict">
+    <div class="verdict-badge">Designer&apos;s Pick</div>
+    <div class="verdict-text">
+      <h3>Option A &mdash; &ldquo;La Nuit&rdquo;</h3>
+      <p>This one earns its keep before anyone reads a word. A black save-the-date arrives in a mailbox and says <em>black-tie mandatory</em> without saying anything. The gold foil letterforms against noir are exactly the Old Hollywood Gatsby register you named &mdash; they read expensive, cinematic, and unrepeatable. Option B is beautiful but risks landing closer to every luxury wedding done in the last decade. Option A stakes a claim. The oval monogram reads like it belongs to a heritage fashion house. Go dark, go bold, go once-in-a-lifetime.</p>
+    </div>
+  </div>
+
+</body>
+</html>

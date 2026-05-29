@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kerwin &amp; Danielle &mdash; March 27, 2027</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0A0A0A;
+      --ivory: #F5F0E6;
+      --gold:  #C9A96E;
+      --gold-dk: #B8936A;
+      --espresso: #3D2410;
+      --warm-white: #FAF8F2;
+      --blush: #D4AFA8;
+      --sea-glass: #8FB5B0;
+      --crimson: #8B1A1A;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      font-family: 'Jost', sans-serif;
+      color: var(--ivory);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1;
+    }
+
+    /* ─── GLOBAL ─── */
+    .foil {
+      background: linear-gradient(135deg, #C9A96E 0%, #E8D080 35%, #C9A96E 55%, #9A7740 80%, #C9A96E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .dv { display:flex;align-items:center; }
+    .dl { flex:1;height:1px;background:currentColor; }
+    .dd { width:6px;height:6px;background:currentColor;transform:rotate(45deg);flex-shrink:0;margin:0 10px; }
+
+    /* ─────────────────────────────────────────── */
+    /*  NAV                                       */
+    /* ─────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,169,110,0.12);
+      padding: 0 60px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-monogram {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 16px;
+      letter-spacing: 4px;
+    }
+    .nav-monogram span { color: var(--gold); }
+    .nav-links {
+      display: flex;
+      gap: 40px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 9px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.45);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold); }
+    .nav-date {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--gold-dk);
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SECTION: HERO                             */
+    /* ─────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh;
+      background: #0A0A0A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 60px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    #hero::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(201,169,110,0.06) 0%, transparent 100%);
+    }
+    /* Subtle grid pattern overlay */
+    #hero::after {
+      content:'';
+      position:absolute;
+      inset:0;
+      opacity:0.02;
+      background-image:
+        linear-gradient(rgba(201,169,110,0.8) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201,169,110,0.8) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .hero-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.5);
+      margin-bottom: 48px;
+    }
+    .hero-monogram {
+      width: 200px;
+      height: 246px;
+      margin-bottom: 44px;
+    }
+    .hero-names {
+      font-family: 'Great Vibes', cursive;
+      font-size: 96px;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    .hero-and {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 22px;
+      color: var(--gold-dk);
+      margin-bottom: 12px;
+    }
+    .hero-date {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 8px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hero-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 18px;
+      color: rgba(245,240,230,0.3);
+    }
+    .hero-countdown {
+      display: flex;
+      gap: 48px;
+      margin-top: 56px;
+      padding-top: 40px;
+      border-top: 1px solid rgba(201,169,110,0.12);
+    }
+    .countdown-unit {
+      text-align: center;
+    }
+    .countdown-number {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 40px;
+      color: var(--gold);
+      display: block;
+      margin-bottom: 8px;
+    }
+    .countdown-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.25);
+    }
+    .hero-scroll {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+    .hero-scroll span {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.3);
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SECTION BASE STYLES                       */
+    /* ─────────────────────────────────────────── */
+    .section {
+      padding: 120px 100px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .section-full { padding: 120px 0; }
+
+    .section-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 7px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 28px;
+      letter-spacing: 4px;
+      color: var(--ivory);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .section-divider {
+      display: flex;
+      align-items: center;
+      width: 80px;
+      margin-bottom: 40px;
+    }
+    .section-divider-line { flex:1;height:1px;background:var(--gold);opacity:0.4; }
+    .section-divider-dot { width:4px;height:4px;background:var(--gold);border-radius:50%;margin-left:10px; }
+
+    /* ─────────────────────────────────────────── */
+    /*  OUR STORY                                 */
+    /* ─────────────────────────────────────────── */
+    #story {
+      background: #0D0B08;
+      border-top: 1px solid rgba(201,169,110,0.06);
+      border-bottom: 1px solid rgba(201,169,110,0.06);
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    .story-text {}
+    .story-text p {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 18px;
+      line-height: 1.9;
+      color: rgba(245,240,230,0.55);
+      margin-bottom: 20px;
+    }
+    .story-image-placeholder {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      background: #1A1510;
+      border: 1px solid rgba(201,169,110,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .story-image-placeholder::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background:radial-gradient(ellipse 60% 40% at 50% 60%, rgba(201,169,110,0.04) 0%, transparent 100%);
+    }
+    .story-milestones {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      margin-top: 40px;
+    }
+    .milestone {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 24px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid rgba(245,240,230,0.05);
+    }
+    .milestone:last-child { border-bottom: none; padding-bottom: 0; }
+    .milestone-year {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--gold-dk);
+      white-space: nowrap;
+      padding-top: 3px;
+    }
+    .milestone-text h4 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: var(--ivory);
+      margin-bottom: 8px;
+    }
+    .milestone-text p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: rgba(245,240,230,0.4);
+      line-height: 1.6;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SCHEDULE                                  */
+    /* ─────────────────────────────────────────── */
+    #schedule {
+      background: var(--black);
+    }
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      background: rgba(201,169,110,0.06);
+    }
+    .schedule-item {
+      background: #0D0B08;
+      padding: 44px 40px;
+      display: flex;
+      gap: 28px;
+    }
+    .schedule-time {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--gold-dk);
+      white-space: nowrap;
+      padding-top: 3px;
+      min-width: 72px;
+    }
+    .schedule-info h3 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 3px;
+      color: var(--ivory);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .schedule-info p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: rgba(245,240,230,0.4);
+      line-height: 1.6;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  TRAVEL & HOTEL                            */
+    /* ─────────────────────────────────────────── */
+    #travel {
+      background: #0D0B08;
+      border-top: 1px solid rgba(201,169,110,0.06);
+    }
+    .travel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+      background: rgba(201,169,110,0.06);
+      margin-top: 60px;
+    }
+    .travel-card {
+      background: #0A0A0A;
+      padding: 44px 36px;
+    }
+    .travel-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+    .travel-card h3 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 4px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .travel-card p {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 15px;
+      color: rgba(245,240,230,0.45);
+      line-height: 1.8;
+    }
+    .travel-card a {
+      display: inline-block;
+      margin-top: 16px;
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(201,169,110,0.3);
+      padding-bottom: 3px;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  RSVP                                      */
+    /* ─────────────────────────────────────────── */
+    #rsvp {
+      background: var(--black);
+      border-top: 1px solid rgba(201,169,110,0.06);
+    }
+    .rsvp-inner {
+      max-width: 680px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .rsvp-form {
+      margin-top: 52px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 10px; }
+    .form-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.5);
+    }
+    .form-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(201,169,110,0.2);
+      padding: 12px 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 17px;
+      color: rgba(245,240,230,0.6);
+      outline: none;
+      width: 100%;
+    }
+    .form-input::placeholder { color: rgba(245,240,230,0.2); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .form-radio-group {
+      display: flex;
+      gap: 32px;
+      margin-top: 4px;
+    }
+    .form-radio {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .form-radio-box {
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(201,169,110,0.3);
+      flex-shrink: 0;
+    }
+    .form-radio span {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px;
+      color: rgba(245,240,230,0.45);
+    }
+    .form-submit {
+      margin-top: 12px;
+      background: var(--gold);
+      color: var(--black);
+      border: none;
+      font-family: 'Jost', sans-serif;
+      font-weight: 400;
+      font-size: 9px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      padding: 18px 48px;
+      cursor: pointer;
+      align-self: center;
+    }
+    .rsvp-deadline {
+      margin-top: 24px;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(245,240,230,0.25);
+      text-align: center;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  REGISTRY                                  */
+    /* ─────────────────────────────────────────── */
+    #registry {
+      background: #0D0B08;
+      border-top: 1px solid rgba(201,169,110,0.06);
+    }
+    .registry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+      background: rgba(201,169,110,0.06);
+      margin-top: 60px;
+    }
+    .registry-card {
+      background: #0A0A0A;
+      padding: 44px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .registry-card h3 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 4px;
+      color: var(--ivory);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .registry-card p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: rgba(245,240,230,0.35);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+    .registry-link {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(201,169,110,0.3);
+      padding-bottom: 3px;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  FOOTER                                    */
+    /* ─────────────────────────────────────────── */
+    footer {
+      background: var(--espresso);
+      padding: 60px 100px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer .footer-mono {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 22px;
+      color: rgba(245,240,230,0.6);
+      letter-spacing: 4px;
+    }
+    footer .footer-mono span { color: var(--gold); }
+    footer p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(245,240,230,0.3);
+    }
+    footer .footer-right {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.25);
+      text-align: right;
+    }
+
+    /* ─── Wave accent between sections ─── */
+    .wave-sep {
+      width: 100%;
+      overflow: hidden;
+      line-height: 0;
+      background: #0D0B08;
+    }
+
+  <nav>
+    <div class="nav-monogram"><span>K</span> &amp; <span>D</span></div>
+    <ul class="nav-links">
+      <li><a href="#story">Our Story</a></li>
+      <li><a href="#schedule">Schedule</a></li>
+      <li><a href="#travel">Travel</a></li>
+      <li><a href="#rsvp">RSVP</a></li>
+      <li><a href="#registry">Registry</a></li>
+    </ul>
+    <div class="nav-date">3.27.27</div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section id="hero">
+    <div class="hero-content">
+      <div class="hero-eyebrow">You are cordially invited to celebrate</div>
+
+      <!-- Monogram -->
+      <div class="hero-monogram">
+        <div style="background:#F5F0E6;padding:12px;width:110px;margin:0 auto;">
+            <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+          </div>
+      </div>
+
+      <div class="foil hero-names">Kerwin</div>
+      <div class="hero-and">&amp;</div>
+      <div class="foil hero-names">Danielle</div>
+
+      <div style="margin: 28px 0 10px;">
+        <div class="dv" style="color:var(--gold);opacity:0.25;width:200px;margin:0 auto;">
+          <div class="dl"></div><div class="dd"></div><div class="dl"></div>
+        </div>
+      </div>
+
+      <div class="hero-date">Saturday, March 27, 2027</div>
+      <div class="hero-venue">La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California</div>
+
+      <!-- Countdown (static display) -->
+      <div class="hero-countdown">
+        <div class="countdown-unit">
+          <span class="countdown-number">306</span>
+          <span class="countdown-label">Days</span>
+        </div>
+        <div class="countdown-unit">
+          <span class="countdown-number">10</span>
+          <span class="countdown-label">Hours</span>
+        </div>
+        <div class="countdown-unit">
+          <span class="countdown-number">24</span>
+          <span class="countdown-label">Minutes</span>
+        </div>
+        <div class="countdown-unit">
+          <span class="countdown-number">00</span>
+          <span class="countdown-label">Seconds</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-scroll">
+      <span>Scroll to explore</span>
+    </div>
+  </section>
+
+  <!-- ═══ OUR STORY ═══ -->
+  <section id="story" style="padding: 120px 0; background: #0D0B08; border-top:1px solid rgba(201,169,110,0.06);">
+    <div class="section" style="padding:0 100px;">
+      <div class="story-grid">
+        <div class="story-text">
+          <div class="section-eyebrow">Our Story</div>
+          <h2 class="section-title">How We Got Here</h2>
+          <div class="dv" style="color:var(--gold);opacity:0.35;width:80px;margin-bottom:36px;">
+            <div class="dl"></div><div class="dd"></div>
+          </div>
+
+          <p>[This is where your story goes &mdash; how you met, what makes your relationship yours. Write it in your voice. Reference the real moments: the first conversation, the place, the feeling. Two or three paragraphs is exactly enough.]</p>
+          <p>[The last paragraph should land somewhere that earns the ceremony. Something true that explains why this day matters.] </p>
+
+          <div class="story-milestones">
+            <div class="milestone">
+              <div class="milestone-year">20XX</div>
+              <div class="milestone-text">
+                <h4>We Met</h4>
+                <p>[Where and how it started]</p>
+              </div>
+            </div>
+            <div class="milestone">
+              <div class="milestone-year">20XX</div>
+              <div class="milestone-text">
+                <h4>The Proposal</h4>
+                <p>[The story of how it happened]</p>
+              </div>
+            </div>
+            <div class="milestone">
+              <div class="milestone-year">2027</div>
+              <div class="milestone-text">
+                <h4>The Wedding</h4>
+                <p>La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Photo placeholder -->
+        <div class="story-image-placeholder">
+          <svg width="60" height="60" viewBox="0 0 90 90" fill="none" style="opacity:0.15;">
+            <g transform="translate(45,45)" stroke="#C9A96E" fill="none">
+              <line x1="0" y1="-40" x2="0" y2="-28" stroke-width="0.8"/>
+              <line x1="0" y1="28" x2="0" y2="40" stroke-width="0.8"/>
+              <line x1="-40" y1="0" x2="-28" y2="0" stroke-width="0.8"/>
+              <line x1="28" y1="0" x2="40" y2="0" stroke-width="0.8"/>
+              <line x1="28.3" y1="-28.3" x2="19.8" y2="-19.8" stroke-width="0.8"/>
+              <line x1="-19.8" y1="19.8" x2="-28.3" y2="28.3" stroke-width="0.8"/>
+              <line x1="-28.3" y1="-28.3" x2="-19.8" y2="-19.8" stroke-width="0.8"/>
+              <line x1="19.8" y1="19.8" x2="28.3" y2="28.3" stroke-width="0.8"/>
+              <circle r="22" stroke-width="0.8"/>
+              <polygon points="0,-7 7,0 0,7 -7,0" fill="#C9A96E" stroke="none"/>
+            </g>
+          </svg>
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:8px;letter-spacing:4px;text-transform:uppercase;color:rgba(245,240,230,0.15);">Engagement Photo</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SCHEDULE ═══ -->
+  <section id="schedule" style="background:var(--black);border-top:1px solid rgba(201,169,110,0.06);">
+    <div class="section" style="padding-bottom:0;">
+      <div style="text-align:center;margin-bottom:60px;">
+        <div class="section-eyebrow" style="text-align:center;">Schedule</div>
+        <h2 class="section-title" style="text-align:center;">The Evening</h2>
+        <div class="dv" style="color:var(--gold);opacity:0.25;width:120px;margin:0 auto 0;">
+          <div class="dl"></div><div class="dd"></div><div class="dl"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="schedule-grid">
+      <div class="schedule-item">
+        <div class="schedule-time">5:30 pm</div>
+        <div class="schedule-info">
+          <h3>Doors Open</h3>
+          <p>Guests arrive and are escorted to their seats by the ceremony team. Prelude music by our musicians.</p>
+        </div>
+      </div>
+      <div class="schedule-item">
+        <div class="schedule-time">6:00 pm</div>
+        <div class="schedule-info">
+          <h3>Ceremony</h3>
+          <p>La Valencia Ceremony Lawn &nbsp;&middot;&nbsp; The exchange of vows under the La Jolla sky. Approximately 30 minutes.</p>
+        </div>
+      </div>
+      <div class="schedule-item">
+        <div class="schedule-time">6:30 pm</div>
+        <div class="schedule-info">
+          <h3>Cocktail Hour</h3>
+          <p>La Valencia Terrace. Signature cocktails, passed hors d&apos;oeuvres, and the Pacific at sunset.</p>
+        </div>
+      </div>
+      <div class="schedule-item">
+        <div class="schedule-time">7:30 pm</div>
+        <div class="schedule-info">
+          <h3>Dinner &amp; Reception</h3>
+          <p>La Valencia Ballroom. Formal dinner, first dances, toasts, and dancing until midnight.</p>
+        </div>
+      </div>
+      <div class="schedule-item">
+        <div class="schedule-time">8:30 pm</div>
+        <div class="schedule-info">
+          <h3>First Dances &amp; Toasts</h3>
+          <p>The couple&apos;s first dance, parent dances, and toasts from the wedding party.</p>
+        </div>
+      </div>
+      <div class="schedule-item">
+        <div class="schedule-time">12:00 am</div>
+        <div class="schedule-info">
+          <h3>Last Dance</h3>
+          <p>The night closes. Shuttle service available back to La Valencia and surrounding La Jolla hotels.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ TRAVEL ═══ -->
+  <section id="travel" style="background:#0D0B08;border-top:1px solid rgba(201,169,110,0.06);">
+    <div class="section" style="padding-bottom:0;">
+      <div style="text-align:center;margin-bottom:60px;">
+        <div class="section-eyebrow" style="text-align:center;">Travel &amp; Accommodations</div>
+        <h2 class="section-title" style="text-align:center;">Getting Here</h2>
+        <div class="dv" style="color:var(--gold);opacity:0.25;width:120px;margin:0 auto;">
+          <div class="dl"></div><div class="dd"></div><div class="dl"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="travel-grid">
+      <div class="travel-card">
+        <!-- Hotel icon -->
+        <svg class="travel-icon" viewBox="0 0 36 36" fill="none">
+          <rect x="4" y="8" width="28" height="24" stroke="#C9A96E" stroke-width="1"/>
+          <rect x="14" y="20" width="8" height="12" stroke="#C9A96E" stroke-width="0.8"/>
+          <rect x="8" y="12" width="6" height="5" stroke="#C9A96E" stroke-width="0.8"/>
+          <rect x="22" y="12" width="6" height="5" stroke="#C9A96E" stroke-width="0.8"/>
+          <line x1="18" y1="4" x2="18" y2="8" stroke="#C9A96E" stroke-width="1"/>
+        </svg>
+        <h3>Hotel Block</h3>
+        <p>La Valencia Hotel &nbsp;&middot;&nbsp; 1132 Prospect Street &nbsp;&middot;&nbsp; La Jolla, CA 92037<br><br>A room block has been reserved at our wedding venue. Book directly for preferred group rates.</p>
+        <a href="#" class="registry-link">Reserve your room &rarr;</a>
+      </div>
+
+      <div class="travel-card">
+        <!-- Flight icon -->
+        <svg class="travel-icon" viewBox="0 0 36 36" fill="none">
+          <path d="M4 20 L14 16 L20 8 L24 8 L18 16 L28 14 L30 16 L20 20 L22 28 L18 28 L16 22 L8 24 Z"
+                stroke="#C9A96E" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+        <h3>Getting Here</h3>
+        <p>Closest airport: San Diego International (SAN) &nbsp;&middot;&nbsp; 20 minutes from La Jolla<br><br>Ride-share, rental cars, and shuttle service all available. La Jolla is a 20-minute drive up the coast.</p>
+        <a href="#" class="registry-link">Driving directions &rarr;</a>
+      </div>
+
+      <div class="travel-card">
+        <!-- Map pin icon -->
+        <svg class="travel-icon" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="14" r="7" stroke="#C9A96E" stroke-width="1"/>
+          <path d="M18 21 C18 21 8 28 8 20 C8 14.48 12.48 10 18 10 C23.52 10 28 14.48 28 20 C28 28 18 32 18 32 Z"
+                stroke="#C9A96E" stroke-width="1"/>
+          <circle cx="18" cy="14" r="2" fill="#C9A96E"/>
+        </svg>
+        <h3>La Jolla</h3>
+        <p>Perched above the Pacific with world-class dining, galleries, and the La Jolla Cove steps away.<br><br>We recommend arriving Friday the 26th to enjoy the town before the wedding.</p>
+        <a href="#" class="registry-link">Explore La Jolla &rarr;</a>
+      </div>
+    </div>
+
+    <div style="padding:60px 100px;text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(245,240,230,0.3);max-width:500px;margin:0 auto;line-height:1.8;">We will provide shuttle service between La Valencia Hotel and nearby La Jolla hotels. Full shuttle details in your formal invitation.</div>
+    </div>
+  </section>
+
+  <!-- ═══ RSVP ═══ -->
+  <section id="rsvp" style="background:var(--black);border-top:1px solid rgba(201,169,110,0.06);padding:120px 60px;">
+    <div class="rsvp-inner">
+      <div class="section-eyebrow" style="text-align:center;">RSVP</div>
+      <h2 class="section-title" style="text-align:center;">Kindly Reply</h2>
+      <div class="dv" style="color:var(--gold);opacity:0.25;width:120px;margin:0 auto 16px;">
+        <div class="dl"></div><div class="dd"></div><div class="dl"></div>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.7;">Please reply by February 15, 2027.<br>We can&apos;t wait to celebrate with you.</div>
+
+      <form class="rsvp-form" onsubmit="return false;">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input type="text" class="form-input" placeholder="Your first name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" class="form-input" placeholder="Your last name">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" placeholder="your@email.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Number Attending (max 2 per invitation)</label>
+          <input type="number" class="form-input" placeholder="1" min="0" max="2">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Attendance</label>
+          <div class="form-radio-group">
+            <div class="form-radio">
+              <div class="form-radio-box"></div>
+              <span>Joyfully accepts</span>
+            </div>
+            <div class="form-radio">
+              <div class="form-radio-box"></div>
+              <span>Regretfully declines</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Meal Selection</label>
+          <div class="form-radio-group">
+            <div class="form-radio">
+              <div class="form-radio-box"></div>
+              <span>Filet Mignon</span>
+            </div>
+            <div class="form-radio">
+              <div class="form-radio-box"></div>
+              <span>Halibut</span>
+            </div>
+            <div class="form-radio">
+              <div class="form-radio-box"></div>
+              <span>Vegetarian</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Dietary Restrictions or Allergies</label>
+          <input type="text" class="form-input" placeholder="None">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Song Request</label>
+          <input type="text" class="form-input" placeholder="What should we play?">
+        </div>
+
+        <button class="form-submit" type="submit">Submit RSVP</button>
+        <div class="rsvp-deadline">Please reply by February 15, 2027</div>
+      </form>
+    </div>
+  </section>
+
+
+  <!-- ═══ REGISTRY ═══ -->
+  <section id="registry" style="background:#0D0B08;border-top:1px solid rgba(201,169,110,0.06);">
+    <div class="section" style="padding-bottom:0;">
+      <div style="text-align:center;margin-bottom:60px;">
+        <div class="section-eyebrow" style="text-align:center;">Registry</div>
+        <h2 class="section-title" style="text-align:center;">Our Wishes</h2>
+        <div class="dv" style="color:var(--gold);opacity:0.25;width:120px;margin:0 auto 20px;">
+          <div class="dl"></div><div class="dd"></div><div class="dl"></div>
+        </div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(245,240,230,0.3);max-width:500px;margin:0 auto;line-height:1.8;">Your presence is the greatest gift. If you would like to celebrate with something more, we are grateful.</div>
+      </div>
+    </div>
+
+    <div class="registry-grid">
+      <div class="registry-card">
+        <h3>Williams Sonoma</h3>
+        <p>For the kitchen and home &mdash; the essentials and the indulgences that make a house a life together.</p>
+        <a href="#" class="registry-link">View registry &rarr;</a>
+      </div>
+      <div class="registry-card">
+        <h3>Honeymoon Fund</h3>
+        <p>We are planning our honeymoon adventure. Contributions toward experiences &mdash; dinners, excursions, memories &mdash; are welcome.</p>
+        <a href="#" class="registry-link">Contribute &rarr;</a>
+      </div>
+      <div class="registry-card">
+        <h3>A Note on Gifts</h3>
+        <p style="font-style:italic;">We have everything we need. If you insist on giving, a heartfelt card will mean more than anything we could register for.</p>
+        <div style="width:24px;height:1px;background:rgba(201,169,110,0.2);margin-top:16px;"></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- FOOTER -->
+  <footer>
+    <div>
+      <div class="footer-mono"><span>K</span> &amp; <span>D</span></div>
+    </div>
+    <div style="text-align:center;">
+      <p>March 27, 2027</p>
+      <p style="margin-top:6px;">La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California</p>
+    </div>
+    <div class="footer-right">
+      With love &nbsp;&middot;&nbsp; Black Tie<br>
+      3.27.27
+    </div>
+  </footer>
+
+</body>
+</html>

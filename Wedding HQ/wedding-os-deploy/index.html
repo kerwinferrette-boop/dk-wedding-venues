@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K & D Wedding OS — 3.27.27</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0A0A0A; --gold: #C9A96E; --gold-lt: #DEC88C; --gold-dk: #B8936A;
+      --ivory: #F5F0E6; --terracotta: #C07850; --coastal-gold: #D4914A;
+    }
+    body { background: #0D0B08; font-family: 'Jost', sans-serif; color: var(--ivory); -webkit-font-smoothing: antialiased; }
+    .topbar { background: var(--black); border-bottom: 1px solid rgba(201,169,110,0.12); padding: 0 48px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+    .topbar-mono { font-family: 'Cinzel Decorative', serif; font-size: 14px; color: var(--gold); letter-spacing: 2px; }
+    .topbar-divider { width: 1px; height: 20px; background: rgba(201,169,110,0.2); margin: 0 20px; }
+    .topbar-title { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 9px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,169,110,0.45); }
+    .topbar-left { display: flex; align-items: center; }
+    .topbar-nav { display: flex; }
+    .topbar-nav a { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.4); text-decoration: none; padding: 0 20px; height: 60px; display: flex; align-items: center; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .topbar-nav a:hover { color: var(--gold); border-bottom-color: var(--gold-dk); }
+    .topbar-date { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; color: rgba(201,169,110,0.3); }
+    .hero-strip { background: var(--black); padding: 40px 64px; border-bottom: 1px solid rgba(201,169,110,0.08); display: flex; align-items: center; gap: 40px; }
+    .hero-logo { background: var(--ivory); padding: 10px; width: 80px; flex-shrink: 0; }
+    .hero-logo img { width: 100%; display: block; }
+    .hero-text { flex: 1; }
+    .hero-eyebrow { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 8px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,169,110,0.35); margin-bottom: 6px; }
+    .hero-names { font-family: 'Great Vibes', cursive; font-size: 40px; color: var(--gold); line-height: 1; margin-bottom: 6px; }
+    .hero-details { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: rgba(201,169,110,0.4); }
+    .hero-stats { display: flex; gap: 24px; flex-shrink: 0; }
+    .stat-block { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .stat-number { font-family: 'Cinzel Decorative', serif; font-size: 26px; color: var(--gold); line-height: 1; }
+    .stat-label { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.35); }
+    .stat-divider { width: 1px; background: rgba(201,169,110,0.12); align-self: stretch; }
+    .main { max-width: 1060px; margin: 0 auto; padding: 56px 48px; }
+    .section-label { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 8px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,169,110,0.3); margin-bottom: 6px; }
+    .section-title { font-family: 'Cinzel', serif; font-size: 18px; letter-spacing: 3px; color: var(--gold); margin-bottom: 6px; }
+    .section-rule { width: 48px; height: 1px; background: linear-gradient(to right, var(--gold-dk), transparent); margin-bottom: 32px; }
+    .rule { width: 100%; height: 1px; background: rgba(201,169,110,0.08); margin: 0 0 56px; }
+    .alert-banner { border: 1px solid rgba(192,120,80,0.3); background: rgba(192,120,80,0.05); padding: 20px 24px; margin-bottom: 40px; display: flex; align-items: center; gap: 20px; }
+    .alert-badge { font-family: 'Jost', sans-serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--terracotta); border: 1px solid rgba(192,120,80,0.4); padding: 6px 14px; flex-shrink: 0; }
+    .alert-text { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: rgba(192,120,80,0.7); line-height: 1.6; }
+    .alert-text strong { font-style: normal; color: var(--terracotta); font-weight: 400; }
+    .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 56px; }
+    .status-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(201,169,110,0.1); padding: 20px; }
+    .sc-label { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.35); margin-bottom: 8px; }
+    .sc-value { font-family: 'Cinzel', serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); margin-bottom: 4px; }
+    .sc-sub { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; color: rgba(201,169,110,0.4); }
+    .sc-alert .sc-value { color: var(--terracotta); } .sc-alert { border-color: rgba(192,120,80,0.25); }
+    .sc-good .sc-value { color: #7BAFC4; } .sc-good { border-color: rgba(123,175,196,0.2); }
+    .vendor-accordion { border-top: 1px solid rgba(201,169,110,0.1); margin-bottom: 0; }
+    .vendor-accordion + .vendor-accordion,
+    details + details { /* handled inline */ }
+    details.vi { position: relative; border-bottom: 1px solid rgba(201,169,110,0.1); }
+    details.vi summary { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; cursor: pointer; list-style: none; gap: 16px; }
+    details.vi summary::-webkit-details-marker { display: none; }
+    .vs-left { display: flex; align-items: center; gap: 24px; flex: 1; }
+    .vs-cat { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--ivory); min-width: 220px; }
+    .vs-name { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: rgba(201,169,110,0.5); }
+    .vbadge { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 7px; letter-spacing: 3px; text-transform: uppercase; padding: 4px 12px; border: 1px solid; flex-shrink: 0; }
+    .bc { color: var(--gold); border-color: rgba(201,169,110,0.4); }
+    .bi { color: #7BAFC4; border-color: rgba(123,175,196,0.35); }
+    .bs { color: var(--coastal-gold); border-color: rgba(212,145,74,0.4); }
+    .bco { color: rgba(201,169,110,0.3); border-color: rgba(201,169,110,0.12); }
+    .vchev { width: 10px; height: 10px; border-right: 1px solid rgba(201,169,110,0.3); border-bottom: 1px solid rgba(201,169,110,0.3); transform: rotate(45deg); flex-shrink: 0; transition: transform 0.2s ease; margin-right: 4px; }
+    details[open] .vchev { transform: rotate(-135deg); }
+    .vbody { padding: 0 0 24px; border-top: 1px solid rgba(201,169,110,0.06); }
+    .vinner { padding-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .ve { display: grid; grid-template-columns: 200px 1fr 140px; gap: 16px; align-items: start; padding: 14px 20px; background: rgba(201,169,110,0.03); border-left: 2px solid rgba(201,169,110,0.1); }
+    .ve.ec { border-left-color: rgba(201,169,110,0.45); background: rgba(201,169,110,0.04); }
+    .ve.es { border-left-color: rgba(212,145,74,0.45); background: rgba(212,145,74,0.03); }
+    .ve.ei { border-left-color: rgba(123,175,196,0.45); background: rgba(123,175,196,0.03); }
+    .ve-name { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 2px; color: var(--ivory); }
+    .ve-detail { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: rgba(245,240,230,0.4); line-height: 1.6; }
+    .ve-status { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: rgba(201,169,110,0.4); text-align: right; }
+    .vnote { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px; color: rgba(201,169,110,0.25); padding: 12px 0 0 20px; }
+    .vadd { display: inline-block; margin: 12px 0 0 20px; font-family: 'Jost', sans-serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(192,120,80,0.4); border: 1px dashed rgba(192,120,80,0.2); padding: 6px 14px; }
+    .sheet-wrap { border: 1px solid rgba(201,169,110,0.12); background: rgba(201,169,110,0.02); overflow: hidden; margin-bottom: 56px; }
+    .sheet-wrap iframe { width: 100%; height: 600px; border: none; display: block; }
+    .sheet-ph { width: 100%; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+    .sheet-ph-mono { font-family: 'Cinzel Decorative', serif; font-size: 28px; color: rgba(201,169,110,0.08); letter-spacing: 4px; }
+    .sheet-ph p { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.2); line-height: 2.2; text-align: center; }
+    .sheet-ph code { font-family: monospace; font-size: 9px; color: rgba(201,169,110,0.35); background: rgba(201,169,110,0.06); padding: 3px 10px; }
+    .dates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .dc { background: rgba(255,255,255,0.02); border: 1px solid rgba(201,169,110,0.1); padding: 20px 24px; }
+    .dc-label { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.35); margin-bottom: 6px; }
+    .dc-date { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 3px; color: var(--gold); margin-bottom: 6px; }
+    .dc-note { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px; color: rgba(201,169,110,0.35); }
+    .os-footer { border-top: 1px solid rgba(201,169,110,0.08); padding: 28px 48px; display: flex; justify-content: space-between; align-items: center; background: var(--black); margin-top: 56px; }
+    .os-footer-l { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; color: rgba(201,169,110,0.25); }
+    .os-footer-r { font-family: 'Jost', sans-serif; font-weight: 200; font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(201,169,110,0.15); }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-mono">K &amp; D</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-title">Wedding OS &nbsp;&middot;&nbsp; Internal Planning</span>
+  </div>
+  <nav class="topbar-nav">
+    <a href="#status">Status</a>
+    <a href="#vendors">Vendors</a>
+    <a href="#budget">Budget</a>
+    <a href="#dates">Key Dates</a>
+  </nav>
+  <span class="topbar-date">3 &middot; 27 &middot; 27</span>
+</div>
+
+<div class="hero-strip">
+  <div class="hero-logo"><img src="logos/Wedding Logo non-embossed.png" alt="K &amp; D"></div>
+  <div class="hero-text">
+    <div class="hero-eyebrow">Internal Planning Dashboard</div>
+    <div class="hero-names">Kerwin &amp; Danielle</div>
+    <div class="hero-details">Saturday, March 27, 2027 &nbsp;&middot;&nbsp; La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California &nbsp;&middot;&nbsp; Black Tie</div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-block">
+      <span class="stat-number" id="cd">306</span>
+      <span class="stat-label">Days Out</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-block">
+      <span class="stat-number">200</span>
+      <span class="stat-label">Guest List</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-block">
+      <span class="stat-number">170</span>
+      <span class="stat-label">Venue Cap</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-block">
+      <span class="stat-number">$58k</span>
+      <span class="stat-label">Budget</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <section id="status">
+    <div class="section-label">01 &mdash; Overview</div>
+    <div class="section-title">Current Status</div>
+    <div class="section-rule"></div>
+    <div class="alert-banner">
+      <div class="alert-badge">Action Needed</div>
+      <div class="alert-text">Guest list is at <strong>200 people</strong> &mdash; venue max is <strong>170</strong>. That&rsquo;s 30 over capacity. Cuts needed before invitations go out.</div>
+    </div>
+    <div class="status-grid">
+      <div class="status-card sc-alert">
+        <div class="sc-label">Guest List vs. Cap</div>
+        <div class="sc-value">+30</div>
+        <div class="sc-sub">200 invited &middot; 170 max</div>
+      </div>
+      <div class="status-card">
+        <div class="sc-label">Budget (Parents)</div>
+        <div class="sc-value">$58k</div>
+        <div class="sc-sub">Available &middot; Tracking in sheet</div>
+      </div>
+      <div class="status-card sc-good">
+        <div class="sc-label">Venue</div>
+        <div class="sc-value">Locked</div>
+        <div class="sc-sub">La Valencia Hotel &middot; 3.27.27</div>
+      </div>
+      <div class="status-card sc-good">
+        <div class="sc-label">Coordination</div>
+        <div class="sc-value">Locked</div>
+        <div class="sc-sub">Lace &amp; Champagne Events</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section id="vendors">
+    <div class="section-label">02 &mdash; Vendor Tracking</div>
+    <div class="section-title">Our Team</div>
+    <div class="section-rule"></div>
+    <div class="vendor-accordion">
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Day-Of Coordination</span><span class="vs-name">Lace &amp; Champagne Events</span></div><span class="vbadge bc">Confirmed</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="ve ec"><span class="ve-name">Lace &amp; Champagne Events</span><span class="ve-detail">Day-of coordination &middot; Timeline management &middot; Vendor liaison &middot; Ceremony &amp; reception direction</span><span class="ve-status">Confirmed</span></div>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Photography</span><span class="vs-name">Update with photographer name</span></div><span class="vbadge bc">Confirmed</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="ve ec"><span class="ve-name">Primary Photographer</span><span class="ve-detail">Full day coverage &middot; Ceremony, cocktail hour &amp; reception &middot; Edited gallery delivery</span><span class="ve-status">Confirmed &mdash; add name</span></div>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Videography</span><span class="vs-name">Update with videographer name</span></div><span class="vbadge bc">Confirmed</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="ve ec"><span class="ve-name">Primary Videographer</span><span class="ve-detail">Full day coverage &middot; Highlight film &amp; full ceremony edit</span><span class="ve-status">Confirmed &mdash; add name</span></div>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Catering</span><span class="vs-name">La Valencia Hotel</span></div><span class="vbadge bi">Venue-Included</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="ve ei"><span class="ve-name">La Valencia Hotel</span><span class="ve-detail">Full plated dinner &middot; Passed hors d&rsquo;oeuvres &middot; Cake cutting &amp; service</span><span class="ve-status">Included in venue</span></div>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Bar &amp; Beverage</span><span class="vs-name">La Valencia Hotel</span></div><span class="vbadge bi">Venue-Included</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="ve ei"><span class="ve-name">La Valencia Hotel</span><span class="ve-detail">Full open bar &middot; Champagne toast &middot; Wine service with dinner</span><span class="ve-status">Included in venue</span></div>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Florals</span><span class="vs-name">Sourcing quotes</span></div><span class="vbadge bs">Sourcing</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="vnote">No vendors added yet. Tell Claude a vendor name, quote amount, and scope &mdash; it gets added here.</div>
+          <span class="vadd">+ Add vendor quote</span>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">DJ</span><span class="vs-name">Sourcing quotes</span></div><span class="vbadge bs">Sourcing</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="vnote">No vendors added yet.</div>
+          <span class="vadd">+ Add vendor quote</span>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Live Musician</span><span class="vs-name">Sourcing quotes</span></div><span class="vbadge bs">Sourcing</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="vnote" style="margin-bottom:8px;">Preference: violinist or saxophonist &middot; hip hop repertoire &middot; ceremony &amp; cocktail hour</div>
+          <div class="vnote">No vendors added yet.</div>
+          <span class="vadd">+ Add vendor quote</span>
+        </div></div>
+      </details>
+
+      <details class="vi">
+        <summary><div class="vs-left"><span class="vs-cat">Content Creator</span><span class="vs-name">Second photographer / social content</span></div><span class="vbadge bco">Considering</span><div class="vchev"></div></summary>
+        <div class="vbody"><div class="vinner">
+          <div class="vnote">Under consideration &middot; Real-time social content &amp; a second perspective alongside the primary photographer</div>
+        </div></div>
+      </details>
+
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section id="budget">
+    <div class="section-label">03 &mdash; Budget</div>
+    <div class="section-title">Budget Tracker</div>
+    <div class="section-rule"></div>
+    <div class="sheet-wrap">
+      <!--
+        TO EMBED YOUR GOOGLE SHEET LIVE:
+        1. Open your Google Sheet
+        2. File → Share → Publish to the web
+        3. Choose your sheet tab → Embed → copy the src URL
+        4. Replace the div below with: <iframe src="YOUR_URL_HERE" allowfullscreen></iframe>
+      -->
+      <div class="sheet-ph">
+        <div class="sheet-ph-mono">K &amp; D</div>
+        <p>Paste your Google Sheet embed URL here<br><br><code>File &rarr; Share &rarr; Publish to the web &rarr; Embed</code><br><br>Tell Claude the URL and it&rsquo;ll be live instantly</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section id="dates">
+    <div class="section-label">04 &mdash; Timeline</div>
+    <div class="section-title">Key Dates</div>
+    <div class="section-rule"></div>
+    <div class="dates-grid">
+      <div class="dc"><div class="dc-label">Now</div><div class="dc-date">May 2026</div><div class="dc-note">Guest list cut &middot; Vendor outreach &middot; Budget finalization</div></div>
+      <div class="dc"><div class="dc-label">Target</div><div class="dc-date">Aug &ndash; Sep 2026</div><div class="dc-note">All vendors contracted &middot; Save the dates mailed</div></div>
+      <div class="dc"><div class="dc-label">Target</div><div class="dc-date">Nov 2026</div><div class="dc-note">Formal invitations mailed</div></div>
+      <div class="dc"><div class="dc-label">Deadline</div><div class="dc-date">Feb 1, 2027</div><div class="dc-note">RSVP deadline</div></div>
+      <div class="dc"><div class="dc-label">Target</div><div class="dc-date">Mar 20, 2027</div><div class="dc-note">Rehearsal &amp; rehearsal dinner</div></div>
+      <div class="dc" style="border-color:rgba(201,169,110,0.3);background:rgba(201,169,110,0.04);">
+        <div class="dc-label">The Day</div>
+        <div class="dc-date" style="font-size:16px;">March 27, 2027</div>
+        <div class="dc-note">La Valencia Hotel &middot; La Jolla &middot; Black Tie</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="os-footer">
+  <span class="os-footer-l">K &amp; D &middot; Wedding OS &middot; 3.27.27</span>
+  <span class="os-footer-r">Internal use only &middot; La Valencia Hotel &middot; La Jolla, CA</span>
+</div>
+
+<script>
+  const wedding = new Date('2027-03-27T16:00:00');
+  const el = document.getElementById('cd');
+  if (el) { const diff = Math.ceil((wedding - new Date()) / 86400000); el.textContent = diff > 0 ? diff : '0'; }
+</script>
+</body>
+</html>

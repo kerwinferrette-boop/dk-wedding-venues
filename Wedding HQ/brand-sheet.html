@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K & D — Brand Identity System — 3.27.27</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:      #0A0A0A;
+      --ivory:      #F5F0E6;
+      --gold:       #C9A96E;
+      --gold-lt:    #DEC88C;
+      --gold-dk:    #B8936A;
+      --espresso:   #3D2410;
+      --blush:      #D4AFA8;
+      --warm-white: #FAF8F2;
+      --sea-glass:  #8FB5B0;
+      --crimson:    #8B1A1A;
+    }
+
+    body {
+      background: #E8E2D6;
+      font-family: 'Jost', sans-serif;
+      color: var(--black);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 40px auto;
+      background: var(--warm-white);
+    }
+
+    /* ─── HEADER ─────────────────────────────────────── */
+    .brand-header {
+      background: var(--black);
+      padding: 28px 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(201,169,110,0.2);
+    }
+    .brand-header .label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 9px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+    }
+    .brand-header .title {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 7px;
+      text-transform: uppercase;
+      color: var(--ivory);
+    }
+    .brand-header .date {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--gold-dk);
+      letter-spacing: 2px;
+    }
+
+    /* ─── HERO ───────────────────────────────────────── */
+    .hero {
+      background: var(--black);
+      padding: 96px 64px 112px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(201,169,110,0.07) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 7px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      margin-bottom: 52px;
+    }
+    .hero-monogram {
+      width: 180px;
+      height: 220px;
+      margin: 0 auto 44px;
+    }
+    .hero-names {
+      font-family: 'Great Vibes', cursive;
+      font-size: 80px;
+      color: var(--ivory);
+      line-height: 1;
+      margin-bottom: 20px;
+    }
+    .hero-date {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 9px;
+      color: var(--gold);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+    .hero-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 17px;
+      color: rgba(245,240,230,0.38);
+      letter-spacing: 2px;
+    }
+
+    /* ─── DIVIDERS ───────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 0 auto;
+    }
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.35;
+    }
+    .divider-diamond {
+      width: 8px;
+      height: 8px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+      margin: 0 14px;
+      opacity: 0.7;
+    }
+
+    /* ─── SECTION SHELLS ─────────────────────────────── */
+    .section {
+      padding: 72px 64px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .section-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(0,0,0,0.07);
+      margin-bottom: 52px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-label span {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: rgba(0,0,0,0.25);
+      letter-spacing: 0;
+    }
+
+    /* ─── 01: COLOR PALETTE ──────────────────────────── */
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 20px;
+    }
+    .swatch {}
+    .swatch-chip {
+      height: 130px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .swatch-chip::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+    }
+    .swatch-name {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 8px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--espresso);
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .swatch-hex {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 12px;
+      color: #AAA;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+    .swatch-role {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 11px;
+      color: #CCC;
+    }
+
+    /* ─── 02: TYPOGRAPHY ─────────────────────────────── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .type-block {
+      padding: 40px;
+    }
+    .type-block-light { background: var(--ivory); }
+    .type-block-dark  { background: var(--black); }
+    .type-block-espresso { background: var(--espresso); }
+    .type-block-accent { background: var(--blush); }
+    .type-tag {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold-dk);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(201,169,110,0.2);
+    }
+
+    /* ─── 03: MOTIF LIBRARY ──────────────────────────── */
+    .motif-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      background: rgba(0,0,0,0.05);
+    }
+    .motif-cell {
+      background: var(--warm-white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+    .motif-name {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #AAA;
+      margin-top: 22px;
+    }
+
+    /* ─── 04: BRAND VOICE ────────────────────────────── */
+    .voice-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px;
+      background: rgba(0,0,0,0.06);
+      margin-bottom: 48px;
+    }
+    .voice-cell {
+      background: var(--warm-white);
+      padding: 52px 44px;
+      text-align: center;
+    }
+    .voice-word {
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: 7px;
+      color: var(--black);
+      margin-bottom: 14px;
+    }
+    .voice-desc {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: #888;
+      line-height: 1.7;
+    }
+    .voice-statement {
+      text-align: center;
+      padding: 0 80px;
+    }
+    .voice-statement p {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      line-height: 1.8;
+      color: var(--espresso);
+      font-style: italic;
+    }
+
+    /* ─── 05: CRIMSON SIGNATURE ──────────────────────── */
+    .crimson-block {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 52px;
+      align-items: center;
+    }
+    .carnation-icon {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: var(--crimson);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ─── 06: APPLICATION ────────────────────────────── */
+    .application-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .app-panel {
+      padding: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      gap: 16px;
+    }
+
+    /* ─── FOOTER ─────────────────────────────────────── */
+    .brand-footer {
+      background: var(--espresso);
+      padding: 22px 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand-footer span {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.35);
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="brand-header">
+    <span class="label">Wedding Identity System</span>
+    <span class="title">K &amp; D &mdash; Brand Identity</span>
+    <span class="date">La Valencia Hotel &middot; March 27, 2027</span>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <p class="hero-eyebrow">Brand Identity System &nbsp;&bull;&nbsp; Version 1.0 &nbsp;&bull;&nbsp; Private &amp; Confidential</p>
+
+    <!-- Monogram SVG -->
+    <div class="hero-monogram">
+      <svg viewBox="0 0 180 220" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <!-- Outer oval -->
+        <ellipse cx="90" cy="114" rx="82" ry="100" stroke="#C9A96E" stroke-width="1.2"/>
+        <!-- Inner oval (thin) -->
+        <ellipse cx="90" cy="114" rx="74" ry="91" stroke="#C9A96E" stroke-width="0.4"/>
+        <!-- Cardinal star points -->
+        <path d="M90 8 L94 22 L90 14 L86 22 Z" fill="#C9A96E"/>
+        <path d="M90 220 L94 206 L90 214 L86 206 Z" fill="#C9A96E"/>
+        <path d="M4 114 L18 110 L8 114 L18 118 Z" fill="#C9A96E"/>
+        <path d="M176 114 L162 110 L172 114 L162 118 Z" fill="#C9A96E"/>
+
+        <!-- Crown -->
+        <g transform="translate(66, 26)">
+          <path d="M0 16 L5 4 L11 13 L16.5 0 L22 13 L28 4 L33 16 L33 22 L0 22 Z"
+                stroke="#C9A96E" stroke-width="1" stroke-linejoin="round" fill="none"/>
+          <rect x="2" y="22" width="29" height="4" stroke="#C9A96E" stroke-width="1" fill="none"/>
+          <!-- Crown dots -->
+          <circle cx="5" cy="4" r="1.5" fill="#C9A96E"/>
+          <circle cx="16.5" cy="0" r="1.5" fill="#C9A96E"/>
+          <circle cx="28" cy="4" r="1.5" fill="#C9A96E"/>
+        </g>
+
+        <!-- K letterform -->
+        <text x="34" y="162" font-family="Cinzel, serif" font-size="70" fill="#C9A96E" opacity="1" font-style="italic">K</text>
+        <!-- D letterform overlapping -->
+        <text x="82" y="162" font-family="Cinzel, serif" font-size="70" fill="#C9A96E" opacity="0.78" font-style="italic">D</text>
+      </svg>
+    </div>
+
+    <h1 class="hero-names">Kerwin &amp; Danielle</h1>
+    <p class="hero-date">March Twenty-Seventh &nbsp;&middot;&nbsp; MMXXVII</p>
+    <p class="hero-venue">La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California</p>
+
+    <div class="divider" style="max-width:280px;margin:52px auto 0;">
+      <div class="divider-line"></div>
+      <div class="divider-diamond"></div>
+      <div class="divider-line"></div>
+    </div>
+  </div>
+
+  <!-- 01: COLOR PALETTE -->
+  <div class="section">
+    <div class="section-label">
+      <span>01</span>
+      Color Palette
+      <span>Primary · Signature · Accent · Neutral</span>
+    </div>
+    <div class="palette-grid">
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#0A0A0A;"></div>
+        <div class="swatch-name">Noir</div>
+        <div class="swatch-hex">#0A0A0A</div>
+        <div class="swatch-role">Primary</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#C9A96E;"></div>
+        <div class="swatch-name">Champagne Gold</div>
+        <div class="swatch-hex">#C9A96E</div>
+        <div class="swatch-role">Signature</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#F5F0E6;border:1px solid #E0D8CB;"></div>
+        <div class="swatch-name">Warm Ivory</div>
+        <div class="swatch-hex">#F5F0E6</div>
+        <div class="swatch-role">Background</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#3D2410;"></div>
+        <div class="swatch-name">Espresso</div>
+        <div class="swatch-hex">#3D2410</div>
+        <div class="swatch-role">Secondary Dark</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#D4AFA8;"></div>
+        <div class="swatch-name">Dusty Blush</div>
+        <div class="swatch-hex">#D4AFA8</div>
+        <div class="swatch-role">Soft Accent</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#8FB5B0;"></div>
+        <div class="swatch-name">Sea Glass</div>
+        <div class="swatch-hex">#8FB5B0</div>
+        <div class="swatch-role">Coastal Nod</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#8B1A1A;"></div>
+        <div class="swatch-name">Carnation Crimson</div>
+        <div class="swatch-hex">#8B1A1A</div>
+        <div class="swatch-role">Punctuation</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-chip" style="background:#B8936A;"></div>
+        <div class="swatch-name">Muted Gold Foil</div>
+        <div class="swatch-hex">#B8936A</div>
+        <div class="swatch-role">Secondary Gold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02: TYPOGRAPHY -->
+  <div class="section">
+    <div class="section-label">
+      <span>02</span>
+      Type System
+      <span>Cinzel · Cormorant Garamond · Great Vibes · Jost</span>
+    </div>
+    <div class="type-grid">
+      <!-- LIGHT APPLICATION -->
+      <div class="type-block type-block-light">
+        <div class="type-tag">Display — Cinzel Decorative / Regular 400</div>
+        <div style="font-family:'Cinzel Decorative',serif;font-size:38px;letter-spacing:3px;color:var(--black);margin-bottom:6px;line-height:1.2;">K &amp; D</div>
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:14px;letter-spacing:8px;color:var(--gold-dk);margin-bottom:32px;text-transform:uppercase;">March 27, 2027</div>
+
+        <div class="type-tag" style="margin-top:24px;">Script Accent — Great Vibes / Regular</div>
+        <div style="font-family:'Great Vibes',cursive;font-size:52px;color:var(--espresso);line-height:1.2;margin-bottom:32px;">Together in Love</div>
+
+        <div class="type-tag">Body — Cormorant Garamond Light 300</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:16px;line-height:1.9;color:var(--espresso);">Together with their families, Kerwin Ferrette and Danielle Gaumer request the honor of your presence as they exchange vows at La Valencia Hotel, La Jolla, California on Saturday, the twenty-seventh of March, two thousand twenty-seven.</p>
+      </div>
+
+      <!-- DARK APPLICATION -->
+      <div class="type-block type-block-dark">
+        <div class="type-tag" style="border-color:rgba(201,169,110,0.15);">Display — Dark Application</div>
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:30px;letter-spacing:6px;color:var(--ivory);margin-bottom:14px;text-transform:uppercase;">La Valencia</div>
+        <div style="width:48px;height:1px;background:var(--gold);margin-bottom:18px;"></div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:20px;color:var(--gold);line-height:1.6;letter-spacing:1px;margin-bottom:40px;">Old Hollywood &nbsp;&middot;&nbsp; Gatsby &nbsp;&middot;&nbsp; Mediterranean</div>
+
+        <div class="type-tag" style="border-color:rgba(201,169,110,0.15);">Caption — Jost Light 200</div>
+        <p style="font-family:'Jost',sans-serif;font-weight:200;font-size:9px;letter-spacing:5px;text-transform:uppercase;color:rgba(245,240,230,0.5);line-height:2.4;">
+          Cocktail Hour &nbsp;&middot;&nbsp; 6:30 PM<br>
+          Dinner &amp; Reception &nbsp;&middot;&nbsp; 7:30 PM<br>
+          La Jolla, California &nbsp;&middot;&nbsp; Black Tie
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03: MOTIF LIBRARY -->
+  <div class="section">
+    <div class="section-label">
+      <span>03</span>
+      Motif Library
+      <span>Recurring decorative elements across all collateral</span>
+    </div>
+    <div class="motif-grid">
+
+      <!-- Diamond Divider -->
+      <div class="motif-cell">
+        <svg width="220" height="36" viewBox="0 0 220 36">
+          <line x1="0" y1="18" x2="86" y2="18" stroke="#C9A96E" stroke-width="0.75"/>
+          <line x1="0" y1="14" x2="70" y2="14" stroke="#C9A96E" stroke-width="0.3"/>
+          <polygon points="110,8 120,18 110,28 100,18" fill="none" stroke="#C9A96E" stroke-width="0.75"/>
+          <line x1="134" y1="18" x2="220" y2="18" stroke="#C9A96E" stroke-width="0.75"/>
+          <line x1="150" y1="14" x2="220" y2="14" stroke="#C9A96E" stroke-width="0.3"/>
+        </svg>
+        <div class="motif-name">Diamond Divider</div>
+      </div>
+
+      <!-- Art Deco Sunburst -->
+      <div class="motif-cell">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <g transform="translate(45,45)" stroke="#C9A96E" fill="none">
+            <!-- Outer rays (8 major, 8 minor) -->
+            <line x1="0" y1="-43" x2="0" y2="-30" stroke-width="0.7"/>
+            <line x1="0" y1="30" x2="0" y2="43" stroke-width="0.7"/>
+            <line x1="-43" y1="0" x2="-30" y2="0" stroke-width="0.7"/>
+            <line x1="30" y1="0" x2="43" y2="0" stroke-width="0.7"/>
+            <line x1="30.4" y1="-30.4" x2="21.2" y2="-21.2" stroke-width="0.7"/>
+            <line x1="-21.2" y1="21.2" x2="-30.4" y2="30.4" stroke-width="0.7"/>
+            <line x1="-30.4" y1="-30.4" x2="-21.2" y2="-21.2" stroke-width="0.7"/>
+            <line x1="21.2" y1="21.2" x2="30.4" y2="30.4" stroke-width="0.7"/>
+            <!-- Minor rays -->
+            <line x1="15.7" y1="-38.6" x2="11" y2="-27" stroke-width="0.35"/>
+            <line x1="38.6" y1="-15.7" x2="27" y2="-11" stroke-width="0.35"/>
+            <line x1="38.6" y1="15.7" x2="27" y2="11" stroke-width="0.35"/>
+            <line x1="15.7" y1="38.6" x2="11" y2="27" stroke-width="0.35"/>
+            <line x1="-15.7" y1="38.6" x2="-11" y2="27" stroke-width="0.35"/>
+            <line x1="-38.6" y1="15.7" x2="-27" y2="11" stroke-width="0.35"/>
+            <line x1="-38.6" y1="-15.7" x2="-27" y2="-11" stroke-width="0.35"/>
+            <line x1="-15.7" y1="-38.6" x2="-11" y2="-27" stroke-width="0.35"/>
+            <!-- Circles -->
+            <circle r="24" stroke-width="0.8"/>
+            <circle r="19" stroke-width="0.3"/>
+            <!-- Center diamond -->
+            <polygon points="0,-7 7,0 0,7 -7,0" fill="#C9A96E" stroke="none"/>
+          </g>
+        </svg>
+        <div class="motif-name">Art Deco Sunburst</div>
+      </div>
+
+      <!-- Oval Medallion -->
+      <div class="motif-cell">
+        <svg width="80" height="104" viewBox="0 0 80 104">
+          <ellipse cx="40" cy="52" rx="36" ry="48" stroke="#C9A96E" stroke-width="1"/>
+          <ellipse cx="40" cy="52" rx="29" ry="40" stroke="#C9A96E" stroke-width="0.35"/>
+          <!-- Star points NESW -->
+          <path d="M40 0 L44 14 L40 4 L36 14 Z" fill="#C9A96E"/>
+          <path d="M40 104 L44 90 L40 100 L36 90 Z" fill="#C9A96E"/>
+          <path d="M0 52 L14 48 L4 52 L14 56 Z" fill="#C9A96E"/>
+          <path d="M80 52 L66 48 L76 52 L66 56 Z" fill="#C9A96E"/>
+          <!-- Inner diamond -->
+          <polygon points="40,44 47,52 40,60 33,52" fill="none" stroke="#C9A96E" stroke-width="0.6"/>
+        </svg>
+        <div class="motif-name">Oval Medallion Frame</div>
+      </div>
+
+      <!-- Corner Deco Ornament -->
+      <div class="motif-cell">
+        <svg width="120" height="80" viewBox="0 0 120 80">
+          <g stroke="#C9A96E" fill="none">
+            <!-- TL -->
+            <polyline points="4,44 4,4 44,4" stroke-width="1"/>
+            <polyline points="10,44 10,10 44,10" stroke-width="0.4"/>
+            <rect x="4" y="4" width="7" height="7" fill="#C9A96E" stroke="none"/>
+            <!-- TR -->
+            <polyline points="116,44 116,4 76,4" stroke-width="1"/>
+            <polyline points="110,44 110,10 76,10" stroke-width="0.4"/>
+            <rect x="109" y="4" width="7" height="7" fill="#C9A96E" stroke="none"/>
+            <!-- BL -->
+            <polyline points="4,36 4,76 44,76" stroke-width="1"/>
+            <polyline points="10,36 10,70 44,70" stroke-width="0.4"/>
+            <rect x="4" y="69" width="7" height="7" fill="#C9A96E" stroke="none"/>
+            <!-- BR -->
+            <polyline points="116,36 116,76 76,76" stroke-width="1"/>
+            <polyline points="110,36 110,70 76,70" stroke-width="0.4"/>
+            <rect x="109" y="69" width="7" height="7" fill="#C9A96E" stroke="none"/>
+          </g>
+        </svg>
+        <div class="motif-name">Deco Corner Frame</div>
+      </div>
+
+      <!-- Mediterranean Wave -->
+      <div class="motif-cell">
+        <svg width="220" height="44" viewBox="0 0 220 44">
+          <path d="M0,22 C18,10 36,34 55,22 S91,10 110,22 S146,34 165,22 S201,10 220,18"
+                fill="none" stroke="#8FB5B0" stroke-width="1"/>
+          <path d="M0,27 C18,15 36,39 55,27 S91,15 110,27 S146,39 165,27 S201,15 220,23"
+                fill="none" stroke="#8FB5B0" stroke-width="0.4"/>
+          <!-- Dots at crests -->
+          <circle cx="0" cy="22" r="1.5" fill="#8FB5B0"/>
+          <circle cx="55" cy="22" r="1.5" fill="#8FB5B0"/>
+          <circle cx="110" cy="22" r="1.5" fill="#8FB5B0"/>
+          <circle cx="165" cy="22" r="1.5" fill="#8FB5B0"/>
+          <circle cx="220" cy="18" r="1.5" fill="#8FB5B0"/>
+        </svg>
+        <div class="motif-name">Mediterranean Wave &nbsp;(Sea Glass)</div>
+      </div>
+
+      <!-- Crowned Crest Summary -->
+      <div class="motif-cell">
+        <svg width="90" height="110" viewBox="0 0 90 110">
+          <!-- Outer rect frame -->
+          <rect x="4" y="4" width="82" height="102" stroke="#C9A96E" stroke-width="1" fill="none"/>
+          <rect x="10" y="10" width="70" height="90" stroke="#C9A96E" stroke-width="0.4" fill="none"/>
+          <!-- Corner diamonds -->
+          <polygon points="4,4 10,7 4,10 -2,7" fill="#C9A96E" transform="translate(3,3)"/>
+          <polygon points="0,0 6,3 0,6 -6,3" fill="#C9A96E" transform="translate(82,6)"/>
+          <polygon points="0,0 6,3 0,6 -6,3" fill="#C9A96E" transform="translate(3,100)"/>
+          <polygon points="0,0 6,3 0,6 -6,3" fill="#C9A96E" transform="translate(82,100)"/>
+          <!-- Crown (small, centered at top) -->
+          <g transform="translate(33, 22)">
+            <path d="M0 10 L3.5 3 L7 8 L12 0 L17 8 L20.5 3 L24 10 L24 14 L0 14 Z"
+                  stroke="#C9A96E" stroke-width="0.8" fill="none" stroke-linejoin="round"/>
+            <rect x="2" y="14" width="20" height="2.5" stroke="#C9A96E" stroke-width="0.8" fill="none"/>
+          </g>
+          <!-- KD monogram text centered -->
+          <text x="24" y="82" font-family="Cinzel, serif" font-size="38" fill="#C9A96E" font-style="italic" opacity="0.9">KD</text>
+          <!-- Thin divider line below monogram -->
+          <line x1="18" y1="90" x2="72" y2="90" stroke="#C9A96E" stroke-width="0.4"/>
+        </svg>
+        <div class="motif-name">Crowned Crest Frame</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 04: BRAND VOICE -->
+  <div class="section">
+    <div class="section-label">
+      <span>04</span>
+      Brand Voice
+      <span>Three words. One direction.</span>
+    </div>
+    <div class="voice-grid">
+      <div class="voice-cell">
+        <div class="voice-word">CINEMATIC</div>
+        <div class="voice-desc">Every detail is a frame. Every moment is lit like a scene that earns its own score. Nothing is accidental.</div>
+      </div>
+      <div class="voice-cell">
+        <div class="voice-word">TIMELESS</div>
+        <div class="voice-desc">Old Hollywood, Deco geometry, Mediterranean light. Never of a moment. Always of an era. Always of an evening.</div>
+      </div>
+      <div class="voice-cell">
+        <div class="voice-word">EDITORIAL</div>
+        <div class="voice-desc">Spare where it should be spare. Ornate where it earns it. Confident enough to hold white space without apology.</div>
+      </div>
+    </div>
+    <div class="voice-statement">
+      <p>&ldquo;This is not a wedding with a vibe. This is a wedding with a visual language &mdash; one built from crowned monograms, Champagne Gold on noir, and the quiet elegance of a Mediterranean evening where everything feels inevitable.&rdquo;</p>
+    </div>
+  </div>
+
+  <!-- 05: CRIMSON SIGNATURE -->
+  <div class="section">
+    <div class="section-label">
+      <span>05</span>
+      The Crimson Signature
+      <span>The accent that completes everything without competing with anything</span>
+    </div>
+    <div class="crimson-block">
+      <div class="carnation-icon">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+          <!-- Simple carnation abstraction -->
+          <circle cx="22" cy="22" r="14" fill="rgba(255,255,255,0.12)"/>
+          <path d="M22 8 C22 8 14 14 14 22 C14 30 22 36 22 36 C22 36 30 30 30 22 C30 14 22 8 22 8 Z" fill="rgba(255,255,255,0.2)"/>
+          <path d="M8 22 C8 22 14 14 22 14 C30 14 36 22 36 22 C36 22 30 30 22 30 C14 30 8 22 8 22 Z" fill="rgba(255,255,255,0.2)"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;letter-spacing:4px;color:var(--black);margin-bottom:8px;">CARNATION CRIMSON &nbsp;&middot;&nbsp; #8B1A1A</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-size:18px;line-height:1.85;color:var(--espresso);">A single red carnation corsage is the visual anchor of the ceremony. In print, crimson appears only as: envelope liner, wax seal, ribbon, and ceremony program accent rule. Never on the face of a card. Never competing with gold. It is the secret the wedding wears on its lapel &mdash; the one detail guests will remember and not be able to explain why.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06: APPLICATION EXAMPLES -->
+  <div class="section">
+    <div class="section-label">
+      <span>06</span>
+      Color Applications
+      <span>Dark · Light · Warm · Sea Glass</span>
+    </div>
+    <div class="application-grid">
+      <div class="app-panel" style="background:var(--black);">
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:10px;letter-spacing:7px;color:var(--gold);text-transform:uppercase;margin-bottom:20px;">Black Tie</div>
+        <div class="divider" style="width:100%;margin-bottom:20px;"><div class="divider-line" style="opacity:0.2;"></div><div class="divider-diamond" style="opacity:0.5;"></div><div class="divider-line" style="opacity:0.2;"></div></div>
+        <div style="font-family:'Great Vibes',cursive;font-size:54px;background:linear-gradient(135deg,#C9A96E 0%,#E8D080 40%,#C9A96E 60%,#9A7740 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;">Kerwin &amp; Danielle</div>
+        <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:8px;letter-spacing:6px;color:rgba(245,240,230,0.4);text-transform:uppercase;margin-top:16px;">3.27.27 &nbsp;&middot;&nbsp; La Jolla</div>
+      </div>
+      <div class="app-panel" style="background:var(--ivory);border:1px solid rgba(0,0,0,0.06);">
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:10px;letter-spacing:7px;color:var(--gold-dk);text-transform:uppercase;margin-bottom:20px;">Ivory Application</div>
+        <div class="divider" style="width:100%;margin-bottom:20px;"><div class="divider-line"></div><div class="divider-diamond"></div><div class="divider-line"></div></div>
+        <div style="font-family:'Great Vibes',cursive;font-size:54px;color:var(--espresso);line-height:1.1;">Together in Love</div>
+        <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:8px;letter-spacing:6px;color:#AAA;text-transform:uppercase;margin-top:16px;">La Valencia &nbsp;&middot;&nbsp; California</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="brand-footer">
+    <span>K &amp; D Wedding &mdash; Brand Identity System</span>
+    <span>La Valencia Hotel &middot; La Jolla, California</span>
+    <span>March 27, 2027 &middot; Private &amp; Confidential</span>
+  </div>
+
+</div>
+</body>
+</html>

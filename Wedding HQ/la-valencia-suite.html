@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K & D — La Valencia Suite — 3.27.27</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ── Direction A: Noir Gatsby ── */
+      --noir:         #0A0A0A;
+      --champagne:    #C9A96E;
+      --champagne-lt: #DEC88C;
+      --champagne-dk: #B8936A;
+      --ivory:        #F5F0E6;
+      --crimson:      #8B1A1A;
+
+      /* ── Direction B: La Valencia ── */
+      --pacific:      #1C3554;   /* Deep Pacific ocean at dusk */
+      --pacific-mid:  #2E5F80;   /* Ocean mid-tone */
+      --pacific-lt:   #7BAFC4;   /* Coastal morning sky */
+      --stucco:       #E8C4AD;   /* La Valencia's signature pink stucco */
+      --terracotta:   #C07850;   /* Mediterranean tile terracotta */
+      --terra-dk:     #9A5A38;   /* Deep terracotta shadow */
+      --coastal-gold: #D4914A;   /* Warm sunset amber gold */
+      --coast-lt:     #E8B870;   /* Lighter coastal gold highlight */
+      --bougainvillea:#B83060;   /* Bougainvillea magenta accent */
+      --med-cream:    #F8F2E6;   /* Mediterranean warm cream */
+      --med-cream-dk: #EDE3D2;   /* Deeper cream for borders */
+      --sea-mist:     #C4D8DC;   /* Coastal morning mist */
+    }
+
+    body {
+      background: #D8D0C4;
+      font-family: 'Jost', sans-serif;
+      color: #1a1a1a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── PAGE WRAPPER ─── */
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      background: #E8E2D8;
+    }
+
+    /* ─── DOCUMENT HEADER ─── */
+    .doc-header {
+      background: var(--noir);
+      padding: 32px 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .doc-header .left { display: flex; flex-direction: column; gap: 4px; }
+    .doc-header .label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 9px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--champagne-dk);
+    }
+    .doc-header .title {
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      letter-spacing: 6px;
+      color: var(--champagne);
+    }
+    .doc-header .right {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 9px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.5);
+    }
+
+    /* ─── PALETTE INTRODUCTION ─── */
+    .palette-intro {
+      background: var(--med-cream);
+      padding: 64px;
+      border-bottom: 1px solid #ccc;
+    }
+    .palette-intro h2 {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 11px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 40px;
+    }
+    .palettes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+    .palette-block h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .palette-block .palette-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .swatches {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .swatch-dot {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .swatch-name {
+      font-family: 'Jost', sans-serif;
+      font-size: 7px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #888;
+      text-align: center;
+    }
+    .direction-badge {
+      display: inline-block;
+      padding: 6px 18px;
+      font-family: 'Jost', sans-serif;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border: 1px solid currentColor;
+      margin-bottom: 16px;
+    }
+    .badge-a { color: var(--champagne); background: var(--noir); }
+    .badge-b { color: var(--pacific); background: transparent; border-color: var(--pacific); }
+
+    /* ─── SECTION HEADERS ─── */
+    .section-head {
+      padding: 48px 64px 32px;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      background: var(--med-cream);
+    }
+    .section-head .piece-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 9px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    .section-head .piece-title {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--noir);
+    }
+    .section-head .piece-desc {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 16px;
+      color: #777;
+      margin-top: 8px;
+    }
+
+    /* ─── COMPARISON GRID ─── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: #D0C8BC;
+    }
+    .compare-col {
+      padding: 56px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .compare-col.col-a { background: #2A2520; }
+    .compare-col.col-b { background: var(--pacific); }
+    .col-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      align-self: flex-start;
+    }
+    .designer-pick-flag {
+      display: inline-block;
+      padding: 5px 14px;
+      font-family: 'Jost', sans-serif;
+      font-size: 7px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: var(--champagne);
+      color: var(--noir);
+      margin-top: 8px;
+    }
+    .designer-pick-flag.lv {
+      background: var(--terracotta);
+      color: var(--med-cream);
+    }
+    .card-note {
+      font-family: 'Jost', sans-serif;
+      font-size: 10px;
+      font-weight: 200;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.35);
+      text-align: center;
+      max-width: 340px;
+      line-height: 1.7;
+    }
+
+    /* ══════════════════════════════════════════
+       SAVE THE DATE CARDS
+    ══════════════════════════════════════════ */
+
+    /* — Direction A: Noir Gatsby STD — */
+    .std-a {
+      width: 320px;
+      aspect-ratio: 5 / 7;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+    }
+    .std-a-border {
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(201,169,110,0.25);
+      pointer-events: none;
+    }
+    .std-a-border-inner {
+      position: absolute;
+      inset: 14px;
+      border: 1px solid rgba(201,169,110,0.12);
+      pointer-events: none;
+    }
+    .std-a-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      z-index: 1;
+    }
+    .std-a-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 6.5px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.55);
+    }
+    .std-a-logo-box {
+      background: var(--ivory);
+      padding: 10px;
+      width: 130px;
+    }
+    .std-a-logo-box img {
+      width: 100%;
+      display: block;
+    }
+    .std-a-divider {
+      width: 48px;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--champagne), transparent);
+    }
+    .std-a-diamond-rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .std-a-diamond-rule .line {
+      width: 50px;
+      height: 1px;
+      background: rgba(201,169,110,0.4);
+    }
+    .std-a-diamond-rule .diamond {
+      width: 5px;
+      height: 5px;
+      background: var(--champagne);
+      transform: rotate(45deg);
+    }
+    .std-a-names {
+      font-family: 'Great Vibes', cursive;
+      font-size: 36px;
+      color: var(--champagne);
+      line-height: 1;
+    }
+    .std-a-ampersand {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 22px;
+      color: var(--champagne-dk);
+    }
+    .std-a-save {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7.5px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.6);
+    }
+    .std-a-date {
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      letter-spacing: 5px;
+      color: var(--champagne);
+    }
+    .std-a-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 11.5px;
+      color: rgba(201,169,110,0.5);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    /* — Direction A: Noir Gatsby STD Back — */
+    .std-a-back {
+      width: 320px;
+      aspect-ratio: 5 / 7;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+    }
+    .std-a-back-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      z-index: 1;
+    }
+    .std-a-back-monogram {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 52px;
+      background: linear-gradient(160deg, var(--champagne-lt) 0%, var(--champagne) 50%, var(--champagne-dk) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .std-a-back-tagline {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(201,169,110,0.55);
+      letter-spacing: 1px;
+    }
+    .std-a-back-details {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.35);
+      text-align: center;
+      line-height: 2;
+    }
+
+    /* ── Direction B: La Valencia STD ── */
+    .std-b {
+      width: 320px;
+      aspect-ratio: 5 / 7;
+      background: var(--pacific);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+    }
+    .std-b-border-outer {
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(212,145,74,0.35);
+    }
+    .std-b-border-inner {
+      position: absolute;
+      inset: 15px;
+      border: 1px solid rgba(192,120,80,0.2);
+    }
+    /* Terracotta corner accents */
+    .std-b-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+    }
+    .std-b-corner.tl { top: 18px; left: 18px; border-top: 2px solid var(--terracotta); border-left: 2px solid var(--terracotta); }
+    .std-b-corner.tr { top: 18px; right: 18px; border-top: 2px solid var(--terracotta); border-right: 2px solid var(--terracotta); }
+    .std-b-corner.bl { bottom: 18px; left: 18px; border-bottom: 2px solid var(--terracotta); border-left: 2px solid var(--terracotta); }
+    .std-b-corner.br { bottom: 18px; right: 18px; border-bottom: 2px solid var(--terracotta); border-right: 2px solid var(--terracotta); }
+
+    .std-b-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      z-index: 1;
+    }
+    .std-b-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 6.5px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(212,145,74,0.6);
+    }
+    .std-b-logo-box {
+      background: var(--med-cream);
+      padding: 10px;
+      width: 130px;
+    }
+    .std-b-logo-box img {
+      width: 100%;
+      display: block;
+    }
+    .std-b-rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .std-b-rule .line { width: 48px; height: 1px; background: rgba(192,120,80,0.5); }
+    .std-b-rule .diamond { width: 5px; height: 5px; background: var(--terracotta); transform: rotate(45deg); }
+    .std-b-names {
+      font-family: 'Great Vibes', cursive;
+      font-size: 36px;
+      color: var(--coastal-gold);
+      line-height: 1;
+    }
+    .std-b-save {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7.5px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: rgba(212,145,74,0.55);
+    }
+    .std-b-date {
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      letter-spacing: 5px;
+      color: var(--coastal-gold);
+    }
+    .std-b-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 11.5px;
+      color: rgba(212,145,74,0.5);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    /* Direction B STD Back */
+    .std-b-back {
+      width: 320px;
+      aspect-ratio: 5 / 7;
+      background: var(--stucco);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+      overflow: hidden;
+    }
+    /* Mediterranean tile pattern overlay */
+    .std-b-back::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.06;
+      background-image:
+        repeating-linear-gradient(45deg, var(--pacific) 0, var(--pacific) 1px, transparent 0, transparent 50%),
+        repeating-linear-gradient(-45deg, var(--pacific) 0, var(--pacific) 1px, transparent 0, transparent 50%);
+      background-size: 28px 28px;
+    }
+    .std-b-back-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      z-index: 1;
+    }
+    .std-b-back-arch {
+      width: 80px;
+      height: 100px;
+      border: 2px solid var(--pacific);
+      border-radius: 40px 40px 0 0;
+      opacity: 0.25;
+    }
+    .std-b-back-monogram {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 48px;
+      color: var(--pacific);
+      line-height: 1;
+      opacity: 0.85;
+    }
+    .std-b-back-tagline {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--terra-dk);
+      letter-spacing: 1px;
+    }
+    .std-b-back-details {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(28,53,84,0.45);
+      text-align: center;
+      line-height: 2;
+    }
+
+    /* ══════════════════════════════════════════
+       INVITATION SUITE
+    ══════════════════════════════════════════ */
+
+    /* ── Invite A: Noir Editorial ── */
+    .invite-a {
+      width: 260px;
+      aspect-ratio: 5 / 7;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 22px;
+    }
+    .invite-a-border {
+      position: absolute;
+      inset: 9px;
+      border: 1px solid rgba(201,169,110,0.22);
+      pointer-events: none;
+    }
+    .invite-a-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding-top: 4px;
+    }
+    .invite-a-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 6px;
+      letter-spacing: 4.5px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.45);
+    }
+    .invite-a-logo {
+      background: var(--ivory);
+      padding: 8px;
+      width: 108px;
+    }
+    .invite-a-logo img { width: 100%; display: block; }
+    .invite-a-mid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .invite-a-together {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(201,169,110,0.5);
+    }
+    .invite-a-names {
+      font-family: 'Cinzel', serif;
+      font-size: 12.5px;
+      letter-spacing: 3px;
+      color: var(--champagne);
+      text-align: center;
+      line-height: 1.9;
+    }
+    .invite-a-rule {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .invite-a-rule .line { flex: 1; height: 1px; background: rgba(201,169,110,0.25); }
+    .invite-a-rule .diamond { width: 4px; height: 4px; background: var(--champagne-dk); transform: rotate(45deg); }
+    .invite-a-body {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9.5px;
+      text-align: center;
+      color: rgba(201,169,110,0.55);
+      line-height: 1.8;
+    }
+    .invite-a-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    .invite-a-date {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--champagne);
+    }
+    .invite-a-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      color: rgba(201,169,110,0.45);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Invite A: RSVP ── */
+    .rsvp-a {
+      width: 210px;
+      aspect-ratio: 3.5 / 5;
+      background: var(--ivory);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 18px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .rsvp-a-border {
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(0,0,0,0.08);
+      pointer-events: none;
+    }
+    .rsvp-a-top {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .rsvp-a-title {
+      font-family: 'Cinzel', serif;
+      font-size: 8.5px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--noir);
+    }
+    .rsvp-a-mono {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 22px;
+      color: var(--champagne-dk);
+    }
+    .rsvp-a-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+    }
+    .rsvp-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .rsvp-field-label {
+      font-family: 'Jost', sans-serif;
+      font-size: 6px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #aaa;
+    }
+    .rsvp-field-line {
+      width: 100%;
+      height: 1px;
+      background: rgba(0,0,0,0.15);
+    }
+    .rsvp-a-accept {
+      display: flex;
+      gap: 16px;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      color: var(--espresso, #3D2410);
+    }
+    .rsvp-checkbox {
+      width: 8px; height: 8px;
+      border: 1px solid #888;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    /* ── Invite A: Details Card ── */
+    .details-a {
+      width: 180px;
+      aspect-ratio: 4 / 9;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 14px;
+      gap: 12px;
+    }
+    .details-a-border {
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(201,169,110,0.2);
+      pointer-events: none;
+    }
+    .details-a-title {
+      font-family: 'Cinzel', serif;
+      font-size: 7px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.55);
+    }
+    .details-a-section {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .details-a-heading {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 5.5px;
+      letter-spacing: 3.5px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.45);
+    }
+    .details-a-copy {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      text-align: center;
+      color: rgba(201,169,110,0.65);
+      line-height: 1.7;
+    }
+
+    /* ── Suite Row ── */
+    .suite-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    /* ─────────────────────────────────────────
+       INVITE B: LA VALENCIA SUITE
+    ───────────────────────────────────────── */
+
+    /* Invite B main card */
+    .invite-b {
+      width: 260px;
+      aspect-ratio: 5 / 7;
+      background: var(--pacific);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 22px;
+    }
+    /* Architectural arch motif (La Valencia arches) */
+    .invite-b-arch {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 60px;
+      border: 1px solid rgba(212,145,74,0.18);
+      border-radius: 60px 60px 0 0;
+      border-bottom: none;
+    }
+    .invite-b-border-outer {
+      position: absolute;
+      inset: 9px;
+      border: 1px solid rgba(212,145,74,0.22);
+      pointer-events: none;
+    }
+    .invite-b-corner-accent {
+      position: absolute;
+      width: 14px; height: 14px;
+    }
+    .invite-b-corner-accent.tl { top: 17px; left: 17px; border-top: 1.5px solid var(--terracotta); border-left: 1.5px solid var(--terracotta); opacity: 0.7; }
+    .invite-b-corner-accent.tr { top: 17px; right: 17px; border-top: 1.5px solid var(--terracotta); border-right: 1.5px solid var(--terracotta); opacity: 0.7; }
+    .invite-b-corner-accent.bl { bottom: 17px; left: 17px; border-bottom: 1.5px solid var(--terracotta); border-left: 1.5px solid var(--terracotta); opacity: 0.7; }
+    .invite-b-corner-accent.br { bottom: 17px; right: 17px; border-bottom: 1.5px solid var(--terracotta); border-right: 1.5px solid var(--terracotta); opacity: 0.7; }
+    .invite-b-top {
+      display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 1; padding-top: 4px;
+    }
+    .invite-b-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 6px;
+      letter-spacing: 4.5px;
+      text-transform: uppercase;
+      color: rgba(212,145,74,0.5);
+    }
+    .invite-b-logo {
+      background: var(--med-cream);
+      padding: 8px;
+      width: 108px;
+    }
+    .invite-b-logo img { width: 100%; display: block; }
+    .invite-b-mid {
+      display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1;
+    }
+    .invite-b-together {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(212,145,74,0.5);
+    }
+    .invite-b-names {
+      font-family: 'Cinzel', serif;
+      font-size: 12.5px;
+      letter-spacing: 3px;
+      color: var(--coastal-gold);
+      text-align: center;
+      line-height: 1.9;
+    }
+    .invite-b-rule {
+      display: flex; align-items: center; gap: 6px; width: 100%;
+    }
+    .invite-b-rule .line { flex: 1; height: 1px; background: rgba(192,120,80,0.35); }
+    .invite-b-rule .diamond { width: 4px; height: 4px; background: var(--terracotta); transform: rotate(45deg); }
+    .invite-b-body {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9.5px;
+      text-align: center;
+      color: rgba(212,145,74,0.55);
+      line-height: 1.8;
+    }
+    .invite-b-bottom {
+      display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 1;
+    }
+    .invite-b-date {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--coastal-gold);
+    }
+    .invite-b-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      color: rgba(212,145,74,0.45);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* Invite B RSVP card */
+    .rsvp-b {
+      width: 210px;
+      aspect-ratio: 3.5 / 5;
+      background: var(--med-cream);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 18px;
+      border: 1px solid rgba(192,120,80,0.15);
+    }
+    .rsvp-b-border {
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(28,53,84,0.12);
+      pointer-events: none;
+    }
+    .rsvp-b-top {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .rsvp-b-title {
+      font-family: 'Cinzel', serif;
+      font-size: 8.5px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--pacific);
+    }
+    .rsvp-b-accent {
+      width: 32px; height: 1px;
+      background: var(--terracotta);
+    }
+    .rsvp-b-fields { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+    .rsvp-b-field-label {
+      font-family: 'Jost', sans-serif;
+      font-size: 6px; letter-spacing: 3px;
+      text-transform: uppercase; color: #999;
+    }
+    .rsvp-b-field-line {
+      width: 100%; height: 1px;
+      background: rgba(28,53,84,0.2);
+    }
+    .rsvp-b-accept {
+      display: flex; gap: 16px;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 9px;
+      color: var(--pacific-mid);
+    }
+    .rsvp-b-checkbox {
+      width: 8px; height: 8px;
+      border: 1px solid var(--terracotta);
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    /* Invite B Details card */
+    .details-b {
+      width: 180px;
+      aspect-ratio: 4 / 9;
+      background: var(--pacific);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 14px;
+      gap: 12px;
+    }
+    .details-b-border {
+      position: absolute; inset: 8px;
+      border: 1px solid rgba(212,145,74,0.2);
+      pointer-events: none;
+    }
+    /* Tiny arch motif on details card */
+    .details-b-arch {
+      width: 40px; height: 24px;
+      border: 1px solid rgba(192,120,80,0.4);
+      border-radius: 20px 20px 0 0;
+      border-bottom: none;
+    }
+    .details-b-title {
+      font-family: 'Cinzel', serif;
+      font-size: 7px; letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(212,145,74,0.55);
+    }
+    .details-b-section {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .details-b-heading {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 5.5px;
+      letter-spacing: 3.5px; text-transform: uppercase;
+      color: rgba(192,120,80,0.6);
+    }
+    .details-b-copy {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 9px;
+      text-align: center;
+      color: rgba(212,145,74,0.7);
+      line-height: 1.7;
+    }
+
+    /* ══════════════════════════════════════════
+       DAY-OF STATIONERY
+    ══════════════════════════════════════════ */
+
+    .dayof-col-a { background: #1A1610; }
+    .dayof-col-b { background: #162840; }
+
+    /* Menu A */
+    .menu-a {
+      width: 200px;
+      aspect-ratio: 4 / 9;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 22px 18px;
+      gap: 10px;
+    }
+    .menu-a-border {
+      position: absolute; inset: 8px;
+      border: 1px solid rgba(201,169,110,0.18);
+      pointer-events: none;
+    }
+    .menu-a-header { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .menu-a-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      letter-spacing: 4px; text-transform: uppercase;
+      color: rgba(201,169,110,0.4);
+    }
+    .menu-a-title {
+      font-family: 'Cinzel', serif;
+      font-size: 9.5px; letter-spacing: 5px;
+      text-transform: uppercase; color: var(--champagne);
+    }
+    .menu-a-divider {
+      width: 100%; height: 1px;
+      background: linear-gradient(to right, transparent, rgba(201,169,110,0.4), transparent);
+    }
+    .menu-a-logo { background: var(--ivory); padding: 7px; width: 80px; }
+    .menu-a-logo img { width: 100%; display: block; }
+    .menu-a-courses { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .menu-a-course { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+    .menu-a-course-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 5.5px;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(201,169,110,0.38);
+    }
+    .menu-a-course-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 9.5px;
+      color: rgba(201,169,110,0.65); text-align: center;
+    }
+    .menu-a-course-desc {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      color: rgba(201,169,110,0.35);
+      text-align: center; line-height: 1.5;
+    }
+
+    /* Menu B: La Valencia */
+    .menu-b {
+      width: 200px;
+      aspect-ratio: 4 / 9;
+      background: var(--pacific);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 22px 18px;
+      gap: 10px;
+    }
+    .menu-b-border {
+      position: absolute; inset: 8px;
+      border: 1px solid rgba(212,145,74,0.18);
+      pointer-events: none;
+    }
+    .menu-b-arch-top {
+      position: absolute;
+      top: 14px; left: 50%; transform: translateX(-50%);
+      width: 60px; height: 30px;
+      border: 1px solid rgba(192,120,80,0.3);
+      border-radius: 30px 30px 0 0;
+      border-bottom: none;
+    }
+    .menu-b-header { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 1; }
+    .menu-b-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      letter-spacing: 4px; text-transform: uppercase;
+      color: rgba(212,145,74,0.45);
+    }
+    .menu-b-title {
+      font-family: 'Cinzel', serif;
+      font-size: 9.5px; letter-spacing: 5px;
+      text-transform: uppercase; color: var(--coastal-gold);
+    }
+    .menu-b-divider {
+      width: 100%; height: 1px;
+      background: linear-gradient(to right, transparent, rgba(192,120,80,0.45), transparent);
+    }
+    .menu-b-logo { background: var(--med-cream); padding: 7px; width: 80px; z-index: 1; }
+    .menu-b-logo img { width: 100%; display: block; }
+    .menu-b-courses { display: flex; flex-direction: column; gap: 10px; width: 100%; z-index: 1; }
+    .menu-b-course { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+    .menu-b-course-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 5.5px;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(192,120,80,0.55);
+    }
+    .menu-b-course-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 9.5px;
+      color: rgba(212,145,74,0.7); text-align: center;
+    }
+    .menu-b-course-desc {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      color: rgba(212,145,74,0.4);
+      text-align: center; line-height: 1.5;
+    }
+
+    /* Table Numbers */
+    .table-num-a {
+      width: 140px;
+      aspect-ratio: 1 / 1.5;
+      background: var(--noir);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+    }
+    .table-num-a-border {
+      position: absolute; inset: 8px;
+      border: 1px solid rgba(201,169,110,0.22);
+    }
+    .table-num-a-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      letter-spacing: 4px; text-transform: uppercase;
+      color: rgba(201,169,110,0.4);
+    }
+    .table-num-a-number {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 38px;
+      background: linear-gradient(160deg, var(--champagne-lt), var(--champagne), var(--champagne-dk));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .table-num-a-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 8px;
+      color: rgba(201,169,110,0.45); letter-spacing: 1.5px;
+    }
+
+    .table-num-b {
+      width: 140px;
+      aspect-ratio: 1 / 1.5;
+      background: var(--med-cream);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      border: 1px solid rgba(192,120,80,0.18);
+    }
+    .table-num-b-arch {
+      position: absolute;
+      top: 8px; left: 50%; transform: translateX(-50%);
+      width: 50px; height: 28px;
+      border: 1px solid rgba(28,53,84,0.15);
+      border-radius: 25px 25px 0 0;
+      border-bottom: none;
+    }
+    .table-num-b-border {
+      position: absolute; inset: 8px;
+      border: 1px solid rgba(28,53,84,0.1);
+    }
+    .table-num-b-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 6px;
+      letter-spacing: 4px; text-transform: uppercase;
+      color: rgba(28,53,84,0.45);
+    }
+    .table-num-b-number {
+      font-family: 'Cinzel Decorative', serif;
+      font-size: 38px;
+      color: var(--pacific);
+      line-height: 1;
+    }
+    .table-num-b-accent-line {
+      width: 28px; height: 2px;
+      background: var(--terracotta);
+    }
+    .table-num-b-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 8px;
+      color: rgba(192,120,80,0.7); letter-spacing: 1.5px;
+    }
+
+    /* Welcome Sign */
+    .welcome-a {
+      width: 220px;
+      aspect-ratio: 3 / 4;
+      background: var(--noir);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 10px;
+    }
+    .welcome-a-border {
+      position: absolute; inset: 10px;
+      border: 1px solid rgba(201,169,110,0.2);
+    }
+    .welcome-a-logo { background: var(--ivory); padding: 8px; width: 100px; z-index: 1; }
+    .welcome-a-logo img { width: 100%; display: block; }
+    .welcome-a-welcome {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 7px;
+      letter-spacing: 5px; text-transform: uppercase;
+      color: rgba(201,169,110,0.45); z-index: 1;
+    }
+    .welcome-a-script {
+      font-family: 'Great Vibes', cursive;
+      font-size: 32px;
+      color: var(--champagne); z-index: 1; text-align: center;
+    }
+    .welcome-a-rule {
+      display: flex; align-items: center; gap: 6px; width: 80%; z-index: 1;
+    }
+    .welcome-a-rule .line { flex: 1; height: 1px; background: rgba(201,169,110,0.25); }
+    .welcome-a-rule .diamond { width: 4px; height: 4px; background: var(--champagne-dk); transform: rotate(45deg); }
+    .welcome-a-date {
+      font-family: 'Cinzel', serif;
+      font-size: 10px; letter-spacing: 4px;
+      color: var(--champagne); z-index: 1;
+    }
+    .welcome-a-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 10px;
+      color: rgba(201,169,110,0.45); text-align: center; z-index: 1;
+      line-height: 1.6;
+    }
+
+    .welcome-b {
+      width: 220px;
+      aspect-ratio: 3 / 4;
+      background: var(--stucco);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 10px;
+      overflow: hidden;
+    }
+    /* Subtle tile pattern */
+    .welcome-b::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(28,53,84,0.04) 0, rgba(28,53,84,0.04) 1px, transparent 1px, transparent 32px),
+        repeating-linear-gradient(90deg, rgba(28,53,84,0.04) 0, rgba(28,53,84,0.04) 1px, transparent 1px, transparent 32px);
+    }
+    /* Mediterranean arch top ornament */
+    .welcome-b-arch-large {
+      position: absolute;
+      top: -20px; left: 50%; transform: translateX(-50%);
+      width: 140px; height: 80px;
+      border: 2px solid rgba(28,53,84,0.12);
+      border-radius: 70px 70px 0 0;
+      border-bottom: none;
+    }
+    .welcome-b-border {
+      position: absolute; inset: 10px;
+      border: 1px solid rgba(28,53,84,0.15);
+    }
+    .welcome-b-logo { background: var(--med-cream); padding: 8px; width: 100px; z-index: 1; }
+    .welcome-b-logo img { width: 100%; display: block; }
+    .welcome-b-welcome {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200; font-size: 7px;
+      letter-spacing: 5px; text-transform: uppercase;
+      color: rgba(28,53,84,0.45); z-index: 1;
+    }
+    .welcome-b-script {
+      font-family: 'Great Vibes', cursive;
+      font-size: 32px;
+      color: var(--pacific); z-index: 1; text-align: center;
+    }
+    .welcome-b-rule {
+      display: flex; align-items: center; gap: 6px; width: 80%; z-index: 1;
+    }
+    .welcome-b-rule .line { flex: 1; height: 1px; background: rgba(192,120,80,0.35); }
+    .welcome-b-rule .diamond { width: 4px; height: 4px; background: var(--terracotta); transform: rotate(45deg); }
+    .welcome-b-date {
+      font-family: 'Cinzel', serif;
+      font-size: 10px; letter-spacing: 4px;
+      color: var(--pacific); z-index: 1;
+    }
+    .welcome-b-venue {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; font-size: 10px;
+      color: rgba(154,90,56,0.7); text-align: center; z-index: 1;
+      line-height: 1.6;
+    }
+
+    /* ─── DIRECTION COMPARE LABEL STRIP ─── */
+    .direction-label-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .dir-label {
+      padding: 16px 48px;
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+    }
+    .dir-label.a {
+      background: var(--noir);
+      color: rgba(201,169,110,0.5);
+    }
+    .dir-label.b {
+      background: var(--pacific);
+      color: rgba(212,145,74,0.5);
+    }
+
+    /* ─── PICK ANNOTATION ─── */
+    .annotation-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .annotation {
+      padding: 20px 48px;
+      background: var(--med-cream);
+      border-top: 1px solid rgba(0,0,0,0.08);
+    }
+    .annotation-pick {
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    .annotation-pick span.pick-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      font-size: 7px;
+      letter-spacing: 2px;
+      background: var(--champagne);
+      color: var(--noir);
+      margin-right: 8px;
+    }
+    .annotation-pick span.pick-badge-b {
+      display: inline-block;
+      padding: 2px 10px;
+      font-size: 7px;
+      letter-spacing: 2px;
+      background: var(--terracotta);
+      color: var(--med-cream);
+      margin-right: 8px;
+    }
+    .annotation-body {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    /* ─── SECTION DIVIDER ─── */
+    .section-divider {
+      height: 2px;
+      background: linear-gradient(to right, transparent, rgba(0,0,0,0.12), transparent);
+      margin: 0;
+    }
+
+    /* ─── FOOTER ─── */
+    .doc-footer {
+      background: var(--noir);
+      padding: 28px 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .doc-footer .foot-mark {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: rgba(201,169,110,0.35);
+    }
+    .doc-footer .foot-note {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 8px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.2);
+    }
+
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ DOCUMENT HEADER ══ -->
+  <header class="doc-header">
+    <div class="left">
+      <span class="label">Wedding Identity System — Alternate Directions</span>
+      <span class="title">Kerwin & Danielle — 3.27.27</span>
+    </div>
+    <div class="right">La Valencia Hotel &nbsp;·&nbsp; La Jolla, CA</div>
+  </header>
+
+  <!-- ══ PALETTE INTRODUCTION ══ -->
+  <section class="palette-intro">
+    <h2>Two Directions</h2>
+    <div class="palettes-grid">
+
+      <!-- Direction A -->
+      <div class="palette-block">
+        <div class="direction-badge badge-a">Direction A</div>
+        <h3 style="color: var(--noir);">La Nuit — Noir Gatsby</h3>
+        <p class="palette-sub">Old Hollywood. Champagne on obsidian. The ballroom at midnight.</p>
+        <div class="swatches">
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#0A0A0A;"></div>
+            <span class="swatch-name">Noir</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#C9A96E;"></div>
+            <span class="swatch-name">Champagne Gold</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#F5F0E6;"></div>
+            <span class="swatch-name">Warm Ivory</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#DEC88C;"></div>
+            <span class="swatch-name">Gold Highlight</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#8B1A1A;"></div>
+            <span class="swatch-name">Carnation Crimson</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direction B -->
+      <div class="palette-block">
+        <div class="direction-badge badge-b">Direction B</div>
+        <h3 style="color: var(--pacific);">La Valencia — Mediterranean Coastal</h3>
+        <p class="palette-sub">Pacific at dusk. Bougainvillea climbing terracotta walls. La Jolla golden hour.</p>
+        <div class="swatches">
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#1C3554;"></div>
+            <span class="swatch-name">Pacific Deep</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#C07850;"></div>
+            <span class="swatch-name">Terracotta</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#D4914A;"></div>
+            <span class="swatch-name">Coastal Gold</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#E8C4AD;"></div>
+            <span class="swatch-name">Stucco Blush</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#F8F2E6;"></div>
+            <span class="swatch-name">Med Cream</span>
+          </div>
+          <div class="swatch">
+            <div class="swatch-dot" style="background:#B83060;"></div>
+            <span class="swatch-name">Bougainvillea</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ SAVE THE DATE ══ -->
+  <div class="section-head">
+    <div class="piece-label">01 — Stationery</div>
+    <div class="piece-title">Save the Date</div>
+    <div class="piece-desc">5 × 7 · Front & Back · Two directions compared</div>
+  </div>
+
+  <div class="direction-label-strip">
+    <div class="dir-label a">Direction A &nbsp;·&nbsp; La Nuit — Noir Gatsby</div>
+    <div class="dir-label b">Direction B &nbsp;·&nbsp; La Valencia — Mediterranean Coastal</div>
+  </div>
+
+  <div class="compare-grid">
+
+    <!-- Col A: Noir Gatsby STD -->
+    <div class="compare-col col-a">
+      <span class="col-label">Direction A — La Nuit</span>
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+
+        <!-- Front -->
+        <div class="std-a">
+          <div class="std-a-border"></div>
+          <div class="std-a-border-inner"></div>
+          <div class="std-a-content">
+            <span class="std-a-eyebrow">Please Save the Date</span>
+            <div class="std-a-logo-box">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K & D Monogram">
+            </div>
+            <div class="std-a-diamond-rule">
+              <div class="line"></div>
+              <div class="diamond"></div>
+              <div class="line"></div>
+            </div>
+            <div class="std-a-names">Kerwin & Danielle</div>
+            <div class="std-a-save">Save the Date</div>
+            <div class="std-a-date">March 27, 2027</div>
+            <div class="std-a-diamond-rule">
+              <div class="line"></div>
+              <div class="diamond"></div>
+              <div class="line"></div>
+            </div>
+            <div class="std-a-venue">La Valencia Hotel<br>La Jolla, California</div>
+          </div>
+        </div>
+
+        <!-- Back -->
+        <div class="std-a-back">
+          <div class="std-a-border"></div>
+          <div class="std-a-back-content">
+            <div class="std-a-back-monogram">K&thinsp;D</div>
+            <div class="std-a-divider"></div>
+            <div class="std-a-back-tagline">Formal invitation to follow</div>
+            <div class="std-a-back-details">
+              March 27, 2027<br>
+              La Valencia Hotel<br>
+              La Jolla, California
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="card-note">Noir obsidian with champagne gold foil treatment. Art Deco geometry. Classic and absolute.</div>
+    </div>
+
+    <!-- Col B: La Valencia STD -->
+    <div class="compare-col col-b">
+      <span class="col-label">Direction B — La Valencia</span>
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+
+        <!-- Front -->
+        <div class="std-b">
+          <div class="std-b-border-outer"></div>
+          <div class="std-b-border-inner"></div>
+          <div class="std-b-corner tl"></div>
+          <div class="std-b-corner tr"></div>
+          <div class="std-b-corner bl"></div>
+          <div class="std-b-corner br"></div>
+          <div class="std-b-content">
+            <span class="std-b-eyebrow">Please Save the Date</span>
+            <div class="std-b-logo-box">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K & D Monogram">
+            </div>
+            <div class="std-b-rule">
+              <div class="line"></div>
+              <div class="diamond"></div>
+              <div class="line"></div>
+            </div>
+            <div class="std-b-names">Kerwin & Danielle</div>
+            <div class="std-b-save">Save the Date</div>
+            <div class="std-b-date">March 27, 2027</div>
+            <div class="std-b-rule">
+              <div class="line"></div>
+              <div class="diamond"></div>
+              <div class="line"></div>
+            </div>
+            <div class="std-b-venue">La Valencia Hotel<br>La Jolla, California</div>
+          </div>
+        </div>
+
+        <!-- Back -->
+        <div class="std-b-back">
+          <div class="std-b-back-content">
+            <div class="std-b-back-arch"></div>
+            <div class="std-b-back-monogram">K&thinsp;D</div>
+            <div class="std-b-back-tagline">Formal invitation to follow</div>
+            <div class="std-b-back-details">
+              March 27, 2027<br>
+              La Valencia Hotel<br>
+              La Jolla, California
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="card-note" style="color:rgba(212,145,74,0.45);">Deep Pacific navy with terracotta corner details and coastal amber gold. Mediterranean arch on reverse. The hotel, the ocean, the golden hour.</div>
+    </div>
+
+  </div>
+
+  <div class="annotation-strip">
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge">Designer's Pick</span></div>
+      <div class="annotation-body">Timeless and cinematic. Sits perfectly against the Art Deco bones of La Valencia's interior. Works in any light.</div>
+    </div>
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge-b">La Jolla Pick</span></div>
+      <div class="annotation-body">Pulls the actual ocean and the hotel's architecture into the paper. Feels like La Jolla at sunset. More personal to the venue.</div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ INVITATION SUITE ══ -->
+  <div class="section-head">
+    <div class="piece-label">02 — Stationery</div>
+    <div class="piece-title">Invitation Suite</div>
+    <div class="piece-desc">Main Invite · RSVP Card · Details Card — Both directions</div>
+  </div>
+
+  <div class="direction-label-strip">
+    <div class="dir-label a">Direction A &nbsp;·&nbsp; La Nuit — Noir Gatsby</div>
+    <div class="dir-label b">Direction B &nbsp;·&nbsp; La Valencia — Mediterranean Coastal</div>
+  </div>
+
+  <div class="compare-grid">
+
+    <!-- Invite Col A -->
+    <div class="compare-col col-a">
+      <span class="col-label">Direction A — La Nuit</span>
+      <div class="suite-row">
+
+        <!-- Main Invite -->
+        <div class="invite-a">
+          <div class="invite-a-border"></div>
+          <div class="invite-a-top">
+            <span class="invite-a-eyebrow">Together with their families</span>
+            <div class="invite-a-logo">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K & D">
+            </div>
+          </div>
+          <div class="invite-a-mid">
+            <div class="invite-a-together">request the honor of your presence</div>
+            <div class="invite-a-rule">
+              <div class="line"></div><div class="diamond"></div><div class="line"></div>
+            </div>
+            <div class="invite-a-names">
+              Kerwin Ferrette<br>
+              <span style="font-size:10px; font-family:'Cormorant Garamond',serif; font-style:italic; color:rgba(201,169,110,0.4);">&amp;</span><br>
+              Danielle Gaumer
+            </div>
+            <div class="invite-a-rule">
+              <div class="line"></div><div class="diamond"></div><div class="line"></div>
+            </div>
+            <div class="invite-a-body">
+              at the celebration of their marriage
+            </div>
+          </div>
+          <div class="invite-a-bottom">
+            <div class="invite-a-date">March 27, 2027</div>
+            <div class="invite-a-venue">
+              La Valencia Hotel<br>
+              1132 Prospect Street<br>
+              La Jolla, California
+            </div>
+          </div>
+        </div>
+
+        <!-- RSVP -->
+        <div>
+          <div class="rsvp-a">
+            <div class="rsvp-a-border"></div>
+            <div class="rsvp-a-top">
+              <span class="rsvp-a-title">R.S.V.P.</span>
+              <span class="rsvp-a-mono">K&thinsp;D</span>
+              <span style="font-family:'Jost',sans-serif; font-weight:200; font-size:7px; letter-spacing:3px; text-transform:uppercase; color:#bbb;">Kindly reply by<br>February 1, 2027</span>
+            </div>
+            <div class="rsvp-a-fields">
+              <div class="rsvp-field">
+                <span class="rsvp-field-label">Name(s)</span>
+                <div class="rsvp-field-line"></div>
+              </div>
+              <div class="rsvp-field">
+                <span class="rsvp-field-label">Number of Guests</span>
+                <div class="rsvp-field-line"></div>
+              </div>
+              <div class="rsvp-a-accept">
+                <span><span class="rsvp-checkbox"></span> Accepts</span>
+                <span><span class="rsvp-checkbox"></span> Declines</span>
+              </div>
+              <div class="rsvp-field">
+                <span class="rsvp-field-label">Meal Preference</span>
+                <div class="rsvp-field-line"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Details Card below RSVP -->
+          <div style="height:16px;"></div>
+          <div class="details-a" style="width:210px; height:auto; aspect-ratio:unset; min-height:180px;">
+            <div class="details-a-border"></div>
+            <div class="details-a-title">Event Details</div>
+            <div class="details-a-section">
+              <span class="details-a-heading">Ceremony</span>
+              <span class="details-a-copy">Four o'clock in the afternoon<br>La Valencia Garden Terrace</span>
+            </div>
+            <div class="details-a-section">
+              <span class="details-a-heading">Cocktail Hour</span>
+              <span class="details-a-copy">Five o'clock · Ocean View Terrace</span>
+            </div>
+            <div class="details-a-section">
+              <span class="details-a-heading">Reception</span>
+              <span class="details-a-copy">Six o'clock · La Sala Ballroom</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="card-note">Noir editorial. Three-piece suite — main, RSVP, details. Gold foil type on obsidian. The full Old Hollywood treatment.</div>
+    </div>
+
+    <!-- Invite Col B -->
+    <div class="compare-col col-b">
+      <span class="col-label">Direction B — La Valencia</span>
+      <div class="suite-row">
+
+        <!-- Main Invite -->
+        <div class="invite-b">
+          <div class="invite-b-arch"></div>
+          <div class="invite-b-border-outer"></div>
+          <div class="invite-b-corner-accent tl"></div>
+          <div class="invite-b-corner-accent tr"></div>
+          <div class="invite-b-corner-accent bl"></div>
+          <div class="invite-b-corner-accent br"></div>
+          <div class="invite-b-top">
+            <span class="invite-b-eyebrow">Together with their families</span>
+            <div class="invite-b-logo">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K & D">
+            </div>
+          </div>
+          <div class="invite-b-mid">
+            <div class="invite-b-together">request the honor of your presence</div>
+            <div class="invite-b-rule">
+              <div class="line"></div><div class="diamond"></div><div class="line"></div>
+            </div>
+            <div class="invite-b-names">
+              Kerwin Ferrette<br>
+              <span style="font-size:10px; font-family:'Cormorant Garamond',serif; font-style:italic; color:rgba(192,120,80,0.45);">&amp;</span><br>
+              Danielle Gaumer
+            </div>
+            <div class="invite-b-rule">
+              <div class="line"></div><div class="diamond"></div><div class="line"></div>
+            </div>
+            <div class="invite-b-body">
+              at the celebration of their marriage
+            </div>
+          </div>
+          <div class="invite-b-bottom">
+            <div class="invite-b-date">March 27, 2027</div>
+            <div class="invite-b-venue">
+              La Valencia Hotel<br>
+              1132 Prospect Street<br>
+              La Jolla, California
+            </div>
+          </div>
+        </div>
+
+        <!-- RSVP B -->
+        <div>
+          <div class="rsvp-b">
+            <div class="rsvp-b-border"></div>
+            <div class="rsvp-b-top">
+              <span class="rsvp-b-title">R.S.V.P.</span>
+              <div class="rsvp-b-accent"></div>
+              <span style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:18px; color:var(--pacific);">K & D</span>
+              <span style="font-family:'Jost',sans-serif; font-weight:200; font-size:7px; letter-spacing:3px; text-transform:uppercase; color:#aaa; text-align:center;">Kindly reply by<br>February 1, 2027</span>
+            </div>
+            <div class="rsvp-b-fields">
+              <div class="rsvp-field">
+                <span class="rsvp-b-field-label">Name(s)</span>
+                <div class="rsvp-b-field-line"></div>
+              </div>
+              <div class="rsvp-field">
+                <span class="rsvp-b-field-label">Number of Guests</span>
+                <div class="rsvp-b-field-line"></div>
+              </div>
+              <div class="rsvp-b-accept">
+                <span><span class="rsvp-b-checkbox"></span> Accepts</span>
+                <span><span class="rsvp-b-checkbox"></span> Declines</span>
+              </div>
+              <div class="rsvp-field">
+                <span class="rsvp-b-field-label">Meal Preference</span>
+                <div class="rsvp-b-field-line"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Details Card B -->
+          <div style="height:16px;"></div>
+          <div class="details-b" style="width:210px; height:auto; aspect-ratio:unset; min-height:180px;">
+            <div class="details-b-border"></div>
+            <div class="details-b-arch"></div>
+            <div class="details-b-title">Event Details</div>
+            <div class="details-b-section">
+              <span class="details-b-heading">Ceremony</span>
+              <span class="details-b-copy">Four o'clock in the afternoon<br>La Valencia Garden Terrace</span>
+            </div>
+            <div class="details-b-section">
+              <span class="details-b-heading">Cocktail Hour</span>
+              <span class="details-b-copy">Five o'clock · Ocean View Terrace</span>
+            </div>
+            <div class="details-b-section">
+              <span class="details-b-heading">Reception</span>
+              <span class="details-b-copy">Six o'clock · La Sala Ballroom</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="card-note" style="color:rgba(212,145,74,0.45);">Pacific navy invite. Mediterranean cream RSVP with terracotta checkboxes. Arch motifs echo La Valencia's Spanish Colonial arches throughout.</div>
+    </div>
+
+  </div>
+
+  <div class="annotation-strip">
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge">Classic Pick</span></div>
+      <div class="annotation-body">This suite reads as a formal black-tie evening. The gold on noir tells guests exactly what kind of night this will be before they've even read the date.</div>
+    </div>
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge-b">Venue Pick</span></div>
+      <div class="annotation-body">The arch motifs on the invite and details card directly echo the Spanish Colonial architecture guests will walk into. The Mediterranean cream RSVP is a natural contrast piece.</div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ DAY-OF STATIONERY ══ -->
+  <div class="section-head">
+    <div class="piece-label">03 — Day-Of</div>
+    <div class="piece-title">Day-Of Stationery</div>
+    <div class="piece-desc">Menu Card · Table Numbers · Welcome Sign — Both directions</div>
+  </div>
+
+  <div class="direction-label-strip">
+    <div class="dir-label a">Direction A &nbsp;·&nbsp; La Nuit — Noir Gatsby</div>
+    <div class="dir-label b">Direction B &nbsp;·&nbsp; La Valencia — Mediterranean Coastal</div>
+  </div>
+
+  <div class="compare-grid">
+
+    <!-- Day-Of Col A -->
+    <div class="compare-col dayof-col-a">
+      <span class="col-label">Direction A — La Nuit</span>
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
+
+        <!-- Menu A -->
+        <div class="menu-a">
+          <div class="menu-a-border"></div>
+          <div class="menu-a-header">
+            <span class="menu-a-eyebrow">Kerwin & Danielle</span>
+            <span class="menu-a-title">Dinner</span>
+            <div class="menu-a-logo">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K&D">
+            </div>
+            <div class="menu-a-divider"></div>
+          </div>
+          <div class="menu-a-courses">
+            <div class="menu-a-course">
+              <span class="menu-a-course-label">First Course</span>
+              <span class="menu-a-course-name">Seared Scallop</span>
+              <span class="menu-a-course-desc">Cauliflower purée · Lemon caper beurre blanc</span>
+            </div>
+            <div class="menu-a-course">
+              <span class="menu-a-course-label">Second Course</span>
+              <span class="menu-a-course-name">Bibb Salad</span>
+              <span class="menu-a-course-desc">Shaved fennel · Champagne vinaigrette</span>
+            </div>
+            <div class="menu-a-course">
+              <span class="menu-a-course-label">Main Course</span>
+              <span class="menu-a-course-name">Filet Mignon</span>
+              <span class="menu-a-course-desc">Truffle pomme purée · Red wine reduction</span>
+            </div>
+            <div class="menu-a-course">
+              <span class="menu-a-course-label">Dessert</span>
+              <span class="menu-a-course-name">Wedding Cake</span>
+              <span class="menu-a-course-desc">Petit fours · Champagne sorbet</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Numbers A -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="table-num-a">
+            <div class="table-num-a-border"></div>
+            <span class="table-num-a-label">Table</span>
+            <span class="table-num-a-number">1</span>
+            <span class="table-num-a-name">Kerwin & Danielle</span>
+          </div>
+          <div class="table-num-a">
+            <div class="table-num-a-border"></div>
+            <span class="table-num-a-label">Table</span>
+            <span class="table-num-a-number">8</span>
+            <span class="table-num-a-name">Kerwin & Danielle</span>
+          </div>
+        </div>
+
+        <!-- Welcome A -->
+        <div class="welcome-a">
+          <div class="welcome-a-border"></div>
+          <div class="welcome-a-logo">
+            <img src="../logos/Wedding Logo non-embossed.png" alt="K&D">
+          </div>
+          <span class="welcome-a-welcome">Welcome to our</span>
+          <div class="welcome-a-script">Wedding</div>
+          <div class="welcome-a-rule">
+            <div class="line"></div><div class="diamond"></div><div class="line"></div>
+          </div>
+          <span class="welcome-a-date">3 · 27 · 27</span>
+          <span class="welcome-a-venue">La Valencia Hotel<br>La Jolla, California</span>
+        </div>
+
+      </div>
+      <div class="card-note">Every surface consistent — noir, champagne gold, ivory insets. The logo anchors each piece.</div>
+    </div>
+
+    <!-- Day-Of Col B -->
+    <div class="compare-col dayof-col-b">
+      <span class="col-label">Direction B — La Valencia</span>
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
+
+        <!-- Menu B -->
+        <div class="menu-b">
+          <div class="menu-b-border"></div>
+          <div class="menu-b-arch-top"></div>
+          <div class="menu-b-header">
+            <span class="menu-b-eyebrow">Kerwin & Danielle</span>
+            <span class="menu-b-title">Dinner</span>
+            <div class="menu-b-logo">
+              <img src="../logos/Wedding Logo non-embossed.png" alt="K&D">
+            </div>
+            <div class="menu-b-divider"></div>
+          </div>
+          <div class="menu-b-courses">
+            <div class="menu-b-course">
+              <span class="menu-b-course-label">First Course</span>
+              <span class="menu-b-course-name">Seared Scallop</span>
+              <span class="menu-b-course-desc">Cauliflower purée · Lemon caper beurre blanc</span>
+            </div>
+            <div class="menu-b-course">
+              <span class="menu-b-course-label">Second Course</span>
+              <span class="menu-b-course-name">Bibb Salad</span>
+              <span class="menu-b-course-desc">Shaved fennel · Champagne vinaigrette</span>
+            </div>
+            <div class="menu-b-course">
+              <span class="menu-b-course-label">Main Course</span>
+              <span class="menu-b-course-name">Filet Mignon</span>
+              <span class="menu-b-course-desc">Truffle pomme purée · Red wine reduction</span>
+            </div>
+            <div class="menu-b-course">
+              <span class="menu-b-course-label">Dessert</span>
+              <span class="menu-b-course-name">Wedding Cake</span>
+              <span class="menu-b-course-desc">Petit fours · Champagne sorbet</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Numbers B -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="table-num-b">
+            <div class="table-num-b-arch"></div>
+            <div class="table-num-b-border"></div>
+            <span class="table-num-b-label">Table</span>
+            <span class="table-num-b-number">1</span>
+            <div class="table-num-b-accent-line"></div>
+            <span class="table-num-b-name">Kerwin & Danielle</span>
+          </div>
+          <div class="table-num-b">
+            <div class="table-num-b-arch"></div>
+            <div class="table-num-b-border"></div>
+            <span class="table-num-b-label">Table</span>
+            <span class="table-num-b-number">8</span>
+            <div class="table-num-b-accent-line"></div>
+            <span class="table-num-b-name">Kerwin & Danielle</span>
+          </div>
+        </div>
+
+        <!-- Welcome B -->
+        <div class="welcome-b">
+          <div class="welcome-b-arch-large"></div>
+          <div class="welcome-b-border"></div>
+          <div class="welcome-b-logo">
+            <img src="../logos/Wedding Logo non-embossed.png" alt="K&D">
+          </div>
+          <span class="welcome-b-welcome">Welcome to our</span>
+          <div class="welcome-b-script">Wedding</div>
+          <div class="welcome-b-rule">
+            <div class="line"></div><div class="diamond"></div><div class="line"></div>
+          </div>
+          <span class="welcome-b-date">3 · 27 · 27</span>
+          <span class="welcome-b-venue">La Valencia Hotel<br>La Jolla, California</span>
+        </div>
+
+      </div>
+      <div class="card-note" style="color:rgba(212,145,74,0.45);">Table numbers in Mediterranean cream with Pacific navy numerals and terracotta rule — print on thick cotton stock. Welcome sign in La Valencia stucco blush echoes the hotel exterior itself.</div>
+    </div>
+
+  </div>
+
+  <div class="annotation-strip">
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge">Classic Pick</span></div>
+      <div class="annotation-body">Consistent noir suite means guests move through a unified visual world from the moment they arrive to the last dance.</div>
+    </div>
+    <div class="annotation">
+      <div class="annotation-pick"><span class="pick-badge-b">Venue Pick</span></div>
+      <div class="annotation-body">The stucco-pink welcome sign will blend beautifully against La Valencia's actual exterior walls. The Mediterranean cream table numbers feel like they were made for that dining room.</div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ BLEND NOTE ══ -->
+  <section class="palette-intro" style="background:var(--noir); border-bottom:none;">
+    <h2 style="color:rgba(201,169,110,0.35);">A Note on Mixing</h2>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:48px; margin-top:0;">
+      <div>
+        <p style="font-family:'Cinzel',serif; font-size:12px; letter-spacing:3px; color:var(--champagne); margin-bottom:16px;">THE HYBRID APPROACH</p>
+        <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:18px; color:rgba(201,169,110,0.6); line-height:1.8;">
+          These don't have to live in separate worlds. Consider: Direction A for the Save the Date and formal invitation suite (pre-event, sets the black-tie tone), and Direction B for the day-of pieces — table numbers, welcome sign, menus — which guests experience inside the actual La Valencia setting. The colors of the hotel surround them. The stationery echoes it.
+        </p>
+      </div>
+      <div>
+        <p style="font-family:'Cinzel',serif; font-size:12px; letter-spacing:3px; color:var(--champagne); margin-bottom:16px;">THE UNIFIER</p>
+        <p style="font-family:'Cormorant Garamond',serif; font-style:italic; font-size:18px; color:rgba(201,169,110,0.6); line-height:1.8;">
+          The logo — the crowned KD crest — is the constant. It reads on noir, on Pacific navy, on stucco blush, on Mediterranean cream. Every piece, both directions, anchors to the same mark. That's what makes a hybrid approach cohesive rather than chaotic.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ══ -->
+  <footer class="doc-footer">
+    <span class="foot-mark">K & D · 3.27.27</span>
+    <span class="foot-note">La Valencia Suite — Direction A & B — La Jolla, California</span>
+  </footer>
+
+</div>
+</body>
+</html>

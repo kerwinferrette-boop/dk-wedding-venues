@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day-of Stationery — K &amp; D — 3.27.27</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Great+Vibes&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0A0A0A;
+      --ivory: #F5F0E6;
+      --gold:  #C9A96E;
+      --gold-dk: #B8936A;
+      --espresso: #3D2410;
+      --warm-white: #FAF8F2;
+      --sea-glass: #8FB5B0;
+      --crimson: #8B1A1A;
+    }
+
+    body {
+      background: #111009;
+      font-family: 'Jost', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 60px 40px 120px;
+    }
+
+    .page-header {
+      max-width: 1400px;
+      margin: 0 auto 72px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid rgba(201,169,110,0.1);
+      padding-bottom: 24px;
+    }
+    .page-header h1 {
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 7px;
+      color: rgba(245,240,230,0.28);
+      text-transform: uppercase;
+    }
+    .page-header p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--gold-dk);
+    }
+
+    .piece-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 7px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(245,240,230,0.16);
+      margin-bottom: 12px;
+    }
+
+    /* ─── FOIL TEXT ─── */
+    .foil {
+      background: linear-gradient(135deg, #C9A96E 0%, #E8D080 35%, #C9A96E 55%, #9A7740 80%, #C9A96E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SECTION: MENU + TABLE NUMBERS (side by side) */
+    /* ─────────────────────────────────────────── */
+    .top-row {
+      max-width: 1400px;
+      margin: 0 auto 80px;
+      display: grid;
+      grid-template-columns: 3fr 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* MENU CARD — 4x9 black */
+    .menu-card {
+      width: 100%;
+      aspect-ratio: 4 / 9;
+      background: #0A0A0A;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.9), 0 6px 24px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 44px 32px;
+      position: relative;
+      overflow: hidden;
+    }
+    .menu-card::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background:radial-gradient(ellipse 60% 40% at 50% 90%, rgba(201,169,110,0.04) 0%, transparent 100%);
+    }
+
+    /* TABLE NUMBER — 4x6 ivory */
+    .table-card {
+      width: 100%;
+      aspect-ratio: 4 / 6;
+      background: var(--ivory);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 20px;
+      position: relative;
+    }
+
+    /* TABLE NUMBER Alt (black) */
+    .table-card-dark {
+      width: 100%;
+      aspect-ratio: 4 / 6;
+      background: #0A0A0A;
+      box-shadow: 0 16px 60px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 20px;
+      position: relative;
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SECTION: WELCOME SIGN                     */
+    /* ─────────────────────────────────────────── */
+    .welcome-section {
+      max-width: 1400px;
+      margin: 0 auto 80px;
+    }
+    .welcome-sign {
+      width: 100%;
+      aspect-ratio: 18 / 24;
+      background: #0A0A0A;
+      box-shadow: 0 32px 100px rgba(0,0,0,0.9), 0 8px 32px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 100px;
+      position: relative;
+      overflow: hidden;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .welcome-sign::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background:radial-gradient(ellipse 70% 50% at 50% 100%, rgba(201,169,110,0.06) 0%, transparent 100%);
+    }
+
+    /* ─────────────────────────────────────────── */
+    /*  SECTION: CEREMONY PROGRAM                 */
+    /* ─────────────────────────────────────────── */
+    .program-section {
+      max-width: 1400px;
+      margin: 0 auto 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .program-cover {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: var(--black);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.9), 0 6px 24px rgba(0,0,0,0.5);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 52px 44px;
+      position: relative;
+      overflow: hidden;
+    }
+    .program-cover::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background:radial-gradient(ellipse 60% 40% at 50% 80%, rgba(201,169,110,0.05) 0%, transparent 100%);
+    }
+    .program-interior {
+      width: 100%;
+      aspect-ratio: 5 / 7;
+      background: var(--warm-white);
+      box-shadow: 0 20px 70px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.1);
+      border-radius: 2px;
+      display: flex;
+      flex-direction: column;
+      padding: 52px 44px;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <h1>Day-of Stationery Suite</h1>
+    <p>Menu &nbsp;&middot;&nbsp; Table Numbers &nbsp;&middot;&nbsp; Welcome Sign &nbsp;&middot;&nbsp; Ceremony Program</p>
+  </div>
+
+  <!-- ═══ MENU + TABLE NUMBERS ═══ -->
+  <div class="top-row">
+
+    <!-- MENU CARD -->
+    <div>
+      <div class="piece-label">Menu Card &mdash; 4 &times; 9 in &mdash; Per Place Setting</div>
+      <div class="menu-card">
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 320 720" preserveAspectRatio="none" fill="none">
+          <rect x="12" y="12" width="296" height="696" stroke="#C9A96E" stroke-width="1" opacity="0.45"/>
+          <rect x="20" y="20" width="280" height="680" stroke="#C9A96E" stroke-width="0.35" opacity="0.2"/>
+          <rect x="12" y="12" width="10" height="10" fill="#C9A96E" opacity="0.7"/>
+          <rect x="298" y="12" width="10" height="10" fill="#C9A96E" opacity="0.7"/>
+          <rect x="12" y="698" width="10" height="10" fill="#C9A96E" opacity="0.7"/>
+          <rect x="298" y="698" width="10" height="10" fill="#C9A96E" opacity="0.7"/>
+        </svg>
+
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;height:100%;">
+
+          <!-- Real logo PNG -->
+          <div style="background:#F5F0E6;padding:6px;width:72px;margin-bottom:0;">
+            <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+          </div>
+
+          <div class="foil" style="font-family:'Cinzel',serif;font-weight:400;font-size:10px;letter-spacing:5px;text-transform:uppercase;margin-bottom:4px;">Menu</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:rgba(201,169,110,0.4);margin-bottom:24px;">March 27, 2027</div>
+
+          <!-- Divider -->
+          <svg width="100%" height="10" viewBox="0 0 200 10" fill="none" style="margin-bottom:24px;">
+            <line x1="0" y1="5" x2="84" y2="5" stroke="#C9A96E" stroke-width="0.6" opacity="0.4"/>
+            <polygon points="100,1 107,5 100,9 93,5" stroke="#C9A96E" stroke-width="0.6" fill="none" opacity="0.5"/>
+            <line x1="116" y1="5" x2="200" y2="5" stroke="#C9A96E" stroke-width="0.6" opacity="0.4"/>
+          </svg>
+
+          <!-- FIRST COURSE -->
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:10px;">First Course</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:6px;">Seared Scallop</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;">Cauliflower puree, crispy capers,<br>saffron beurre blanc</div>
+
+          <div style="width:30px;height:1px;background:rgba(201,169,110,0.2);margin:20px 0;"></div>
+
+          <!-- SALAD -->
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:10px;">Salad</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:6px;">Endive &amp; Radicchio</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;">Candied walnut, d&apos;Affinois,<br>champagne vinaigrette</div>
+
+          <div style="width:30px;height:1px;background:rgba(201,169,110,0.2);margin:20px 0;"></div>
+
+          <!-- MAIN -->
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:10px;">Main Course</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:4px;">Filet Mignon</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;margin-bottom:12px;">Truffle demi-gl&agrave;ce, pommes dauphine,<br>haricots verts</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:4px;">Halibut en Pap&igrave;llote</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;margin-bottom:12px;">Meyer lemon, fennel, cherry tomato</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:4px;">Mushroom Risotto</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;">Parmigiano, truffle oil, microgreens</div>
+
+          <div style="width:30px;height:1px;background:rgba(201,169,110,0.2);margin:20px 0;"></div>
+
+          <!-- DESSERT -->
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:10px;">Dessert</div>
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:2px;color:rgba(245,240,230,0.7);margin-bottom:6px;">Wedding Cake</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(245,240,230,0.35);text-align:center;line-height:1.6;">Chef&apos;s choice seasonal confection</div>
+
+          <!-- Bottom wave -->
+          <svg width="100%" height="16" viewBox="0 0 200 16" fill="none" style="margin-top:auto;opacity:0.18;">
+            <path d="M0,8 C14,3 28,13 44,8 S70,3 88,8 S114,13 130,8 S156,3 172,8 S190,3 200,6"
+                  stroke="#8FB5B0" stroke-width="0.8"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE NUMBERS (two versions) -->
+    <div style="display:flex;flex-direction:column;gap:32px;">
+      <div>
+        <div class="piece-label">Table Number &mdash; Ivory</div>
+        <div class="table-card">
+          <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 320 480" preserveAspectRatio="none" fill="none">
+            <rect x="12" y="12" width="296" height="456" stroke="#C9A96E" stroke-width="1.4"/>
+            <rect x="20" y="20" width="280" height="440" stroke="#C9A96E" stroke-width="0.4" opacity="0.5"/>
+            <rect x="12" y="12" width="10" height="10" fill="#C9A96E"/>
+            <rect x="298" y="12" width="10" height="10" fill="#C9A96E"/>
+            <rect x="12" y="456" width="10" height="10" fill="#C9A96E"/>
+            <rect x="298" y="456" width="10" height="10" fill="#C9A96E"/>
+          </svg>
+          <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;">
+            <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:var(--gold-dk);opacity:0.7;margin-bottom:16px;">Table</div>
+            <div style="font-family:'Cinzel Decorative',serif;font-size:64px;color:var(--espresso);line-height:1;margin-bottom:12px;">4</div>
+            <div style="width:28px;height:1px;background:var(--gold);opacity:0.5;margin-bottom:12px;"></div>
+            <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:rgba(61,36,16,0.35);letter-spacing:2px;">K &amp; D &middot; 3.27.27</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="piece-label">Table Number &mdash; Noir</div>
+        <div class="table-card-dark">
+          <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 320 480" preserveAspectRatio="none" fill="none">
+            <rect x="12" y="12" width="296" height="456" stroke="#C9A96E" stroke-width="1.4" opacity="0.5"/>
+            <rect x="20" y="20" width="280" height="440" stroke="#C9A96E" stroke-width="0.4" opacity="0.2"/>
+            <rect x="12" y="12" width="10" height="10" fill="#C9A96E" opacity="0.8"/>
+            <rect x="298" y="12" width="10" height="10" fill="#C9A96E" opacity="0.8"/>
+            <rect x="12" y="456" width="10" height="10" fill="#C9A96E" opacity="0.8"/>
+            <rect x="298" y="456" width="10" height="10" fill="#C9A96E" opacity="0.8"/>
+          </svg>
+          <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;">
+            <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:7px;letter-spacing:4px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:16px;">Table</div>
+            <div class="foil" style="font-family:'Cinzel Decorative',serif;font-size:64px;line-height:1;margin-bottom:12px;">4</div>
+            <div style="width:28px;height:1px;background:var(--gold);opacity:0.35;margin-bottom:12px;"></div>
+            <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:rgba(201,169,110,0.3);letter-spacing:2px;">K &amp; D &middot; 3.27.27</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note about table numbers -->
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:24px;">
+      <div>
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:10px;letter-spacing:4px;color:rgba(245,240,230,0.3);text-transform:uppercase;margin-bottom:12px;">Table Card Note</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:rgba(245,240,230,0.3);line-height:1.8;">Both colorways ship as a set &mdash; alternate Ivory and Noir across tables for a composed, editorial room. Or go all-noir for maximum drama. Both are sized at 4&times;6 in, designed to stand in acrylic table holders.</p>
+      </div>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:10px;letter-spacing:4px;color:rgba(245,240,230,0.3);text-transform:uppercase;margin-bottom:12px;">Naming the Tables</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:rgba(245,240,230,0.3);line-height:1.8;">Consider naming tables after La Valencia rooms or La Jolla landmarks instead of numbers: <em>The Med, The Belvedere, La Jolla Cove, Torrey Pines, Sunset Cliffs.</em> Tell your story through the room.</p>
+      </div>
+    </div>
+
+  </div><!-- /top-row -->
+
+  <!-- ═══ WELCOME SIGN ═══ -->
+  <div class="welcome-section">
+    <div class="piece-label" style="max-width:1400px;margin:0 auto 16px;">Welcome Sign &mdash; 18 &times; 24 in &mdash; Ceremony Entrance</div>
+    <div class="welcome-sign">
+      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 540 720" preserveAspectRatio="none" fill="none">
+        <rect x="20" y="20" width="500" height="680" stroke="#C9A96E" stroke-width="2" opacity="0.4"/>
+        <rect x="34" y="34" width="472" height="652" stroke="#C9A96E" stroke-width="0.6" opacity="0.2"/>
+        <rect x="48" y="48" width="444" height="624" stroke="#C9A96E" stroke-width="0.25" opacity="0.12"/>
+        <!-- Corner ornaments -->
+        <rect x="20" y="20" width="18" height="18" fill="#C9A96E" opacity="0.6"/>
+        <rect x="502" y="20" width="18" height="18" fill="#C9A96E" opacity="0.6"/>
+        <rect x="20" y="682" width="18" height="18" fill="#C9A96E" opacity="0.6"/>
+        <rect x="502" y="682" width="18" height="18" fill="#C9A96E" opacity="0.6"/>
+        <!-- Side mid-point ticks -->
+        <line x1="20" y1="360" x2="48" y2="360" stroke="#C9A96E" stroke-width="1.5" opacity="0.4"/>
+        <line x1="492" y1="360" x2="520" y2="360" stroke="#C9A96E" stroke-width="1.5" opacity="0.4"/>
+        <!-- Top mid-point -->
+        <line x1="270" y1="20" x2="270" y2="48" stroke="#C9A96E" stroke-width="1.5" opacity="0.4"/>
+        <line x1="270" y1="672" x2="270" y2="700" stroke="#C9A96E" stroke-width="1.5" opacity="0.4"/>
+      </svg>
+
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;text-align:center;">
+
+        <!-- Real logo PNG -->
+          <div style="background:#F5F0E6;padding:10px;width:110px;margin-bottom:0;">
+            <img src="../logos/Wedding Logo non-embossed.png" style="width:100%;display:block;" alt="K &amp; D">
+          </div>
+
+        <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:9px;letter-spacing:7px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:28px;">Welcome</div>
+
+        <!-- Divider -->
+        <svg width="80%" height="10" viewBox="0 0 300 10" fill="none" style="margin-bottom:28px;opacity:0.35;">
+          <line x1="0" y1="5" x2="124" y2="5" stroke="#C9A96E" stroke-width="0.8"/>
+          <polygon points="150,1 158,5 150,9 142,5" stroke="#C9A96E" stroke-width="0.8" fill="none"/>
+          <line x1="176" y1="5" x2="300" y2="5" stroke="#C9A96E" stroke-width="0.8"/>
+        </svg>
+
+        <div class="foil" style="font-family:'Great Vibes',cursive;font-size:80px;line-height:1.05;margin-bottom:10px;">Kerwin</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;color:rgba(201,169,110,0.5);margin-bottom:10px;">&amp;</div>
+        <div class="foil" style="font-family:'Great Vibes',cursive;font-size:80px;line-height:1.05;margin-bottom:32px;">Danielle</div>
+
+        <svg width="80%" height="10" viewBox="0 0 300 10" fill="none" style="margin-bottom:28px;opacity:0.35;">
+          <line x1="0" y1="5" x2="124" y2="5" stroke="#C9A96E" stroke-width="0.8"/>
+          <polygon points="150,1 158,5 150,9 142,5" stroke="#C9A96E" stroke-width="0.8" fill="none"/>
+          <line x1="176" y1="5" x2="300" y2="5" stroke="#C9A96E" stroke-width="0.8"/>
+        </svg>
+
+        <div style="font-family:'Cinzel',serif;font-weight:400;font-size:14px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">March 27, 2027</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:rgba(245,240,230,0.35);">La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla, California</div>
+
+        <!-- Sea glass wave at bottom -->
+        <svg width="70%" height="20" viewBox="0 0 280 20" fill="none" style="margin-top:36px;opacity:0.2;">
+          <path d="M0,10 C20,4 40,16 60,10 S100,4 140,10 S180,16 220,10 S260,4 280,8"
+                stroke="#8FB5B0" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CEREMONY PROGRAM ═══ -->
+  <div class="program-section" style="max-width:1400px;margin:0 auto 0;">
+
+    <!-- COVER -->
+    <div>
+      <div class="piece-label">Program Cover &mdash; 5 &times; 7 in</div>
+      <div class="program-cover">
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+          <rect x="14" y="14" width="372" height="532" stroke="#C9A96E" stroke-width="1.5" opacity="0.45"/>
+          <rect x="24" y="24" width="352" height="512" stroke="#C9A96E" stroke-width="0.4" opacity="0.2"/>
+          <rect x="14" y="14" width="14" height="14" fill="#C9A96E" opacity="0.7"/>
+          <rect x="372" y="14" width="14" height="14" fill="#C9A96E" opacity="0.7"/>
+          <rect x="14" y="532" width="14" height="14" fill="#C9A96E" opacity="0.7"/>
+          <rect x="372" y="532" width="14" height="14" fill="#C9A96E" opacity="0.7"/>
+        </svg>
+
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;">
+
+          <!-- Sunburst -->
+          <svg width="72" height="72" viewBox="0 0 90 90" fill="none" style="margin-bottom:24px;opacity:0.55;">
+            <g transform="translate(45,45)" stroke="#C9A96E" fill="none">
+              <line x1="0" y1="-40" x2="0" y2="-28" stroke-width="0.8"/>
+              <line x1="0" y1="28" x2="0" y2="40" stroke-width="0.8"/>
+              <line x1="-40" y1="0" x2="-28" y2="0" stroke-width="0.8"/>
+              <line x1="28" y1="0" x2="40" y2="0" stroke-width="0.8"/>
+              <line x1="28.3" y1="-28.3" x2="19.8" y2="-19.8" stroke-width="0.8"/>
+              <line x1="-19.8" y1="19.8" x2="-28.3" y2="28.3" stroke-width="0.8"/>
+              <line x1="-28.3" y1="-28.3" x2="-19.8" y2="-19.8" stroke-width="0.8"/>
+              <line x1="19.8" y1="19.8" x2="28.3" y2="28.3" stroke-width="0.8"/>
+              <circle r="22" stroke-width="0.8"/>
+              <polygon points="0,-6 6,0 0,6 -6,0" fill="#C9A96E" stroke="none"/>
+            </g>
+          </svg>
+
+          <div style="font-family:'Jost',sans-serif;font-weight:200;font-size:8px;letter-spacing:6px;text-transform:uppercase;color:rgba(201,169,110,0.5);margin-bottom:24px;">The Ceremony of Marriage</div>
+
+          <div class="foil" style="font-family:'Great Vibes',cursive;font-size:56px;line-height:1.05;margin-bottom:6px;">Kerwin</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:18px;color:rgba(201,169,110,0.45);margin-bottom:6px;">&amp;</div>
+          <div class="foil" style="font-family:'Great Vibes',cursive;font-size:56px;line-height:1.05;margin-bottom:28px;">Danielle</div>
+
+          <svg width="80%" height="10" viewBox="0 0 280 10" fill="none" style="margin-bottom:28px;opacity:0.3;">
+            <line x1="0" y1="5" x2="112" y2="5" stroke="#C9A96E" stroke-width="0.7"/>
+            <polygon points="140,1 148,5 140,9 132,5" stroke="#C9A96E" stroke-width="0.7" fill="none"/>
+            <line x1="168" y1="5" x2="280" y2="5" stroke="#C9A96E" stroke-width="0.7"/>
+          </svg>
+
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:11px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">March 27, 2027</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(245,240,230,0.3);">La Valencia Hotel &nbsp;&middot;&nbsp; La Jolla</div>
+
+          <!-- Crimson accent rule (the only crimson on any card face) -->
+          <div style="width:40px;height:2px;background:#8B1A1A;margin-top:32px;opacity:0.6;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTERIOR -->
+    <div>
+      <div class="piece-label">Program Interior &mdash; Ceremony Order</div>
+      <div class="program-interior">
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 400 560" preserveAspectRatio="none" fill="none">
+          <rect x="12" y="12" width="376" height="536" stroke="#C9A96E" stroke-width="1.2" opacity="0.3"/>
+          <rect x="12" y="12" width="12" height="12" fill="#C9A96E" opacity="0.5"/>
+          <rect x="376" y="12" width="12" height="12" fill="#C9A96E" opacity="0.5"/>
+          <rect x="12" y="536" width="12" height="12" fill="#C9A96E" opacity="0.5"/>
+          <rect x="376" y="536" width="12" height="12" fill="#C9A96E" opacity="0.5"/>
+        </svg>
+
+        <div style="position:relative;z-index:1;width:100%;">
+
+          <div style="font-family:'Cinzel',serif;font-weight:400;font-size:9px;letter-spacing:5px;color:var(--gold-dk);text-transform:uppercase;margin-bottom:24px;text-align:center;">Order of Ceremony</div>
+
+          <!-- Order of service lines -->
+          <div style="display:flex;flex-direction:column;gap:0;">
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:00 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Prelude Music</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">Guests are seated</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:10 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Processional</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">Bridal party, family, and the groom</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:15 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Bridal Entrance</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">All rise</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:20 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Opening Words</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">Officiant</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:28 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Reading</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">[Reader Name]</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:35 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Exchange of Vows</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">Kerwin &amp; Danielle</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:45 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Ring Ceremony</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">With the blessing of rings</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">6:52 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Pronouncement</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">The First Kiss</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:baseline;padding:14px 0;">
+              <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:11px;color:var(--gold-dk);white-space:nowrap;">7:00 pm</div>
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:var(--espresso);margin-bottom:3px;">Recessional</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.45);">Please join us on the terrace</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom note with crimson accent -->
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(0,0,0,0.06);text-align:center;">
+            <div style="width:24px;height:1.5px;background:#8B1A1A;margin:0 auto 12px;opacity:0.5;"></div>
+            <div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:rgba(61,36,16,0.4);line-height:1.7;">Please be fully present &mdash;<br>phones away, hearts open.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /program-section -->
+
+</body>
+</html>
