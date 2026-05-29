@@ -17,18 +17,19 @@ export default function NavBar({ user, onSwitchUser }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', height: '100%', gap: 0 }}>
 
-      {/* D & K logo — Cinzel, gold */}
+      {/* Logo */}
       <button
         onClick={() => navigate('/dashboard')}
         style={{
           background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: '"Cinzel", Georgia, serif',
-          fontSize: 16, fontWeight: 700, letterSpacing: '0.12em',
-          color: 'var(--gold)', padding: '0 16px 0 0', flexShrink: 0,
-          lineHeight: 1,
+          padding: '0 12px 0 0', flexShrink: 0, lineHeight: 0,
         }}
       >
-        D&amp;K
+        <img
+          src="/logo.png"
+          alt="D&K"
+          style={{ height: 40, display: 'block', mixBlendMode: 'multiply' }}
+        />
       </button>
 
       {/* Gold hairline divider */}

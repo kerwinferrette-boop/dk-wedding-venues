@@ -11,7 +11,7 @@
   --gold-border:   rgba(201, 168, 76, 0.45);
   --teal:          #2A6B7C;
   --teal-light:    #5A9BAA;
-  --dark:          #F7F0E3;   /* parchment — body bg */
+  --dark:          rgba(247, 240, 227, 0.88);   /* parchment — body bg, semi-transparent so watercolor shows through */
   --dark2:         #EFE6D3;
   --dark3:         #E4D8C4;
   --card:          #FAF5EC;
@@ -36,7 +36,11 @@
 }
 
 body {
-  background-color: var(--dark);
+  background-color: #F7F0E3;
+  background-image: url('/Gemini_Generated_Image_k016fxk016fxk016.png');
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
   color: var(--text);
   font-family: 'DM Sans', system-ui, sans-serif;
   margin: 0;
@@ -94,7 +98,13 @@ h2, h3, h4, h5 {
 
 /* Hero full-bleed background */
 .hero-bg {
-  background: var(--hero-gradient);
+  background: linear-gradient(
+    155deg,
+    rgba(30, 79, 92, 0.78) 0%,
+    rgba(42, 107, 124, 0.78) 18%,
+    rgba(196, 131, 111, 0.78) 52%,
+    rgba(232, 213, 163, 0.78) 100%
+  );
   position: relative;
 }
 

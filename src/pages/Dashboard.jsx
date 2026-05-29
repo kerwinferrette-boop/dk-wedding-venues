@@ -59,7 +59,7 @@ export default function Dashboard() {
             .eq('status', 'pending')
             .order('due_date', { ascending: true })
             .limit(5),
-          supabase.from('guests').select('id, rsvp'),
+          supabase.from('guests').select('id, rsvp, plus_one, cut_candidate'),
         ])
         if (cancelled) return
         setQuote(q)
@@ -67,8 +67,10 @@ export default function Dashboard() {
         setVendors(v.data || [])
         setMilestones(t.data || [])
         setGuests(g.data || [])
-        const start = m?.budget_breakdown?.current_guest_list_count ?? m?.target_headcount ?? 170
-        setProjectedGuests(start)
+        const towardCap = (g.data || [])
+          .filter(guest => !guest.cut_candidate)
+          .reduce((sum, guest) => sum + 1 + (guest.plus_one ? 1 : 0), 0)
+        setProjectedGuests(towardCap || (m?.budget_breakdown?.current_guest_list_count ?? 170))
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
       } finally {
@@ -315,8 +317,8 @@ export default function Dashboard() {
               Guest list
             </div>
             <div style={{ fontFamily: 'Playfair Display', fontSize: 28, color: 'var(--text)', marginTop: 4 }}>
-              {guests.length}
-              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> on list</span>
+              {guests.filter(g => !g.cut_candidate).reduce((s, g) => s + 1 + (g.plus_one ? 1 : 0), 0)}
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> towards cap</span>
             </div>
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
               {rsvpStats.yes} yes · {rsvpStats.no} no · {rsvpStats.maybe} maybe · {rsvpStats.pending} pending
