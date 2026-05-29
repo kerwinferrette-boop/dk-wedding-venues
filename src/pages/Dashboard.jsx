@@ -67,10 +67,7 @@ export default function Dashboard() {
         setVendors(v.data || [])
         setMilestones(t.data || [])
         setGuests(g.data || [])
-        const towardCap = (g.data || [])
-          .filter(guest => !guest.cut_candidate)
-          .reduce((sum, guest) => sum + 1 + (guest.plus_one ? 1 : 0), 0)
-        setProjectedGuests(towardCap || (m?.budget_breakdown?.current_guest_list_count ?? 170))
+        // projectedGuests is kept in sync by the towardCap useEffect below
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
       } finally {
@@ -104,6 +101,15 @@ export default function Dashboard() {
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [])
+
+  const towardCap = useMemo(() =>
+    guests.filter(g => !g.cut_candidate).reduce((s, g) => s + 1 + (g.plus_one ? 1 : 0), 0),
+  [guests])
+
+  // Keep slider in sync with the actual guest list whenever it changes
+  useEffect(() => {
+    if (towardCap > 0) setProjectedGuests(towardCap)
+  }, [towardCap])
 
   const budget = useMemo(() => {
     if (!quote.length) return null

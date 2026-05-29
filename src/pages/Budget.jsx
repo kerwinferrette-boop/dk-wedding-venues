@@ -45,6 +45,7 @@ export default function Budget() {
   const [quote, setQuote] = useState([])
   const [meta, setMeta] = useState(null)
   const [vendors, setVendors] = useState([])
+  const [guests, setGuests] = useState([])
   const [guestCount, setGuestCount] = useState(170)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -53,16 +54,17 @@ export default function Budget() {
     let cancelled = false
     async function load() {
       try {
-        const [q, m, v] = await Promise.all([
+        const [q, m, v, g] = await Promise.all([
           fetchQuote(),
           fetchProjectMetadata(),
           supabase.from('vendor_pipeline').select('*'),
+          supabase.from('guests').select('id, plus_one, cut_candidate'),
         ])
         if (cancelled) return
         setQuote(q)
         setMeta(m)
         setVendors(v.data || [])
-        setGuestCount(m?.budget_breakdown?.current_guest_list_count ?? m?.target_headcount ?? 170)
+        setGuests(g.data || [])
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
       } finally {
@@ -70,8 +72,26 @@ export default function Budget() {
       }
     }
     load()
-    return () => { cancelled = true }
+
+    const ch = supabase
+      .channel('budget-guests-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' },
+        async () => {
+          const { data } = await supabase.from('guests').select('id, plus_one, cut_candidate')
+          if (!cancelled) setGuests(data || [])
+        })
+      .subscribe()
+
+    return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
+
+  const towardCap = useMemo(() =>
+    guests.filter(g => !g.cut_candidate).reduce((s, g) => s + 1 + (g.plus_one ? 1 : 0), 0),
+  [guests])
+
+  useEffect(() => {
+    if (towardCap > 0) setGuestCount(towardCap)
+  }, [towardCap])
 
   const budget = useMemo(() => {
     if (!quote.length) return null
