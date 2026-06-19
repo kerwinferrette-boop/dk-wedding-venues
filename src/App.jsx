@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Guests from './pages/Guests'
 import Vendors from './pages/Vendors'
 import Budget from './pages/Budget'
-import Research from './pages/Research'
+import Theme from './pages/Theme'
 
 function InitialRedirect() {
   const navigate = useNavigate()
@@ -58,7 +58,7 @@ export default function App() {
         <Route path="/budget" element={<Budget user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/guests" element={<Guests user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/vendors" element={<Vendors user={user} onSwitchUser={handleSwitchUser} />} />
-        <Route path="/research" element={<Research user={user} />} />
+        <Route path="/theme" element={<Theme user={user} />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
