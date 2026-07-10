@@ -17,8 +17,19 @@ import {
 } from '../lib/budget'
 
 const PAGE_BG = 'var(--dark)'
-const TODAY = new Date('2026-05-21')
+const TODAY = new Date()
 const WEDDING_DATE = new Date('2027-03-27')
+const MILESTONE_LIMIT = 20
+
+async function fetchPendingMilestones() {
+  const { data } = await supabase
+    .from('timeline_milestones')
+    .select('*')
+    .eq('status', 'pending')
+    .order('due_date', { ascending: true })
+    .limit(MILESTONE_LIMIT)
+  return data || []
+}
 
 function daysBetween(a, b) {
   return Math.round((b - a) / (1000 * 60 * 60 * 24))
@@ -53,19 +64,14 @@ export default function Dashboard() {
           fetchQuote(),
           fetchProjectMetadata(),
           supabase.from('vendor_pipeline').select('*').order('priority', { ascending: true }),
-          supabase
-            .from('timeline_milestones')
-            .select('*')
-            .eq('status', 'pending')
-            .order('due_date', { ascending: true })
-            .limit(5),
+          fetchPendingMilestones(),
           supabase.from('guests').select('id, rsvp, plus_one, cut_candidate'),
         ])
         if (cancelled) return
         setQuote(q)
         setMeta(m)
         setVendors(v.data || [])
-        setMilestones(t.data || [])
+        setMilestones(t)
         setGuests(g.data || [])
         // projectedGuests is kept in sync by the towardCap useEffect below
       } catch (e) {
@@ -88,11 +94,7 @@ export default function Dashboard() {
           setVendors(data || [])
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'timeline_milestones' },
-        async () => {
-          const { data } = await supabase.from('timeline_milestones').select('*')
-            .eq('status', 'pending').order('due_date').limit(5)
-          setMilestones(data || [])
-        })
+        async () => setMilestones(await fetchPendingMilestones()))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' },
         async () => {
           const { data } = await supabase.from('guests').select('id, rsvp')
@@ -144,6 +146,21 @@ export default function Dashboard() {
     }
     return totals
   }, [vendors])
+
+  async function completeMilestone(id) {
+    const prev = milestones
+    setMilestones(ms => ms.filter(m => m.id !== id))
+    const { error: updateError } = await supabase
+      .from('timeline_milestones')
+      .update({ status: 'done' })
+      .eq('id', id)
+    if (updateError) {
+      setMilestones(prev)
+      return
+    }
+    // Re-fetch regardless of realtime so the next pending item backfills immediately.
+    setMilestones(await fetchPendingMilestones())
+  }
 
   const daysOut = daysBetween(TODAY, WEDDING_DATE)
   const venueCap = meta?.budget_breakdown?.venue_cap ?? 170
@@ -344,15 +361,35 @@ export default function Dashboard() {
                 Run the 12-month timeline skill to populate milestones.
               </div>
             ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0' }}>
+              <ul style={{
+                listStyle: 'none', padding: 0, margin: '10px 0 0',
+                maxHeight: 220, overflowY: 'auto',
+              }}>
                 {milestones.map(m => (
                   <li key={m.id} style={{
                     padding: '6px 0', borderBottom: '1px solid var(--border)',
                     fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)',
-                    display: 'flex', justifyContent: 'space-between', gap: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                   }}>
-                    <span>{m.title}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <button
+                        onClick={() => completeMilestone(m.id)}
+                        aria-label={`Mark "${m.title}" done`}
+                        title="Mark done"
+                        className="milestone-check"
+                        style={{
+                          flexShrink: 0, width: 16, height: 16, borderRadius: 4,
+                          border: '1px solid var(--gold-border)', background: 'transparent',
+                          cursor: 'pointer', padding: 0, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--gold)', fontSize: 11, lineHeight: 1,
+                        }}
+                      />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.title}
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>
                       {m.due_date}
                     </span>
                   </li>

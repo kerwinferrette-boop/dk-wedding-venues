@@ -88,6 +88,14 @@ h2, h3, h4, h5 {
     inset 0 0 0 1px rgba(201, 168, 76, 0.08);
 }
 
+/* Milestone checkbox: empty by default, shows check on hover as a click affordance */
+.milestone-check::before {
+  content: '';
+}
+.milestone-check:hover::before {
+  content: '✓';
+}
+
 /* Frosted glass nav surface */
 .nav-glass {
   background: rgba(247, 240, 227, 0.88);
