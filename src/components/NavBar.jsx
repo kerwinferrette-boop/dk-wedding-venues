@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { path: '/budget',    label: 'Budget' },
   { path: '/guests',    label: 'Guests' },
   { path: '/vendors',   label: 'Vendors' },
+  { path: '/research',  label: 'Research' },
   { path: '/theme',     label: 'Theme' },
 ]
 

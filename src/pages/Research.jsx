@@ -1,305 +1,290 @@
-// Research page — per-vendor research notes + outreach drafts + AI assistant.
-// Surfaces vendors with status: needed, sourcing, contacted.
-// Research data stored in vendor_research table.
+// Research page — read-only view of everything the vendor researcher has gathered.
+// Vendors are grouped by type, with the individual research note kept alongside
+// status, price, contact and next step. Reads straight from vendor_pipeline.
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import AiPanel from '../components/AiPanel'
-
-const SYSTEM_PROMPT = `You are a wedding vendor researcher and outreach specialist for Dani & Kerwin's wedding on March 27, 2027 at La Valencia Hotel in La Jolla, CA.
-
-Your role:
-- Help research specific vendor types (florists, DJs, live musicians, photographers, content creators, cake bakers, etc.) in the San Diego / La Jolla area
-- Draft professional, warm outreach emails to vendors — personalized to their specific style and offerings
-- Compare vendors based on pricing, style, reviews, and availability
-- Suggest questions to ask vendors during consultations
-- Help evaluate quotes and proposals
-
-Wedding style: Mediterranean Deco — warm, elegant, intimate. La Valencia is a historic Spanish-Mediterranean hotel on the cliffs of La Jolla. The vibe is sophisticated but personal, not stuffy.
-
-Budget context: Total budget ~$150K. Venue (La Valencia) and catering are booked. Still need: florist, DJ, live musician, content creator, cake.
-
-When drafting outreach emails:
-- Keep them short (3-4 paragraphs)
-- Be specific about the date, venue, and guest count (~150 guests)
-- Mention the Mediterranean Deco aesthetic
-- Ask for availability confirmation and a general price range
-- Sign as Dani & Kerwin
-
-Context with the selected vendor's details will be injected at the start.`
-
-const SUGGESTIONS = [
-  'Draft an inquiry email to this vendor',
-  'What questions should I ask at a consultation?',
-  'Research florists in La Jolla / San Diego',
-  'Compare these vendor options for me',
-]
-
-const ACTIVE_STATUSES = ['needed', 'sourcing', 'contacted']
+import { formatUsd } from '../lib/budget'
 
 function prettyType(t) {
   return (t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-const STATUS_COLOR = {
-  needed:      'var(--text-muted)',
-  sourcing:    'var(--teal)',
-  contacted:   'var(--gold)',
-  shortlisted: 'var(--gold)',
-  booked:      'var(--green)',
-  passed:      'var(--red)',
+const STATUS_STYLE = {
+  booked:      { bg: 'rgba(93,187,138,0.18)',  fg: '#2f7d55' },
+  sourcing:    { bg: 'rgba(201,168,76,0.18)',  fg: '#8a6f1f' },
+  contacted:   { bg: 'rgba(42,107,124,0.16)',  fg: '#215663' },
+  shortlisted: { bg: 'rgba(42,107,124,0.16)',  fg: '#215663' },
+  passed:      { bg: 'rgba(224,112,112,0.16)', fg: '#a34141' },
+  needed:      { bg: 'rgba(28,18,8,0.08)',     fg: 'rgba(28,18,8,0.5)' },
 }
 
-export default function Research() {
-  const [vendors, setVendors] = useState([])
-  const [research, setResearch] = useState({}) // vendor_id -> { id, research_notes, outreach_draft }
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(null)
-  const [expanded, setExpanded] = useState(null)
-  const [search, setSearch] = useState('')
-  const [saving, setSaving] = useState(null)
+function StatusPill({ status }) {
+  const s = STATUS_STYLE[status] || STATUS_STYLE.needed
+  return (
+    <span style={{
+      alignSelf: 'flex-start', fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
+      padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize',
+      background: s.bg, color: s.fg,
+    }}>
+      {status}
+    </span>
+  )
+}
 
-  useEffect(() => {
-    load()
-  }, [])
+function vendorCost(v) {
+  return v.actual_cost || v.estimated_cost || null
+}
 
-  async function load() {
-    setLoading(true)
-    const [vRes, rRes] = await Promise.all([
-      supabase.from('vendor_pipeline').select('*').in('status', ACTIVE_STATUSES).order('vendor_type'),
-      supabase.from('vendor_research').select('*'),
-    ])
-    setVendors(vRes.data || [])
-    const map = {}
-    for (const r of (rRes.data || [])) map[r.vendor_id] = r
-    setResearch(map)
-    setLoading(false)
-  }
+function isTopPick(v) {
+  return /top pick/i.test(v.notes || '')
+}
 
-  const saveResearch = useCallback(async (vendorId, field, value) => {
-    setSaving(vendorId)
-    const existing = research[vendorId]
-    if (existing) {
-      await supabase.from('vendor_research').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', existing.id)
-      setResearch(prev => ({ ...prev, [vendorId]: { ...prev[vendorId], [field]: value } }))
-    } else {
-      const { data } = await supabase.from('vendor_research').insert({ vendor_id: vendorId, [field]: value }).select().single()
-      if (data) setResearch(prev => ({ ...prev, [vendorId]: data }))
-    }
-    setSaving(null)
-  }, [research])
+const HEAD = { fontFamily: 'DM Sans', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }
+const GRID = '1.4fr 0.8fr 0.7fr 2.2fr'
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return vendors
-    const q = search.toLowerCase()
-    return vendors.filter(v =>
-      (v.name || '').toLowerCase().includes(q) ||
-      (v.vendor_type || '').toLowerCase().includes(q)
-    )
-  }, [vendors, search])
-
-  const aiContext = useMemo(() => {
-    if (!selected) return null
-    const v = vendors.find(x => x.id === selected)
-    if (!v) return null
-    const r = research[selected]
-    return [
-      `Vendor: ${v.name || 'Unknown'}`,
-      `Type: ${prettyType(v.vendor_type)}`,
-      `Status: ${v.status}`,
-      v.contact_name && `Contact: ${v.contact_name}`,
-      v.contact_email && `Email: ${v.contact_email}`,
-      v.website && `Website: ${v.website}`,
-      v.estimated_cost && `Estimated cost: $${v.estimated_cost.toLocaleString()}`,
-      v.notes && `Notes: ${v.notes}`,
-      r?.research_notes && `Research notes: ${r.research_notes}`,
-      r?.outreach_draft && `Existing outreach draft: ${r.outreach_draft}`,
-    ].filter(Boolean).join('\n')
-  }, [selected, vendors, research])
-
-  const textareaStyle = {
-    width: '100%',
-    background: 'var(--dark2)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '8px 10px',
-    color: 'var(--text)',
-    fontFamily: 'DM Sans',
-    fontSize: 12,
-    resize: 'vertical',
-    outline: 'none',
-    lineHeight: 1.5,
-    minHeight: 80,
-    boxSizing: 'border-box',
-  }
+function VendorRow({ v }) {
+  const booked = v.status === 'booked'
+  const top = isTopPick(v)
+  const accent = booked ? 'var(--green)' : top ? 'var(--gold)' : null
+  const cost = vendorCost(v)
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
-      {/* Data panel */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--text)', fontFamily: 'Cinzel, Georgia, serif', letterSpacing: '0.06em' }}>
-            Research
-          </h1>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Sans', marginTop: 4 }}>
-            Vendor research notes &amp; outreach drafts
-          </div>
-        </div>
-
-        {/* Search */}
-        <input
-          style={{
-            width: '100%', maxWidth: 360, background: 'var(--card)',
-            border: '1px solid var(--border)', borderRadius: 8,
-            padding: '8px 12px', color: 'var(--text)', fontFamily: 'DM Sans',
-            fontSize: 13, outline: 'none', marginBottom: 20, boxSizing: 'border-box',
-          }}
-          placeholder="Search vendors…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-
-        {loading ? (
-          <div style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>Loading…</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>No active vendors found.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map(v => {
-              const r = research[v.id] || {}
-              const isExpanded = expanded === v.id
-              const isSelected = selected === v.id
-              const statusColor = STATUS_COLOR[v.status] || 'var(--text-muted)'
-
-              return (
-                <div
-                  key={v.id}
-                  style={{
-                    background: 'var(--card)',
-                    border: `1px solid ${isSelected ? 'var(--gold)' : 'var(--border)'}`,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    transition: 'border-color 0.15s',
-                  }}
-                >
-                  {/* Card header */}
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => {
-                      const next = isExpanded ? null : v.id
-                      setExpanded(next)
-                      if (next) setSelected(next)
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                        {v.name || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unnamed {prettyType(v.vendor_type)}</span>}
-                      </div>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                        {prettyType(v.vendor_type)}
-                        {v.contact_email && <span style={{ marginLeft: 8, color: 'var(--text-dim)' }}>· {v.contact_email}</span>}
-                      </div>
-                    </div>
-
-                    <span style={{
-                      padding: '2px 8px', borderRadius: 999, flexShrink: 0,
-                      background: `${statusColor}22`, color: statusColor,
-                      border: `1px solid ${statusColor}66`,
-                      fontFamily: 'DM Sans', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
-                    }}>
-                      {v.status}
-                    </span>
-
-                    {r.research_notes && (
-                      <span style={{ fontSize: 10, color: 'var(--teal)', fontFamily: 'DM Sans' }}>has notes</span>
-                    )}
-
-                    <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</span>
-                  </div>
-
-                  {/* Expanded body */}
-                  {isExpanded && (
-                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)' }}>
-                      <div style={{ paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {/* Research notes */}
-                        <div>
-                          <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'DM Sans', marginBottom: 6 }}>
-                            Research Notes
-                          </div>
-                          <textarea
-                            style={textareaStyle}
-                            placeholder="Add research notes, pricing info, links, impressions…"
-                            defaultValue={r.research_notes || ''}
-                            onBlur={e => saveResearch(v.id, 'research_notes', e.target.value)}
-                          />
-                        </div>
-
-                        {/* Outreach draft */}
-                        <div>
-                          <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'DM Sans', marginBottom: 6 }}>
-                            Outreach Draft
-                          </div>
-                          <textarea
-                            style={{ ...textareaStyle, minHeight: 120 }}
-                            placeholder="Outreach email draft (write manually or use AI →)"
-                            defaultValue={r.outreach_draft || ''}
-                            onBlur={e => saveResearch(v.id, 'outreach_draft', e.target.value)}
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <button
-                            onClick={() => {
-                              setSelected(v.id)
-                            }}
-                            style={{
-                              padding: '6px 14px',
-                              background: 'var(--gold)',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: 6,
-                              fontFamily: 'DM Sans',
-                              fontSize: 12,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Draft outreach with AI →
-                          </button>
-                          {saving === v.id && (
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>Saving…</span>
-                          )}
-                          {v.contact_email && (
-                            <a
-                              href={`mailto:${v.contact_email}`}
-                              style={{ fontSize: 11, color: 'var(--teal)', fontFamily: 'DM Sans' }}
-                            >
-                              Open email ↗
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+    <div style={{
+      display: 'grid', gridTemplateColumns: GRID,
+      borderTop: '1px solid var(--border)',
+      background: booked ? 'rgba(93,187,138,0.07)' : 'transparent',
+    }}>
+      {/* Vendor */}
+      <div style={{
+        padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0,
+        boxShadow: accent ? `inset 3px 0 0 ${accent}` : 'none',
+      }}>
+        {top && (
+          <span style={{
+            alignSelf: 'flex-start', fontFamily: 'DM Sans', fontSize: 9.5, fontWeight: 700,
+            letterSpacing: '0.08em', color: '#8a6f1f', background: 'var(--gold-light)',
+            borderRadius: 4, padding: '2px 6px',
+          }}>★ TOP PICK</span>
+        )}
+        <span style={{ fontFamily: 'DM Sans', fontWeight: 600, fontSize: 14, lineHeight: 1.25, color: 'var(--text)' }}>
+          {v.vendor_name || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Unnamed</span>}
+        </span>
+        {(v.contact_name || v.contact_email) && (
+          <span style={{ fontFamily: 'DM Sans', fontSize: 11.5, color: 'var(--text-dim)' }}>
+            {[v.contact_name, v.contact_email].filter(Boolean).join(' · ')}
+          </span>
+        )}
+        {(v.website_url || v.instagram_url) && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+            {v.website_url && (
+              <a href={v.website_url} target="_blank" rel="noopener noreferrer" style={linkChip}>Website</a>
+            )}
+            {v.instagram_url && (
+              <a href={v.instagram_url.startsWith('http') ? v.instagram_url : `https://instagram.com/${v.instagram_url.replace('@', '')}`}
+                 target="_blank" rel="noopener noreferrer" style={linkChip}>Instagram</a>
+            )}
           </div>
         )}
       </div>
 
-      {/* AI Panel */}
-      <div style={{ padding: '28px 28px 28px 0', display: 'flex' }}>
-        <AiPanel
-          label="Vendor Research"
-          systemPrompt={SYSTEM_PROMPT}
-          context={aiContext}
-          suggestions={SUGGESTIONS}
-          placeholder="Research or draft outreach…"
-        />
+      {/* Status */}
+      <div style={{ padding: '14px 16px', borderLeft: '1px solid var(--border)' }}>
+        <StatusPill status={v.status} />
+      </div>
+
+      {/* Cost */}
+      <div style={{ padding: '14px 16px', borderLeft: '1px solid var(--border)' }}>
+        {cost ? (
+          <span style={{ fontFamily: 'DM Sans', fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: v.actual_cost ? 'var(--text)' : 'var(--text-muted)' }}>
+            {v.actual_cost && (
+              <span style={{ display: 'block', fontSize: 10, fontWeight: 500, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actual</span>
+            )}
+            {formatUsd(cost)}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--text-dim)' }}>—</span>
+        )}
+      </div>
+
+      {/* Research notes */}
+      <div style={{ padding: '14px 16px', borderLeft: '1px solid var(--border)', minWidth: 0 }}>
+        {v.notes ? (
+          <div style={{ fontFamily: 'DM Sans', fontSize: 12.5, lineHeight: 1.55, color: 'rgba(28,18,8,0.72)' }}>{v.notes}</div>
+        ) : (
+          <div style={{ fontFamily: 'DM Sans', fontSize: 12.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>No research notes yet.</div>
+        )}
+        {v.next_action && (
+          <div style={{ marginTop: 8, fontFamily: 'DM Sans', fontSize: 11.5, color: 'var(--teal)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+            <b style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 9.5, paddingTop: 1, whiteSpace: 'nowrap' }}>Next</b>
+            <span>{v.next_action}{v.next_action_date ? ` · ${v.next_action_date}` : ''}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const linkChip = {
+  fontFamily: 'DM Sans', fontSize: 11, color: 'var(--teal)', textDecoration: 'none',
+  border: '1px solid rgba(42,107,124,0.3)', borderRadius: 999, padding: '2px 8px',
+}
+
+function Group({ type, vendors }) {
+  const bookedCount = vendors.filter(v => v.status === 'booked').length
+  const costs = vendors.map(vendorCost).filter(Boolean)
+  const range = costs.length
+    ? (Math.min(...costs) === Math.max(...costs)
+        ? formatUsd(costs[0])
+        : `${formatUsd(Math.min(...costs))}–${formatUsd(Math.max(...costs))}`)
+    : null
+
+  const meta = [
+    `${vendors.length} sourced`,
+    bookedCount ? `${bookedCount} booked` : 'none booked',
+    range,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <div style={{ marginBottom: 30 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, margin: '0 2px 12px' }}>
+        <span style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--text)' }}>
+          {prettyType(type)}
+        </span>
+        <span style={{ fontFamily: 'DM Sans', fontSize: 12.5, color: 'var(--text-muted)' }}>{meta}</span>
+        <span style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--gold-border), transparent)' }} />
+      </div>
+
+      <div style={{
+        background: 'var(--card)', border: '1px solid var(--gold-border)', borderRadius: 16,
+        overflow: 'hidden', boxShadow: '0 8px 30px rgba(28,18,8,0.05)',
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: GRID, background: 'rgba(201,168,76,0.08)' }}>
+          <div style={{ ...HEAD, padding: '12px 16px' }}>Vendor</div>
+          <div style={{ ...HEAD, padding: '12px 16px' }}>Status</div>
+          <div style={{ ...HEAD, padding: '12px 16px' }}>Cost</div>
+          <div style={{ ...HEAD, padding: '12px 16px' }}>Research notes</div>
+        </div>
+        {vendors.map(v => <VendorRow key={v.id} v={v} />)}
+      </div>
+    </div>
+  )
+}
+
+// Booked first, then TOP PICK, then by cost desc within a type.
+function sortVendors(list) {
+  const rank = v => (v.status === 'booked' ? 0 : isTopPick(v) ? 1 : 2)
+  return [...list].sort((a, b) => rank(a) - rank(b) || (vendorCost(b) || 0) - (vendorCost(a) || 0))
+}
+
+export default function Research() {
+  const [vendors, setVendors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all') // 'all' | vendor_type | 'booked'
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { data } = await supabase.from('vendor_pipeline').select('*').order('vendor_type')
+      if (cancelled) return
+      setVendors(data || [])
+      setLoading(false)
+    }
+    load()
+
+    const ch = supabase
+      .channel('research-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_pipeline' },
+        async () => {
+          const { data } = await supabase.from('vendor_pipeline').select('*').order('vendor_type')
+          if (!cancelled) setVendors(data || [])
+        })
+      .subscribe()
+
+    return () => { cancelled = true; supabase.removeChannel(ch) }
+  }, [])
+
+  const types = useMemo(() => {
+    const seen = new Map()
+    for (const v of vendors) seen.set(v.vendor_type, (seen.get(v.vendor_type) || 0) + 1)
+    return [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t)
+  }, [vendors])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return vendors.filter(v => {
+      if (typeFilter === 'booked' && v.status !== 'booked') return false
+      if (typeFilter !== 'all' && typeFilter !== 'booked' && v.vendor_type !== typeFilter) return false
+      if (!q) return true
+      return [v.vendor_name, v.vendor_type, v.notes, v.next_action, v.contact_name, v.contact_email]
+        .filter(Boolean).some(s => String(s).toLowerCase().includes(q))
+    })
+  }, [vendors, search, typeFilter])
+
+  const groups = useMemo(() => {
+    const g = {}
+    for (const v of filtered) (g[v.vendor_type] ||= []).push(v)
+    // Preserve type ordering by group size, then render sorted rows within each.
+    return types
+      .filter(t => g[t]?.length)
+      .map(t => [t, sortVendors(g[t])])
+  }, [filtered, types])
+
+  return (
+    <div style={{ background: 'var(--dark)', minHeight: 'calc(100vh - 56px)', padding: '24px 24px 64px' }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--gold)', textTransform: 'uppercase', fontFamily: 'DM Sans', marginBottom: 4 }}>
+            Vendor research
+          </div>
+          <h1 style={{ margin: 0, fontSize: 26 }}>Research</h1>
+          <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-muted)', marginTop: 6, maxWidth: 720 }}>
+            Everything the researcher has gathered, grouped by vendor type — the individual research note kept alongside status, price and next step.
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '0 0 26px', flexWrap: 'wrap' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search vendors, notes, cities…"
+            style={{
+              flex: 1, minWidth: 220, background: 'var(--card)', border: '1px solid var(--gold-border)',
+              borderRadius: 10, padding: '10px 14px', color: 'var(--text)', fontFamily: 'DM Sans', fontSize: 13, outline: 'none',
+            }}
+          />
+          {[['all', 'All types'], ...types.map(t => [t, prettyType(t)]), ['booked', 'Booked only']].map(([k, label]) => {
+            const on = typeFilter === k
+            return (
+              <button
+                key={k}
+                onClick={() => setTypeFilter(k)}
+                style={{
+                  background: on ? 'var(--gold)' : 'var(--card)',
+                  border: `1px solid ${on ? 'var(--gold)' : 'var(--gold-border)'}`,
+                  borderRadius: 999, padding: '7px 14px', fontFamily: 'DM Sans', fontSize: 12.5,
+                  color: on ? '#1C1208' : 'var(--text-muted)', fontWeight: on ? 600 : 400,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
+        {loading ? (
+          <div style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>Loading research…</div>
+        ) : groups.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'DM Sans', fontSize: 13 }}>
+            No vendors match this search.
+          </div>
+        ) : (
+          groups.map(([type, list]) => <Group key={type} type={type} vendors={list} />)
+        )}
       </div>
     </div>
   )

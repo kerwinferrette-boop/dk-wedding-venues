@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatUsd } from '../lib/budget'
+import { formatUsd, computeVendorCommitments } from '../lib/budget'
 
 const STATUSES = ['needed', 'sourcing', 'contacted', 'shortlisted', 'booked', 'passed']
 const PRIORITIES = ['must_have', 'nice_to_have']
@@ -79,192 +79,7 @@ function StatusBadge({ status }) {
   )
 }
 
-function CompareModal({ vendors, onClose, onChoose }) {
-  const prices = vendors.map(v => v.actual_cost || v.estimated_cost).filter(Boolean)
-  const minPrice = prices.length ? Math.min(...prices) : null
-
-  const dim = { fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans' }
-  const cellBase = {
-    padding: '10px 14px', borderBottom: '1px solid var(--border)',
-    fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)', verticalAlign: 'top',
-  }
-  const labelCell = { ...cellBase, color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', width: 110 }
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.85)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--card)', borderRadius: 12,
-          border: '1px solid var(--gold-border)',
-          maxWidth: Math.min(vendors.length * 280 + 140, 1100),
-          width: '100%', maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '16px 20px', borderBottom: '1px solid var(--border)',
-        }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--gold)', textTransform: 'uppercase', fontFamily: 'DM Sans' }}>
-              Comparing
-            </div>
-            <div style={{ fontFamily: 'Playfair Display', fontSize: 20, color: 'var(--text)', marginTop: 2 }}>
-              {prettyType(vendors[0]?.vendor_type)} · {vendors.length} options
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent', border: '1px solid var(--gold-border)',
-              color: 'var(--text-muted)', borderRadius: 6, padding: '4px 10px',
-              fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer',
-            }}
-          >
-            ✕ Close
-          </button>
-        </div>
-
-        {/* Comparison table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ ...labelCell, background: 'transparent' }} />
-                {vendors.map(v => (
-                  <th key={v.id} style={{
-                    ...cellBase, textAlign: 'left',
-                    fontFamily: 'Playfair Display', fontSize: 16,
-                    color: 'var(--text)', fontWeight: 400,
-                  }}>
-                    {v.vendor_name || <span style={{ color: 'var(--text-dim)' }}>Unnamed</span>}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {/* Est. Cost */}
-              <tr>
-                <td style={labelCell}>Est. Cost</td>
-                {vendors.map(v => {
-                  const price = v.actual_cost || v.estimated_cost
-                  const isMin = minPrice !== null && price === minPrice
-                  return (
-                    <td key={v.id} style={{
-                      ...cellBase,
-                      color: isMin ? 'var(--green)' : 'var(--text)',
-                      fontWeight: isMin ? 600 : 400,
-                    }}>
-                      {formatUsd(v.estimated_cost)}
-                      {isMin && <span style={{ marginLeft: 6, fontSize: 10 }}>✓ lowest</span>}
-                    </td>
-                  )
-                })}
-              </tr>
-              {/* Actual Cost */}
-              <tr>
-                <td style={labelCell}>Actual Cost</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={cellBase}>
-                    {v.actual_cost ? formatUsd(v.actual_cost) : <span style={dim}>—</span>}
-                  </td>
-                ))}
-              </tr>
-              {/* Status */}
-              <tr>
-                <td style={labelCell}>Status</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={cellBase}>
-                    <StatusBadge status={v.status} />
-                  </td>
-                ))}
-              </tr>
-              {/* Contact */}
-              <tr>
-                <td style={labelCell}>Contact</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={cellBase}>
-                    {v.contact_name && <div>{v.contact_name}</div>}
-                    {v.contact_email
-                      ? <a href={`mailto:${v.contact_email}`} style={{ color: 'var(--gold)', fontSize: 12 }}>{v.contact_email}</a>
-                      : !v.contact_name && <span style={dim}>—</span>}
-                  </td>
-                ))}
-              </tr>
-              {/* Website */}
-              <tr>
-                <td style={labelCell}>Website</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={cellBase}>
-                    {v.website_url
-                      ? <a href={v.website_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)' }}>site ↗</a>
-                      : <span style={dim}>—</span>}
-                  </td>
-                ))}
-              </tr>
-              {/* Instagram */}
-              <tr>
-                <td style={labelCell}>Instagram</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={cellBase}>
-                    {v.instagram_url
-                      ? <a href={v.instagram_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)' }}>ig ↗</a>
-                      : <span style={dim}>—</span>}
-                  </td>
-                ))}
-              </tr>
-              {/* Notes */}
-              <tr>
-                <td style={labelCell}>Notes</td>
-                {vendors.map(v => (
-                  <td key={v.id} style={{ ...cellBase, maxWidth: 260, whiteSpace: 'pre-wrap', fontSize: 12 }}>
-                    {v.notes || <span style={dim}>—</span>}
-                  </td>
-                ))}
-              </tr>
-              {/* Choose this */}
-              <tr>
-                <td style={{ ...labelCell, borderBottom: 'none' }} />
-                {vendors.map(v => (
-                  <td key={v.id} style={{ ...cellBase, borderBottom: 'none', paddingTop: 16 }}>
-                    <button
-                      onClick={() => onChoose(v.id)}
-                      disabled={v.status === 'booked'}
-                      style={{
-                        background: v.status === 'shortlisted' ? 'var(--gold)' : 'transparent',
-                        border: '1px solid var(--gold)',
-                        color: v.status === 'shortlisted' ? 'var(--card)' : 'var(--gold)',
-                        borderRadius: 6, padding: '6px 14px',
-                        fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
-                        cursor: v.status === 'booked' ? 'not-allowed' : 'pointer',
-                        opacity: v.status === 'booked' ? 0.5 : 1,
-                      }}
-                    >
-                      {v.status === 'booked' ? 'Booked' : v.status === 'shortlisted' ? 'Shortlisted ✓' : 'Choose this'}
-                    </button>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function VendorCard({ vendor, onUpdate, onDelete, showCompare, onCompare }) {
+function VendorCard({ vendor, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const [edit, setEdit] = useState(vendor)
 
@@ -352,18 +167,6 @@ function VendorCard({ vendor, onUpdate, onDelete, showCompare, onCompare }) {
         >
           {expanded ? 'Close' : 'Edit'}
         </button>
-        {showCompare && (
-          <button
-            onClick={onCompare}
-            style={{
-              background: 'transparent', border: '1px solid var(--gold-border)',
-              color: 'var(--gold)', borderRadius: 6, padding: '4px 10px',
-              fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer',
-            }}
-          >
-            Compare
-          </button>
-        )}
         {vendor.website_url && (
           <a href={vendor.website_url} target="_blank" rel="noopener noreferrer"
             style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--gold)' }}>
@@ -526,7 +329,6 @@ export default function Vendors() {
   const [filter, setFilter] = useState('all')   // 'all' | 'open' | 'booked'
   const [adding, setAdding] = useState(false)
   const [newType, setNewType] = useState('')
-  const [compareType, setCompareType] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -554,27 +356,26 @@ export default function Vendors() {
     return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
 
-  const typeCount = useMemo(() =>
-    vendors.reduce((acc, v) => {
-      acc[v.vendor_type] = (acc[v.vendor_type] || 0) + 1
-      return acc
-    }, {}),
-  [vendors])
-
   const stats = useMemo(() => {
     return {
       total: vendors.length,
       booked: vendors.filter(v => v.status === 'booked').length,
       open: vendors.filter(v => v.status !== 'booked' && v.status !== 'passed').length,
       passed: vendors.filter(v => v.status === 'passed').length,
-      estTotal: vendors.reduce((s, v) => s + (v.actual_cost || v.estimated_cost || 0), 0),
+      // Group by type so multiple quotes for one category don't stack — count the
+      // booked option if any, else the highest estimate per type.
+      estTotal: computeVendorCommitments(vendors).total,
     }
   }, [vendors])
 
   const filtered = useMemo(() => {
-    if (filter === 'open') return vendors.filter(v => v.status !== 'booked' && v.status !== 'passed')
-    if (filter === 'booked') return vendors.filter(v => v.status === 'booked')
-    return vendors
+    let list = vendors
+    if (filter === 'open') list = vendors.filter(v => v.status !== 'booked' && v.status !== 'passed')
+    else if (filter === 'booked') list = vendors.filter(v => v.status === 'booked')
+    // Booked vendors float to the top (user likes the green outline up front),
+    // then everything else keeps a stable order by id.
+    const rank = v => (v.status === 'booked' ? 0 : 1)
+    return [...list].sort((a, b) => rank(a) - rank(b) || a.id - b.id)
   }, [vendors, filter])
 
   async function update(id, patch) {
@@ -592,18 +393,6 @@ export default function Vendors() {
       setError(`Delete failed: ${error.message}`)
       setVendors(prev)
     }
-  }
-
-  async function chooseVendor(id) {
-    const vendor = vendors.find(v => v.id === id)
-    if (!vendor) return
-    const siblings = vendors.filter(v => v.vendor_type === vendor.vendor_type)
-    await Promise.all(siblings.map(v => update(v.id, {
-      status: v.id === id
-        ? (v.status === 'booked' ? 'booked' : 'shortlisted')
-        : (v.status === 'booked' ? 'booked' : 'contacted'),
-    })))
-    setCompareType(null)
   }
 
   async function addVendor() {
@@ -740,8 +529,6 @@ export default function Vendors() {
               vendor={v}
               onUpdate={update}
               onDelete={removeVendor}
-              showCompare={typeCount[v.vendor_type] >= 2}
-              onCompare={() => setCompareType(v.vendor_type)}
             />
           ))}
         </div>
@@ -756,13 +543,6 @@ export default function Vendors() {
         )}
       </div>
 
-      {compareType && (
-        <CompareModal
-          vendors={vendors.filter(v => v.vendor_type === compareType)}
-          onClose={() => setCompareType(null)}
-          onChoose={chooseVendor}
-        />
-      )}
     </div>
   )
 }

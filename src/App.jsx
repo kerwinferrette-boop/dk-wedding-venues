@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import React, { useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { getCurrentUser, setCurrentUser, clearCurrentUser } from './lib/supabase'
 import NavBar from './components/NavBar'
 import UserSelect from './components/UserSelect'
@@ -7,21 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Guests from './pages/Guests'
 import Vendors from './pages/Vendors'
 import Budget from './pages/Budget'
+import Research from './pages/Research'
 import Theme from './pages/Theme'
-
-function InitialRedirect() {
-  const navigate = useNavigate()
-  const done = useRef(false)
-
-  useEffect(() => {
-    if (!done.current) {
-      done.current = true
-      navigate('/dashboard', { replace: true })
-    }
-  }, [navigate])
-
-  return null
-}
 
 export default function App() {
   const [user, setUser] = useState(() => getCurrentUser())
@@ -42,7 +29,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <InitialRedirect />
       <div className="nav-glass" style={{
         position: 'sticky',
         top: 0,
@@ -58,6 +44,7 @@ export default function App() {
         <Route path="/budget" element={<Budget user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/guests" element={<Guests user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/vendors" element={<Vendors user={user} onSwitchUser={handleSwitchUser} />} />
+        <Route path="/research" element={<Research user={user} onSwitchUser={handleSwitchUser} />} />
         <Route path="/theme" element={<Theme user={user} />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
