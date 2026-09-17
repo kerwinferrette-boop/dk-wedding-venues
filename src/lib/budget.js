@@ -185,6 +185,39 @@ export function computeVendorCommitments(vendors, opts = {}) {
 }
 
 /**
+ * Roll extras_budget rows + the "chosen" vendor_pipeline rows (from
+ * computeVendorCommitments) into a single who's-paying-for-what breakdown,
+ * bucketed by contribution side. Used to drive the payer-colored bar on the
+ * Dashboard so parent contributions logged on either the Extras or Vendor
+ * commitments tables show up in one place.
+ * @param {Array} extraRows - rows from extras_budget (parents_covering, parents_amount, parents_side).
+ * @param {Array} vendorRows - `.rows` from computeVendorCommitments (parent_contribution, parent_contribution_amount, parent_contribution_side).
+ * @returns {{ dani: number, kerwin: number, both: number, couple: number, total: number }}
+ */
+export function computeContributionBreakdown(extraRows = [], vendorRows = []) {
+  const totals = { dani: 0, kerwin: 0, both: 0, couple: 0, total: 0 }
+
+  function apply(cost, isCovered, amount, side) {
+    totals.total += cost
+    const contrib = isCovered ? Math.min(cost, Number(amount) || 0) : 0
+    if (contrib > 0) {
+      const key = side === 'dani' || side === 'kerwin' ? side : 'both'
+      totals[key] += contrib
+    }
+    totals.couple += Math.max(0, cost - contrib)
+  }
+
+  for (const r of extraRows) {
+    apply(Number(r.total_cost) || 0, r.parents_covering, r.parents_amount, r.parents_side)
+  }
+  for (const r of vendorRows) {
+    apply(r.cost || 0, r.parent_contribution, r.parent_contribution_amount, r.parent_contribution_side)
+  }
+
+  return totals
+}
+
+/**
  * Status traffic light for the headline total vs the target budget.
  * green  : at or under target
  * yellow : within 10% over target

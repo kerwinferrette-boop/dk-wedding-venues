@@ -13,6 +13,8 @@ import {
   computeMarginalCostPerGuest,
   fetchExtras,
   computeExtras,
+  computeVendorCommitments,
+  computeContributionBreakdown,
   budgetStatus,
   formatUsd,
   formatUsdPrecise,
@@ -131,6 +133,14 @@ export default function Dashboard() {
   }, [quote, projectedGuests])
 
   const extrasSummary = useMemo(() => computeExtras(extras), [extras])
+
+  const vendorCommitments = useMemo(() =>
+    computeVendorCommitments(vendors, { exclude: ['catering', 'bar'] }),
+  [vendors])
+
+  const contributions = useMemo(() =>
+    computeContributionBreakdown(extras, vendorCommitments.rows),
+  [extras, vendorCommitments])
 
   // Soonest upcoming payment due date across the extras, for the home card.
   const nextExtraDue = useMemo(() => {
@@ -360,6 +370,43 @@ export default function Dashboard() {
           </div>
         </button>
 
+        {/* ── Who's covering it (parent contributions across Extras + Vendors) */}
+        {contributions.total > 0 && (
+          <div className="card-gatsby" style={{ padding: 18, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Who&rsquo;s covering it
+            </div>
+
+            {/* Segmented bar */}
+            <div style={{
+              display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden',
+              background: 'var(--dark3)', marginTop: 12,
+            }}>
+              {[
+                { key: 'dani', color: 'var(--rose)' },
+                { key: 'kerwin', color: 'var(--teal)' },
+                { key: 'both', color: 'var(--plum)' },
+                { key: 'couple', color: 'var(--gold)' },
+              ].map(({ key, color }) => {
+                const width = (contributions[key] / contributions.total) * 100
+                return width > 0 ? (
+                  <div key={key} style={{ width: `${width}%`, background: color, transition: 'width 200ms' }} />
+                ) : null
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 12 }}>
+              <LegendItem color="var(--rose)" label="Dani's parents" value={formatUsd(contributions.dani)} />
+              <LegendItem color="var(--teal)" label="Kerwin's parents" value={formatUsd(contributions.kerwin)} />
+              {contributions.both > 0 && (
+                <LegendItem color="var(--plum)" label="Both sides" value={formatUsd(contributions.both)} />
+              )}
+              <LegendItem color="var(--gold)" label="Us" value={formatUsd(contributions.couple)} />
+            </div>
+          </div>
+        )}
+
         {/* ── Bottom row: Vendors + RSVP + Next milestones ────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
 
@@ -460,6 +507,16 @@ export default function Dashboard() {
         </div>
 
       </div>
+    </div>
+  )
+}
+
+function LegendItem({ color, label, value }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans' }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>{value}</span>
     </div>
   )
 }

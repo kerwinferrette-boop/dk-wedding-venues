@@ -536,28 +536,41 @@ export default function Budget() {
                   </div>
                 </div>
 
-                {/* Parents cover: toggle + amount */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={!!r.parents_covering}
-                    onChange={e => saveExtra(r.id, { parents_covering: e.target.checked })}
-                    style={{ accentColor: 'var(--gold)' }}
-                    title="Parents are covering part of this"
-                  />
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: 'var(--text-dim)' }}>$</span>
+                {/* Parents cover: toggle + amount + side */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <input
-                      type="number"
-                      min="0"
-                      disabled={!r.parents_covering}
-                      style={{ ...extraInput, paddingLeft: 18, textAlign: 'right', opacity: r.parents_covering ? 1 : 0.4 }}
-                      value={r.parents_amount ?? ''}
-                      placeholder="0"
-                      onChange={e => setLocalExtra(r.id, { parents_amount: e.target.value })}
-                      onBlur={e => saveExtra(r.id, { parents_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+                      type="checkbox"
+                      checked={!!r.parents_covering}
+                      onChange={e => saveExtra(r.id, { parents_covering: e.target.checked })}
+                      style={{ accentColor: 'var(--gold)' }}
+                      title="Parents are covering part of this"
                     />
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <span style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: 'var(--text-dim)' }}>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        disabled={!r.parents_covering}
+                        style={{ ...extraInput, paddingLeft: 18, textAlign: 'right', opacity: r.parents_covering ? 1 : 0.4 }}
+                        value={r.parents_amount ?? ''}
+                        placeholder="0"
+                        onChange={e => setLocalExtra(r.id, { parents_amount: e.target.value })}
+                        onBlur={e => saveExtra(r.id, { parents_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+                      />
+                    </div>
                   </div>
+                  <select
+                    value={r.parents_side || ''}
+                    disabled={!r.parents_covering}
+                    style={{ ...extraInput, marginTop: 4, opacity: r.parents_covering ? 1 : 0.4 }}
+                    onChange={e => saveExtra(r.id, { parents_side: e.target.value || null })}
+                  >
+                    <option value="">Side&hellip;</option>
+                    <option value="dani">Dani&rsquo;s parents</option>
+                    <option value="kerwin">Kerwin&rsquo;s parents</option>
+                    <option value="both">Both</option>
+                  </select>
                 </div>
 
                 {/* Payment due date */}
