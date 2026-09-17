@@ -139,9 +139,14 @@ export function computeMarginalCostPerGuest(quoteLines, baseGuestCount = 150, op
  * don't all stack into the budget. For each type we pick:
  *   - the booked vendor's cost if one is booked, else
  *   - the highest estimate among the remaining (non-passed) options.
+ * The chosen row's `id` and parent-contribution fields (parent_contribution,
+ * parent_contribution_amount, parent_contribution_side) pass through so the UI
+ * can edit/save them directly, same as the Extras budget. Contribution reduces
+ * the couple's out-of-pocket but NOT `total` (total = what's owed to vendors,
+ * regardless of who pays it - stays consistent with the page's grand total).
  * @param {Array} vendors - rows from vendor_pipeline.
  * @param {object} opts - { exclude: string[] } vendor_types to skip entirely.
- * @returns {{ rows: Array, total: number }} rows sorted by cost desc.
+ * @returns {{ rows: Array, total: number, parents: number, couple: number }}
  */
 export function computeVendorCommitments(vendors, opts = {}) {
   const exclude = opts.exclude ?? []
@@ -157,19 +162,26 @@ export function computeVendorCommitments(vendors, opts = {}) {
     const booked = options.filter(o => o.status === 'booked')
     const pool = booked.length ? booked : options
     const chosen = pool.reduce((best, o) => (o._cost > best._cost ? o : best), pool[0])
+    const parentAmount = chosen.parent_contribution ? (Number(chosen.parent_contribution_amount) || 0) : 0
     return {
+      id: chosen.id,
       vendor_type,
       cost: chosen._cost,
       vendor_name: chosen.vendor_name,
       status: chosen.status,
       optionCount: options.length,
       isBooked: booked.length > 0,
+      parent_contribution: !!chosen.parent_contribution,
+      parent_contribution_amount: chosen.parent_contribution_amount,
+      parent_contribution_side: chosen.parent_contribution_side,
+      couple: Math.max(0, chosen._cost - parentAmount),
     }
   })
   rows.sort((a, b) => b.cost - a.cost)
 
   const total = rows.reduce((s, r) => s + r.cost, 0)
-  return { rows, total }
+  const parents = rows.reduce((s, r) => s + (r.cost - r.couple), 0)
+  return { rows, total, parents, couple: total - parents }
 }
 
 /**

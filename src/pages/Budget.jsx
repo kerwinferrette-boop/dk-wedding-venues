@@ -91,6 +91,11 @@ export default function Budget() {
           const data = await fetchExtras()
           if (!cancelled) setExtras(data)
         })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_pipeline' },
+        async () => {
+          const { data } = await supabase.from('vendor_pipeline').select('*')
+          if (!cancelled) setVendors(data || [])
+        })
       .subscribe()
 
     return () => { cancelled = true; supabase.removeChannel(ch) }
@@ -177,6 +182,19 @@ export default function Budget() {
     width: '100%', background: 'var(--dark2)', border: '1px solid var(--border)',
     color: 'var(--text)', borderRadius: 6, padding: '6px 8px', fontFamily: 'DM Sans',
     fontSize: 13, boxSizing: 'border-box',
+  }
+
+  // --- Vendor parent-contribution editing (writes to vendor_pipeline) -------
+  // Same pattern as extras: setLocalVendor updates state per keystroke,
+  // saveVendor persists. Rows shown are the "chosen" vendor per type from
+  // computeVendorCommitments, so `id` is that specific vendor_pipeline row.
+  function setLocalVendor(id, patch) {
+    setVendors(prev => prev.map(v => (v.id === id ? { ...v, ...patch } : v)))
+  }
+  async function saveVendor(id, patch) {
+    setLocalVendor(id, patch)
+    const { error: e } = await supabase.from('vendor_pipeline').update(patch).eq('id', id)
+    if (e) setError(`Save failed: ${e.message}`)
   }
 
   if (loading) {
@@ -319,45 +337,118 @@ export default function Budget() {
 
         {/* Vendor costs add-on */}
         <div className="card-gatsby" style={{ padding: 18 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Vendor commitments (excluding catering &amp; bar)
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Vendor commitments (excluding catering &amp; bar)
+            </div>
+            {vendorCommitments.parents > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
+                Out-of-pocket <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{formatUsd(vendorCommitments.couple)}</span>
+                {' '}&middot; parents {formatUsd(vendorCommitments.parents)}
+              </div>
+            )}
           </div>
+
           {vendorCommitments.rows.length === 0 ? (
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
               No vendor cost data yet. Add estimates on the Vendors page.
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 13, marginTop: 10 }}>
-              <tbody>
-                {vendorCommitments.rows.map(r => (
-                  <tr key={r.vendor_type} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '8px 0' }}>
-                      {r.vendor_type.replace(/_/g, ' ')}
-                      {r.vendor_name && (
-                        <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>· {r.vendor_name}</span>
-                      )}
-                      {r.optionCount > 1 && (
-                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>
-                          top of {r.optionCount} options
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 0', textAlign: 'right', color: r.isBooked ? 'var(--text)' : 'var(--text-muted)' }}>
-                      {formatUsd(r.cost)}
-                      {!r.isBooked ? (
-                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>est</span>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td style={{ padding: '10px 0', fontWeight: 700 }}>Vendor subtotal</td>
-                  <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 700 }}>
-                    {formatUsd(vendorTotal)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <>
+              {/* Column headers (hidden on narrow screens where rows stack) */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1.5fr 100px 170px 130px 96px',
+                gap: 10, marginTop: 12, paddingBottom: 6, borderBottom: '1px solid var(--gold-border)',
+              }}>
+                <ExtraHead>Vendor</ExtraHead>
+                <ExtraHead right>Cost</ExtraHead>
+                <ExtraHead>Parent contribution</ExtraHead>
+                <ExtraHead>Side</ExtraHead>
+                <ExtraHead right>Out&#8209;of&#8209;pocket</ExtraHead>
+              </div>
+
+              {vendorCommitments.rows.map(r => (
+                <div key={r.vendor_type} style={{
+                  display: 'grid', gridTemplateColumns: '1.5fr 100px 170px 130px 96px',
+                  gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)',
+                }}>
+                  {/* Name */}
+                  <div>
+                    {r.vendor_type.replace(/_/g, ' ')}
+                    {r.vendor_name && (
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>· {r.vendor_name}</span>
+                    )}
+                    {r.optionCount > 1 && (
+                      <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>
+                        top of {r.optionCount} options
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Cost */}
+                  <div style={{ textAlign: 'right', color: r.isBooked ? 'var(--text)' : 'var(--text-muted)' }}>
+                    {formatUsd(r.cost)}
+                    {!r.isBooked ? (
+                      <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>est</span>
+                    ) : null}
+                  </div>
+
+                  {/* Parent contribution: toggle + amount */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!r.parent_contribution}
+                      onChange={e => saveVendor(r.id, { parent_contribution: e.target.checked })}
+                      style={{ accentColor: 'var(--gold)' }}
+                      title="A parent is contributing to this vendor"
+                    />
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <span style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: 'var(--text-dim)' }}>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        disabled={!r.parent_contribution}
+                        style={{ ...extraInput, paddingLeft: 18, textAlign: 'right', opacity: r.parent_contribution ? 1 : 0.4 }}
+                        value={r.parent_contribution_amount ?? ''}
+                        placeholder="0"
+                        onChange={e => setLocalVendor(r.id, { parent_contribution_amount: e.target.value })}
+                        onBlur={e => saveVendor(r.id, { parent_contribution_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Which side */}
+                  <div>
+                    <select
+                      value={r.parent_contribution_side || ''}
+                      disabled={!r.parent_contribution}
+                      style={{ ...extraInput, opacity: r.parent_contribution ? 1 : 0.4 }}
+                      onChange={e => saveVendor(r.id, { parent_contribution_side: e.target.value || null })}
+                    >
+                      <option value="">Side&hellip;</option>
+                      <option value="dani">Dani&rsquo;s parents</option>
+                      <option value="kerwin">Kerwin&rsquo;s parents</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
+
+                  {/* Out-of-pocket (computed) */}
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: 'var(--text)', fontWeight: 600, fontSize: 14 }}>{formatUsd(r.couple)}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)' }}>
+                  Vendor subtotal <span style={{ fontWeight: 700 }}>{formatUsd(vendorTotal)}</span>
+                </div>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)' }}>
+                  Vendor out-of-pocket{' '}
+                  <span style={{ fontWeight: 700, color: 'var(--gold)', marginLeft: 4 }}>{formatUsd(vendorCommitments.couple)}</span>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
