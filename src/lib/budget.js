@@ -38,6 +38,45 @@ export async function fetchProjectMetadata() {
 }
 
 /**
+ * Extras / second budget: purchases that sit OUTSIDE the core $58k La Valencia
+ * budget (DJ, violinist, MUA, florist, painter, Reel Love film, 2nd shooter).
+ * Each row carries a total cost plus an optional parents' contribution, so the
+ * couple's out-of-pocket portion = total - (parents_covering ? parents_amount : 0).
+ * Source of truth: Supabase table `extras_budget`.
+ */
+export async function fetchExtras() {
+  const { data, error } = await supabase
+    .from('extras_budget')
+    .select('*')
+    .order('display_order', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+/**
+ * Roll the extras rows up into the summary numbers the cards show.
+ * @param {Array} rows - rows from extras_budget.
+ * @returns {{ total: number, parents: number, couple: number, tbdCount: number, rows: Array }}
+ *   total   : sum of every row's total cost
+ *   parents : sum of the parents' contribution where parents_covering is on
+ *   couple  : the couple's out-of-pocket portion (total - parents)
+ *   tbdCount: how many rows still have pricing TBD
+ */
+export function computeExtras(rows = []) {
+  let total = 0
+  let parents = 0
+  let tbdCount = 0
+  for (const r of rows) {
+    const rowTotal = Number(r.total_cost) || 0
+    const rowParents = r.parents_covering ? (Number(r.parents_amount) || 0) : 0
+    total += rowTotal
+    parents += rowParents
+    if (r.tbd) tbdCount += 1
+  }
+  return { total, parents, couple: Math.max(0, total - parents), tbdCount, rows }
+}
+
+/**
  * Compute the full budget breakdown for a given guest count.
  * @param {Array} quoteLines - rows from quote_line_items, sorted by display_order.
  * @param {number} guestCount - the headcount to compute against.
@@ -92,6 +131,45 @@ export function computeMarginalCostPerGuest(quoteLines, baseGuestCount = 150, op
   const at = computeBudget(quoteLines, baseGuestCount, opts).total
   const atPlusOne = computeBudget(quoteLines, baseGuestCount + 1, opts).total
   return atPlusOne - at
+}
+
+/**
+ * Collapse the vendor pipeline into one representative cost per vendor type,
+ * so multiple quotes/options for the same category (e.g. three cake bakers)
+ * don't all stack into the budget. For each type we pick:
+ *   - the booked vendor's cost if one is booked, else
+ *   - the highest estimate among the remaining (non-passed) options.
+ * @param {Array} vendors - rows from vendor_pipeline.
+ * @param {object} opts - { exclude: string[] } vendor_types to skip entirely.
+ * @returns {{ rows: Array, total: number }} rows sorted by cost desc.
+ */
+export function computeVendorCommitments(vendors, opts = {}) {
+  const exclude = opts.exclude ?? []
+  const groups = {}
+  for (const v of vendors) {
+    if (exclude.includes(v.vendor_type)) continue
+    if (v.status === 'passed') continue
+    const cost = v.actual_cost || v.estimated_cost || 0
+    ;(groups[v.vendor_type] ||= []).push({ ...v, _cost: cost })
+  }
+
+  const rows = Object.entries(groups).map(([vendor_type, options]) => {
+    const booked = options.filter(o => o.status === 'booked')
+    const pool = booked.length ? booked : options
+    const chosen = pool.reduce((best, o) => (o._cost > best._cost ? o : best), pool[0])
+    return {
+      vendor_type,
+      cost: chosen._cost,
+      vendor_name: chosen.vendor_name,
+      status: chosen.status,
+      optionCount: options.length,
+      isBooked: booked.length > 0,
+    }
+  })
+  rows.sort((a, b) => b.cost - a.cost)
+
+  const total = rows.reduce((s, r) => s + r.cost, 0)
+  return { rows, total }
 }
 
 /**

@@ -12,6 +12,9 @@ import {
   fetchProjectMetadata,
   computeBudget,
   computeMarginalCostPerGuest,
+  computeVendorCommitments,
+  fetchExtras,
+  computeExtras,
   budgetStatus,
   formatUsd,
   formatUsdPrecise,
@@ -46,6 +49,7 @@ export default function Budget() {
   const [meta, setMeta] = useState(null)
   const [vendors, setVendors] = useState([])
   const [guests, setGuests] = useState([])
+  const [extras, setExtras] = useState([])
   const [guestCount, setGuestCount] = useState(170)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -54,17 +58,19 @@ export default function Budget() {
     let cancelled = false
     async function load() {
       try {
-        const [q, m, v, g] = await Promise.all([
+        const [q, m, v, g, x] = await Promise.all([
           fetchQuote(),
           fetchProjectMetadata(),
           supabase.from('vendor_pipeline').select('*'),
           supabase.from('guests').select('id, plus_one, cut_candidate'),
+          fetchExtras(),
         ])
         if (cancelled) return
         setQuote(q)
         setMeta(m)
         setVendors(v.data || [])
         setGuests(g.data || [])
+        setExtras(x)
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
       } finally {
@@ -79,6 +85,11 @@ export default function Budget() {
         async () => {
           const { data } = await supabase.from('guests').select('id, plus_one, cut_candidate')
           if (!cancelled) setGuests(data || [])
+        })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'extras_budget' },
+        async () => {
+          const data = await fetchExtras()
+          if (!cancelled) setExtras(data)
         })
       .subscribe()
 
@@ -103,12 +114,15 @@ export default function Budget() {
     return computeMarginalCostPerGuest(quote, guestCount, { vendorCount: 6 })
   }, [quote, guestCount])
 
-  const vendorTotal = useMemo(() => {
-    // Only count non-La-Valencia vendors so we don't double-count catering/bar.
-    return vendors
-      .filter(v => !['catering', 'bar'].includes(v.vendor_type))
-      .reduce((s, v) => s + (v.actual_cost || v.estimated_cost || 0), 0)
-  }, [vendors])
+  const vendorCommitments = useMemo(() =>
+    // Group by vendor_type so multiple quotes for the same category collapse to
+    // one representative cost (booked vendor if any, else highest estimate).
+    // Exclude catering/bar since those are already in the La Valencia quote.
+    computeVendorCommitments(vendors, { exclude: ['catering', 'bar'] }),
+  [vendors])
+  const vendorTotal = vendorCommitments.total
+
+  const extrasSummary = useMemo(() => computeExtras(extras), [extras])
 
   const target = meta?.budget_target || 58000
   const venueTotal = budget?.total || 0
@@ -120,6 +134,50 @@ export default function Budget() {
   // Compare current vs 170 and vs 200 for the cutdown impact view.
   const at170 = useMemo(() => quote.length ? computeBudget(quote, 170, { vendorCount: 6 }).total : 0, [quote])
   const at200 = useMemo(() => quote.length ? computeBudget(quote, 200, { vendorCount: 6 }).total : 0, [quote])
+
+  // --- Extras editing (writes straight to Supabase extras_budget) -----------
+  // Two helpers so typing doesn't thrash the database: setLocalExtra updates
+  // only React state on each keystroke; saveExtra persists (on blur, or
+  // immediately for checkboxes / date pickers). The realtime subscription above
+  // keeps both partners' views in sync after a save lands.
+  function setLocalExtra(id, patch) {
+    setExtras(prev => prev.map(x => (x.id === id ? { ...x, ...patch } : x)))
+  }
+  async function saveExtra(id, patch) {
+    setExtras(prev => prev.map(x => (x.id === id ? { ...x, ...patch } : x)))
+    const { error: e } = await supabase.from('extras_budget').update(patch).eq('id', id)
+    if (e) setError(`Save failed: ${e.message}`)
+  }
+  async function addExtra() {
+    const nextOrder = extras.length ? Math.max(...extras.map(e => e.display_order || 0)) + 1 : 0
+    const row = {
+      slug: `extra-${Date.now()}`,
+      name: 'New expense',
+      role: null,
+      budget_group: 'Other',
+      total_cost: 0,
+      parents_amount: 0,
+      parents_covering: false,
+      tbd: false,
+      display_order: nextOrder,
+    }
+    const { data, error: e } = await supabase.from('extras_budget').insert(row).select().single()
+    if (e) setError(`Add failed: ${e.message}`)
+    else if (data) setExtras(x => [...x, data])
+  }
+  async function removeExtra(id) {
+    if (!window.confirm('Remove this expense from the extras budget?')) return
+    const prev = extras
+    setExtras(x => x.filter(e => e.id !== id))
+    const { error: e } = await supabase.from('extras_budget').delete().eq('id', id)
+    if (e) { setError(`Delete failed: ${e.message}`); setExtras(prev) }
+  }
+
+  const extraInput = {
+    width: '100%', background: 'var(--dark2)', border: '1px solid var(--border)',
+    color: 'var(--text)', borderRadius: 6, padding: '6px 8px', fontFamily: 'DM Sans',
+    fontSize: 13, boxSizing: 'border-box',
+  }
 
   if (loading) {
     return (
@@ -264,31 +322,34 @@ export default function Budget() {
           <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Vendor commitments (excluding catering &amp; bar)
           </div>
-          {vendors.filter(v => !['catering', 'bar'].includes(v.vendor_type)).length === 0 ? (
+          {vendorCommitments.rows.length === 0 ? (
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
               No vendor cost data yet. Add estimates on the Vendors page.
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 13, marginTop: 10 }}>
               <tbody>
-                {vendors
-                  .filter(v => !['catering', 'bar'].includes(v.vendor_type))
-                  .map(v => (
-                    <tr key={v.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '8px 0' }}>
-                        {v.vendor_type.replace(/_/g, ' ')}
-                        {v.vendor_name && (
-                          <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>· {v.vendor_name}</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '8px 0', textAlign: 'right', color: v.actual_cost ? 'var(--text)' : 'var(--text-muted)' }}>
-                        {formatUsd(v.actual_cost || v.estimated_cost)}
-                        {!v.actual_cost && v.estimated_cost ? (
-                          <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>est</span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
+                {vendorCommitments.rows.map(r => (
+                  <tr key={r.vendor_type} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '8px 0' }}>
+                      {r.vendor_type.replace(/_/g, ' ')}
+                      {r.vendor_name && (
+                        <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>· {r.vendor_name}</span>
+                      )}
+                      {r.optionCount > 1 && (
+                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>
+                          top of {r.optionCount} options
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 0', textAlign: 'right', color: r.isBooked ? 'var(--text)' : 'var(--text-muted)' }}>
+                      {formatUsd(r.cost)}
+                      {!r.isBooked ? (
+                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>est</span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
                 <tr>
                   <td style={{ padding: '10px 0', fontWeight: 700 }}>Vendor subtotal</td>
                   <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 700 }}>
@@ -298,6 +359,170 @@ export default function Budget() {
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* Extras / second budget - outside the $58k. Editable: totals, parents
+            contribution, and a payment due date that the scheduled task turns
+            into a calendar reminder + 7-day heads-up. */}
+        <div className="card-gatsby" style={{ padding: 18, marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Extras &middot; outside the {formatUsd(target)} budget
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
+              Out-of-pocket <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{formatUsd(extrasSummary.couple)}</span>
+              {' '}&middot; total {formatUsd(extrasSummary.total)}
+              {extrasSummary.parents > 0 && <> &middot; parents {formatUsd(extrasSummary.parents)}</>}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans', marginTop: 6 }}>
+            Your own spend, separate from the venue budget. Check &ldquo;Parents&rdquo; to log their contribution; set a due date and it lands on the calendar with a one-week reminder.
+          </div>
+
+          {/* Column headers (hidden on narrow screens where rows stack) */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1.4fr 100px 190px 150px 96px 26px',
+            gap: 10, marginTop: 12, paddingBottom: 6, borderBottom: '1px solid var(--gold-border)',
+          }}>
+            <ExtraHead>Expense</ExtraHead>
+            <ExtraHead right>Total</ExtraHead>
+            <ExtraHead>Parents cover</ExtraHead>
+            <ExtraHead>Payment due</ExtraHead>
+            <ExtraHead right>Out&#8209;of&#8209;pocket</ExtraHead>
+            <ExtraHead />
+          </div>
+
+          {extras.map(r => {
+            const rowTotal = Number(r.total_cost) || 0
+            const rowParents = r.parents_covering ? (Number(r.parents_amount) || 0) : 0
+            const rowCouple = Math.max(0, rowTotal - rowParents)
+            return (
+              <div key={r.id} style={{
+                display: 'grid', gridTemplateColumns: '1.4fr 100px 190px 150px 96px 26px',
+                gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)',
+              }}>
+                {/* Name + role */}
+                <div>
+                  <input
+                    style={extraInput}
+                    value={r.name || ''}
+                    onChange={e => setLocalExtra(r.id, { name: e.target.value })}
+                    onBlur={e => saveExtra(r.id, { name: e.target.value })}
+                  />
+                  <input
+                    style={{ ...extraInput, marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}
+                    placeholder="role / note (optional)"
+                    value={r.role || ''}
+                    onChange={e => setLocalExtra(r.id, { role: e.target.value })}
+                    onBlur={e => saveExtra(r.id, { role: e.target.value || null })}
+                  />
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!r.tbd}
+                      onChange={e => saveExtra(r.id, { tbd: e.target.checked })}
+                      style={{ accentColor: 'var(--gold)' }}
+                    />
+                    Price TBD
+                  </label>
+                </div>
+
+                {/* Total */}
+                <div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: 'var(--text-dim)' }}>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      disabled={!!r.tbd}
+                      style={{ ...extraInput, paddingLeft: 18, textAlign: 'right', opacity: r.tbd ? 0.4 : 1 }}
+                      value={r.tbd ? '' : (r.total_cost ?? '')}
+                      placeholder={r.tbd ? 'TBD' : '0'}
+                      onChange={e => setLocalExtra(r.id, { total_cost: e.target.value })}
+                      onBlur={e => saveExtra(r.id, { total_cost: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                {/* Parents cover: toggle + amount */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!r.parents_covering}
+                    onChange={e => saveExtra(r.id, { parents_covering: e.target.checked })}
+                    style={{ accentColor: 'var(--gold)' }}
+                    title="Parents are covering part of this"
+                  />
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <span style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: 'var(--text-dim)' }}>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      disabled={!r.parents_covering}
+                      style={{ ...extraInput, paddingLeft: 18, textAlign: 'right', opacity: r.parents_covering ? 1 : 0.4 }}
+                      value={r.parents_amount ?? ''}
+                      placeholder="0"
+                      onChange={e => setLocalExtra(r.id, { parents_amount: e.target.value })}
+                      onBlur={e => saveExtra(r.id, { parents_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+
+                {/* Payment due date */}
+                <div>
+                  <input
+                    type="date"
+                    style={extraInput}
+                    value={r.due_date || ''}
+                    onChange={e => saveExtra(r.id, { due_date: e.target.value || null })}
+                  />
+                </div>
+
+                {/* Out-of-pocket (computed) */}
+                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {r.tbd ? (
+                    <span style={{ color: 'var(--text-dim)', fontStyle: 'italic', fontSize: 12 }}>TBD</span>
+                  ) : (
+                    <span style={{ color: 'var(--text)', fontWeight: 600, fontSize: 14 }}>{formatUsd(rowCouple)}</span>
+                  )}
+                </div>
+
+                {/* Remove */}
+                <button
+                  onClick={() => removeExtra(r.id)}
+                  title="Remove expense"
+                  style={{
+                    background: 'transparent', border: 'none', color: 'var(--text-dim)',
+                    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2,
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+            )
+          })}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
+            <button
+              onClick={addExtra}
+              style={{
+                background: 'transparent', border: '1px dashed var(--gold-border)', color: 'var(--gold)',
+                borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12,
+              }}
+            >
+              + Add expense
+            </button>
+            <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)' }}>
+              Extras out-of-pocket{' '}
+              <span style={{ fontWeight: 700, color: 'var(--gold)', marginLeft: 4 }}>{formatUsd(extrasSummary.couple)}</span>
+              {extrasSummary.tbdCount > 0 && (
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 6 }}>
+                  {extrasSummary.tbdCount} still TBD
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
       </div>
@@ -315,6 +540,18 @@ function Stat({ label, value, color, sub }) {
         {value}
       </div>
       {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function ExtraHead({ children, right = false }) {
+  return (
+    <div style={{
+      fontFamily: 'DM Sans', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
+      color: 'var(--text-muted)', textTransform: 'uppercase',
+      textAlign: right ? 'right' : 'left',
+    }}>
+      {children}
     </div>
   )
 }

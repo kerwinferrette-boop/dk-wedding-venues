@@ -11,6 +11,8 @@ import {
   fetchProjectMetadata,
   computeBudget,
   computeMarginalCostPerGuest,
+  fetchExtras,
+  computeExtras,
   budgetStatus,
   formatUsd,
   formatUsdPrecise,
@@ -50,6 +52,7 @@ export default function Dashboard() {
   const [vendors, setVendors] = useState([])
   const [milestones, setMilestones] = useState([])
   const [guests, setGuests] = useState([])
+  const [extras, setExtras] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -60,12 +63,13 @@ export default function Dashboard() {
     let cancelled = false
     async function load() {
       try {
-        const [q, m, v, t, g] = await Promise.all([
+        const [q, m, v, t, g, x] = await Promise.all([
           fetchQuote(),
           fetchProjectMetadata(),
           supabase.from('vendor_pipeline').select('*').order('priority', { ascending: true }),
           fetchPendingMilestones(),
           supabase.from('guests').select('id, rsvp, plus_one, cut_candidate'),
+          fetchExtras(),
         ])
         if (cancelled) return
         setQuote(q)
@@ -73,6 +77,7 @@ export default function Dashboard() {
         setVendors(v.data || [])
         setMilestones(t)
         setGuests(g.data || [])
+        setExtras(x)
         // projectedGuests is kept in sync by the towardCap useEffect below
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
@@ -100,6 +105,8 @@ export default function Dashboard() {
           const { data } = await supabase.from('guests').select('id, rsvp')
           setGuests(data || [])
         })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'extras_budget' },
+        async () => setExtras(await fetchExtras()))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [])
@@ -122,6 +129,17 @@ export default function Dashboard() {
     if (!quote.length) return 0
     return computeMarginalCostPerGuest(quote, projectedGuests, { vendorCount: 6 })
   }, [quote, projectedGuests])
+
+  const extrasSummary = useMemo(() => computeExtras(extras), [extras])
+
+  // Soonest upcoming payment due date across the extras, for the home card.
+  const nextExtraDue = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    return extras
+      .filter(e => e.due_date && e.due_date >= today)
+      .map(e => ({ name: e.name, due_date: e.due_date }))
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))[0] || null
+  }, [extras])
 
   const target = meta?.budget_target || 58000
   const status = budget ? budgetStatus(budget.total, target) : 'gray'
@@ -300,6 +318,48 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── Extras / second budget (outside the $58k) ──────────────── */}
+        <button
+          onClick={() => navigate('/budget')}
+          className="card-gatsby"
+          style={{
+            padding: 20, marginBottom: 16, width: '100%', textAlign: 'left',
+            cursor: 'pointer', background: 'var(--card)', font: 'inherit', color: 'inherit',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Extras &middot; out-of-pocket
+              </div>
+              <div style={{ fontFamily: 'Playfair Display', fontSize: 32, color: 'var(--text)', marginTop: 4 }}>
+                {formatUsd(extrasSummary.couple)}
+              </div>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Separate from the {formatUsd(target)} La Valencia budget
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+              <MiniStat label="Total extras" value={formatUsd(extrasSummary.total)} />
+              <MiniStat label="Parents covering" value={formatUsd(extrasSummary.parents)} />
+              <MiniStat
+                label="Prices TBD"
+                value={extrasSummary.tbdCount ? `${extrasSummary.tbdCount} left` : 'none'}
+              />
+            </div>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--gold)', fontFamily: 'DM Sans' }}>
+              Edit expenses, parents&rsquo; share &amp; due dates &rarr;
+            </span>
+            {nextExtraDue && (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
+                Next payment: {nextExtraDue.name} due {new Date(nextExtraDue.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+        </button>
+
         {/* ── Bottom row: Vendors + RSVP + Next milestones ────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
 
@@ -399,6 +459,19 @@ export default function Dashboard() {
           </div>
         </div>
 
+      </div>
+    </div>
+  )
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Sans' }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: 'Playfair Display', fontSize: 20, color: 'var(--text)', marginTop: 2 }}>
+        {value}
       </div>
     </div>
   )
