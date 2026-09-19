@@ -15,10 +15,16 @@ import {
   computeExtras,
   computeVendorCommitments,
   computeContributionBreakdown,
+  fetchWeekendVenues,
+  fetchWeekendItinerary,
+  computeWeekendSpend,
+  computeBudgetByCategory,
   budgetStatus,
   formatUsd,
   formatUsdPrecise,
 } from '../lib/budget'
+import { categoryLabel, categoryColor } from '../lib/budgetCategories'
+import BudgetStackedBar from '../components/BudgetStackedBar'
 
 const PAGE_BG = 'var(--dark)'
 const TODAY = new Date()
@@ -55,6 +61,8 @@ export default function Dashboard() {
   const [milestones, setMilestones] = useState([])
   const [guests, setGuests] = useState([])
   const [extras, setExtras] = useState([])
+  const [weekendVenues, setWeekendVenues] = useState([])
+  const [weekendItinerary, setWeekendItinerary] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -65,13 +73,15 @@ export default function Dashboard() {
     let cancelled = false
     async function load() {
       try {
-        const [q, m, v, t, g, x] = await Promise.all([
+        const [q, m, v, t, g, x, wv, wi] = await Promise.all([
           fetchQuote(),
           fetchProjectMetadata(),
           supabase.from('vendor_pipeline').select('*').order('priority', { ascending: true }),
           fetchPendingMilestones(),
           supabase.from('guests').select('id, rsvp, plus_one, cut_candidate'),
           fetchExtras(),
+          fetchWeekendVenues(),
+          fetchWeekendItinerary(),
         ])
         if (cancelled) return
         setQuote(q)
@@ -80,6 +90,8 @@ export default function Dashboard() {
         setMilestones(t)
         setGuests(g.data || [])
         setExtras(x)
+        setWeekendVenues(wv)
+        setWeekendItinerary(wi)
         // projectedGuests is kept in sync by the towardCap useEffect below
       } catch (e) {
         if (!cancelled) setError(e.message || String(e))
@@ -109,6 +121,10 @@ export default function Dashboard() {
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'extras_budget' },
         async () => setExtras(await fetchExtras()))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weekend_venues' },
+        async () => setWeekendVenues(await fetchWeekendVenues()))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weekend_itinerary' },
+        async () => setWeekendItinerary(await fetchWeekendItinerary()))
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [])
@@ -141,6 +157,28 @@ export default function Dashboard() {
   const contributions = useMemo(() =>
     computeContributionBreakdown(extras, vendorCommitments.rows),
   [extras, vendorCommitments])
+
+  const weekendSpend = useMemo(() =>
+    computeWeekendSpend(weekendVenues, weekendItinerary),
+  [weekendVenues, weekendItinerary])
+
+  // Whole-wedding budget by vendor type: core quote lines + extras + weekend.
+  const byCategory = useMemo(() => computeBudgetByCategory({
+    coreLines: budget?.lines || [],
+    extras,
+    weekend: weekendSpend.rows,
+  }), [budget, extras, weekendSpend])
+
+  const categorySegments = useMemo(() =>
+    byCategory.categories.map(c => ({
+      key: c.category, label: categoryLabel(c.category), color: categoryColor(c.category), value: c.total,
+    })),
+  [byCategory])
+
+  const payerSegments = useMemo(() => [
+    { key: 'parents', label: 'Parents covering', color: 'var(--gold)', value: byCategory.parents },
+    { key: 'couple', label: 'Out of pocket', color: 'var(--teal)', value: byCategory.couple },
+  ], [byCategory])
 
   // Soonest upcoming payment due date across the extras, for the home card.
   const nextExtraDue = useMemo(() => {
@@ -369,6 +407,41 @@ export default function Dashboard() {
             )}
           </div>
         </button>
+
+        {/* ── Whole-wedding budget by vendor type (core + extras + weekend) ─ */}
+        {byCategory.total > 0 && (
+          <div className="card-gatsby" style={{ padding: 18, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Whole wedding &middot; by vendor type
+              </div>
+              <button
+                onClick={() => navigate('/weekend')}
+                style={{
+                  background: 'transparent', border: '1px solid var(--gold-border)',
+                  color: 'var(--gold)', borderRadius: 8, padding: '6px 12px',
+                  cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, letterSpacing: '0.05em',
+                }}
+              >
+                Weekend hub →
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 16 }}>
+              <MiniStat label="Projected total" value={formatUsd(byCategory.total)} />
+              <MiniStat label="Parents covering" value={formatUsd(byCategory.parents)} />
+              <MiniStat label="Out of pocket" value={formatUsd(byCategory.couple)} />
+              <MiniStat label="Weekend events" value={formatUsd(weekendSpend.total)} />
+            </div>
+
+            <BudgetStackedBar segments={categorySegments} formatValue={formatUsd} />
+
+            <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Sans', margin: '16px 0 6px' }}>
+              Who's paying
+            </div>
+            <BudgetStackedBar segments={payerSegments} formatValue={formatUsd} />
+          </div>
+        )}
 
         {/* ── Who's covering it (parent contributions across Extras + Vendors) */}
         {contributions.total > 0 && (
