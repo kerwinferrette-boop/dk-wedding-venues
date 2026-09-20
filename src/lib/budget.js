@@ -218,6 +218,160 @@ export function computeContributionBreakdown(extraRows = [], vendorRows = []) {
 }
 
 /**
+ * Weekend Hub sources: side-event venue candidates + the Wed-Sun itinerary.
+ * Weekend spend lives ONLY in these two tables - it is never mirrored into
+ * extras_budget - so the Dashboard roll-up (computeBudgetByCategory) can add
+ * it exactly once.
+ */
+export async function fetchWeekendVenues() {
+  const { data, error } = await supabase
+    .from('weekend_venues')
+    .select('*')
+    .order('display_order', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchWeekendItinerary() {
+  const { data, error } = await supabase
+    .from('weekend_itinerary')
+    .select('*')
+    .order('day', { ascending: true })
+    .order('display_order', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+/**
+ * Collapse weekend_venues candidates down to one representative cost per
+ * event_type (After Party / Ceremony Rehearsal / Rehearsal Dinner / Welcome
+ * Party / Egg Hunt), same pattern as computeVendorCommitments: the booked
+ * candidate's cost if one is booked, else the highest quote midpoint among
+ * the remaining (non-passed) candidates. Rows with no quote at all contribute
+ * $0 (still "sourcing", nothing to project yet).
+ * @param {Array} venues - rows from weekend_venues.
+ * @returns {{ rows: Array, total: number, parents: number, couple: number }}
+ */
+export function computeWeekendVenueCommitments(venues = []) {
+  const groups = {}
+  for (const v of venues) {
+    if (v.status === 'passed') continue
+    const cost = v.quote_low != null && v.quote_high != null
+      ? (Number(v.quote_low) + Number(v.quote_high)) / 2
+      : Number(v.quote_low ?? v.quote_high ?? 0) || 0
+    ;(groups[v.event_type] ||= []).push({ ...v, _cost: cost })
+  }
+
+  const rows = Object.entries(groups).map(([event_type, options]) => {
+    const booked = options.filter(o => o.status === 'booked')
+    const pool = booked.length ? booked : options
+    const chosen = pool.reduce((best, o) => (o._cost > best._cost ? o : best), pool[0])
+    const parentAmount = chosen.parents_covering ? (Number(chosen.parents_amount) || 0) : 0
+    return {
+      id: chosen.id,
+      event_type,
+      cost: chosen._cost,
+      name: chosen.name,
+      status: chosen.status,
+      category: chosen.category,
+      parents_covering: !!chosen.parents_covering,
+      parents_amount: chosen.parents_amount,
+      parents_side: chosen.parents_side,
+      couple: Math.max(0, chosen._cost - parentAmount),
+    }
+  })
+
+  const total = rows.reduce((s, r) => s + r.cost, 0)
+  const parents = rows.reduce((s, r) => s + (r.cost - r.couple), 0)
+  return { rows, total, parents, couple: total - parents }
+}
+
+/**
+ * Roll weekend_venues (collapsed via computeWeekendVenueCommitments) and
+ * weekend_itinerary cost_estimate rows into one weekend-scope spend list,
+ * ready to feed into computeBudgetByCategory alongside core + extras.
+ * @returns {{ rows: Array, total: number, parents: number, couple: number }}
+ */
+export function computeWeekendSpend(venues = [], itineraryRows = []) {
+  const venueCommitments = computeWeekendVenueCommitments(venues)
+  const itinerary = itineraryRows
+    .filter(r => r.cost_estimate != null)
+    .map(r => {
+      const cost = Number(r.cost_estimate) || 0
+      const parentAmount = r.parents_covering ? (Number(r.parents_amount) || 0) : 0
+      return {
+        id: r.id,
+        cost,
+        category: r.category,
+        parents_covering: !!r.parents_covering,
+        parents_amount: r.parents_amount,
+        parents_side: r.parents_side,
+        couple: Math.max(0, cost - parentAmount),
+      }
+    })
+
+  const rows = [...venueCommitments.rows, ...itinerary]
+  const total = rows.reduce((s, r) => s + r.cost, 0)
+  const parents = rows.reduce((s, r) => s + (r.cost - r.couple), 0)
+  return { rows, total, parents, couple: total - parents }
+}
+
+/** The core La Valencia quote is entirely funded by Dani's parents. */
+export const CORE_FUNDED_BY = 'parents'
+
+/**
+ * Break the whole projected budget (core quote + extras + weekend) down by
+ * vendor-type category, for the color-coded stacked bar on the Dashboard and
+ * the scoped version on the Weekend tab.
+ * @param {object} opts
+ * @param {Array} opts.coreLines - `.lines` from computeBudget() (each has `category`, `amount`).
+ * @param {Array} opts.extras - `.rows` from computeExtras() (each has `category`, `total_cost`, `parents_covering`, `parents_amount`).
+ * @param {Array} opts.weekend - `.rows` from computeWeekendSpend() (each has `category`, `cost`, `parents_covering`, `parents_amount`).
+ * @returns {{ categories: Array, total: number, parents: number, couple: number }}
+ *   `categories` is every BUDGET_CATEGORIES entry with `{ total, parents, couple }` attached (zeroed if unused).
+ */
+export function computeBudgetByCategory({ coreLines = [], extras = [], weekend = [] } = {}) {
+  const totals = {}
+  function bucket(key) {
+    const k = key || 'other'
+    return (totals[k] ||= { category: k, total: 0, parents: 0, couple: 0 })
+  }
+
+  // Core quote lines (from computeBudget().lines) already carry `category`
+  // straight from quote_line_items - including the service charge and tax
+  // lines, both mapped to `service_tax`.
+  for (const line of coreLines) {
+    if (!line.category || line.amount == null) continue
+    const b = bucket(line.category)
+    b.total += line.amount
+    b.parents += line.amount
+    // core quote is 100% parent-funded
+  }
+  for (const r of extras) {
+    const cost = Number(r.total_cost) || 0
+    const parentAmount = r.parents_covering ? (Number(r.parents_amount) || 0) : 0
+    const b = bucket(r.category)
+    b.total += cost
+    b.parents += parentAmount
+    b.couple += Math.max(0, cost - parentAmount)
+  }
+  for (const r of weekend) {
+    const cost = Number(r.cost) || 0
+    const parentAmount = r.parents_covering ? (Number(r.parents_amount) || 0) : 0
+    const b = bucket(r.category)
+    b.total += cost
+    b.parents += parentAmount
+    b.couple += Math.max(0, cost - parentAmount)
+  }
+
+  const categories = Object.values(totals).sort((a, b) => b.total - a.total)
+  const total = categories.reduce((s, c) => s + c.total, 0)
+  const parents = categories.reduce((s, c) => s + c.parents, 0)
+  const couple = categories.reduce((s, c) => s + c.couple, 0)
+  return { categories, total, parents, couple }
+}
+
+/**
  * Status traffic light for the headline total vs the target budget.
  * green  : at or under target
  * yellow : within 10% over target
