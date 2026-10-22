@@ -11,3 +11,16 @@ vite.config.ts.timestamp-*
 # Local quote PDFs (folder name contains ':' which breaks on some platforms)
 La Valencia Quote:PDF/
 
+# Python scratch from the pin-board builder
+__pycache__/
+*.pyc
+
+# Merch mock-ups: large tee renders that didn't pan out. The research and
+# wording live in chat; no need to version the artwork.
+Wedding HQ/mockup-tee-back.png
+Wedding HQ/pins/composite-base-tee.png
+Wedding HQ/pins/ref-01-tee-original.png
+Wedding HQ/pins/ref-02-tee-template.png
+
+# Credit-card authorisation forms — never commit to a public repo.
+**/*CC Auth*
