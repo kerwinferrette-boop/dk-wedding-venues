@@ -7,12 +7,15 @@
 // Pulls from / writes to Supabase `vendor_pipeline`. The vendor inbox tracker
 // and the vendor researcher skills both read & write this same table.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatUsd, computeVendorCommitments } from '../lib/budget'
 
+// Order matters: index = how far along the pipeline a status is. Used to pick
+// the badge for a whole category and to sort groups by progress.
 const STATUSES = ['needed', 'sourcing', 'contacted', 'shortlisted', 'booked', 'passed']
 const PRIORITIES = ['must_have', 'nice_to_have']
+const OPEN_STATUSES = ['needed', 'sourcing', 'contacted', 'shortlisted']
 
 const STATUS_COLOR = {
   needed:      'var(--text-muted)',
@@ -32,8 +35,13 @@ const STATUS_LABEL = {
   passed:      'Passed',
 }
 
+const ACRONYMS = { dj: 'DJ' }
+
 function prettyType(t) {
-  return (t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  return (t || '')
+    .split('_')
+    .map(w => ACRONYMS[w] || w.replace(/^\w/, c => c.toUpperCase()))
+    .join(' ')
 }
 
 function fmtDate(d) {
@@ -60,6 +68,8 @@ function Field({ label, children }) {
 
 function StatusBadge({ status }) {
   const color = STATUS_COLOR[status] || 'var(--text-muted)'
+  // color-mix, not string concatenation: `var(--green)1F` parses as two tokens
+  // and silently drops the whole declaration.
   return (
     <span style={{
       display: 'inline-block',
@@ -68,9 +78,9 @@ function StatusBadge({ status }) {
       fontSize: 10,
       letterSpacing: '0.10em',
       textTransform: 'uppercase',
-      background: `${color}1F`,
+      background: `color-mix(in srgb, ${color} 14%, transparent)`,
       color,
-      border: `1px solid ${color}66`,
+      border: `1px solid color-mix(in srgb, ${color} 45%, transparent)`,
       fontFamily: 'DM Sans',
       fontWeight: 600,
     }}>
@@ -322,13 +332,221 @@ function EditCheck({ label, value, onChange }) {
   )
 }
 
+// --- Category grouping ------------------------------------------------------
+
+/** What a row actually costs: actual beats estimate; null when unpriced. */
+function rowCost(v) {
+  const c = v.actual_cost ?? v.estimated_cost
+  if (c == null || c === '') return null
+  const n = Number(c)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+/**
+ * One badge for a whole category: booked wins outright, otherwise the
+ * furthest-along status among options we haven't passed on.
+ */
+function groupStatus(rows) {
+  const live = rows.filter(r => r.status !== 'passed')
+  if (!live.length) return 'passed'
+  if (live.some(r => r.status === 'booked')) return 'booked'
+  return live.reduce(
+    (best, r) => (STATUSES.indexOf(r.status) > STATUSES.indexOf(best) ? r.status : best),
+    live[0].status,
+  )
+}
+
+/** "$900–$1,800", "$3,500", or "—" when nothing in the category is priced. */
+function priceRange(rows) {
+  const costs = rows.filter(r => r.status !== 'passed').map(rowCost).filter(c => c != null)
+  if (!costs.length) return '—'
+  const min = Math.min(...costs)
+  const max = Math.max(...costs)
+  return min === max ? formatUsd(min) : `${formatUsd(min)}–${formatUsd(max)}`
+}
+
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x))
+
+function Chip({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? 'var(--gold)' : 'transparent',
+        color: active ? 'var(--card)' : 'var(--text-muted)',
+        border: `1px solid ${active ? 'var(--gold)' : 'var(--gold-border)'}`,
+        borderRadius: 999, padding: '4px 11px', cursor: 'pointer',
+        fontFamily: 'DM Sans', fontSize: 11, fontWeight: active ? 600 : 400,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Checkbox dropdown. Used for the category list, which is too long for chips. */
+function MultiSelect({ label, options, selected, onChange, format = (x) => x }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  const toggle = (o) =>
+    onChange(selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: selected.length ? 'var(--gold)' : 'transparent',
+          color: selected.length ? 'var(--card)' : 'var(--text-muted)',
+          border: `1px solid ${selected.length ? 'var(--gold)' : 'var(--gold-border)'}`,
+          borderRadius: 8, padding: '6px 11px', cursor: 'pointer',
+          fontFamily: 'DM Sans', fontSize: 12, whiteSpace: 'nowrap',
+          fontWeight: selected.length ? 600 : 400,
+        }}
+      >
+        {label}{selected.length ? ` · ${selected.length}` : ''} ▾
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 20,
+          background: 'var(--card)', border: '1px solid var(--gold-border)',
+          borderRadius: 8, padding: 8, minWidth: 200, maxHeight: 280,
+          overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        }}>
+          {options.map(o => (
+            <label key={o} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px',
+              cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text)',
+            }}>
+              <input
+                type="checkbox"
+                checked={selected.includes(o)}
+                onChange={() => toggle(o)}
+                style={{ accentColor: 'var(--gold)' }}
+              />
+              {format(o)}
+            </label>
+          ))}
+          {selected.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              style={{
+                marginTop: 6, width: '100%', background: 'transparent',
+                border: '1px solid var(--gold-border)', color: 'var(--text-muted)',
+                borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                fontFamily: 'DM Sans', fontSize: 11,
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** One collapsed category row; expands to show the competing options inside. */
+function CategoryGroup({ group, open, onToggle, onUpdate, onDelete }) {
+  const color = STATUS_COLOR[group.status] || 'var(--text-muted)'
+  const isBooked = group.status === 'booked'
+
+  return (
+    <div
+      className="card-gatsby"
+      style={{
+        padding: 0, overflow: 'visible',
+        borderColor: isBooked ? 'var(--green)' : 'var(--gold-border)',
+        borderWidth: isBooked ? 2 : 1, borderStyle: 'solid',
+      }}
+    >
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%', background: 'transparent', border: 'none', cursor: 'pointer',
+          display: 'grid', alignItems: 'center', gap: 12, textAlign: 'left',
+          gridTemplateColumns: '14px minmax(130px, 1fr) 104px 78px 150px 118px',
+          padding: '12px 16px',
+        }}
+      >
+        <span style={{
+          color: 'var(--gold)', fontSize: 10, fontFamily: 'DM Sans',
+          transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms',
+        }}>
+          ▶
+        </span>
+
+        <span>
+          <span style={{ fontFamily: 'Playfair Display', fontSize: 17, color: 'var(--text)' }}>
+            {prettyType(group.type)}
+          </span>
+          {!group.mustHave && (
+            <span style={{
+              marginLeft: 8, fontFamily: 'DM Sans', fontSize: 10,
+              color: 'var(--text-dim)',
+            }}>
+              {' '}· nice-to-have
+            </span>
+          )}
+        </span>
+
+        <span><StatusBadge status={group.status} /></span>
+
+        <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text-muted)' }}>
+          {group.count} {group.count === 1 ? 'option' : 'options'}
+        </span>
+
+        <span style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text)' }}>
+          {group.range}
+        </span>
+
+        <span style={{ textAlign: 'right' }}>
+          <span style={{ fontFamily: 'DM Sans', fontSize: 13, color: group.committed ? color : 'var(--text-dim)' }}>
+            {group.committed ? formatUsd(group.committed) : '—'}
+          </span>
+          <span style={{ display: 'block', fontSize: 9, color: 'var(--text-dim)', fontFamily: 'DM Sans', letterSpacing: '0.08em' }}>
+            IN BUDGET
+          </span>
+        </span>
+      </button>
+
+      {open && (
+        <div style={{
+          padding: '0 16px 16px', display: 'grid', gap: 12,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+        }}>
+          {group.rows.map(v => (
+            <VendorCard key={v.id} vendor={v} onUpdate={onUpdate} onDelete={onDelete} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Vendors() {
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('all')   // 'all' | 'open' | 'booked'
   const [adding, setAdding] = useState(false)
   const [newType, setNewType] = useState('')
+
+  // Filters. Everything below is derived from these - no stored row lists.
+  const [query, setQuery] = useState('')
+  const [cats, setCats] = useState([])
+  const [statusSel, setStatusSel] = useState([])
+  const [priority, setPriority] = useState('all')
+  const [sort, setSort] = useState('category')
+  const [expanded, setExpanded] = useState(() => new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -356,27 +574,129 @@ export default function Vendors() {
     return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
 
+  // Everything in this header is computed from the rows - nothing is typed in.
   const stats = useMemo(() => {
+    const unbookedMustHaves = new Set(
+      vendors.filter(v => v.priority === 'must_have' && v.status !== 'passed')
+        .map(v => v.vendor_type),
+    )
+    for (const v of vendors) {
+      if (v.status === 'booked') unbookedMustHaves.delete(v.vendor_type)
+    }
+    const nextDue = vendors
+      .filter(v => v.next_action_date && v.status !== 'passed' && v.status !== 'booked')
+      .map(v => v.next_action_date)
+      .sort()[0] || null
+
     return {
       total: vendors.length,
+      categories: new Set(vendors.map(v => v.vendor_type)).size,
       booked: vendors.filter(v => v.status === 'booked').length,
       open: vendors.filter(v => v.status !== 'booked' && v.status !== 'passed').length,
-      passed: vendors.filter(v => v.status === 'passed').length,
+      mustHavesOpen: unbookedMustHaves.size,
+      nextDue,
       // Group by type so multiple quotes for one category don't stack — count the
       // booked option if any, else the highest estimate per type.
       estTotal: computeVendorCommitments(vendors).total,
     }
   }, [vendors])
 
-  const filtered = useMemo(() => {
-    let list = vendors
-    if (filter === 'open') list = vendors.filter(v => v.status !== 'booked' && v.status !== 'passed')
-    else if (filter === 'booked') list = vendors.filter(v => v.status === 'booked')
-    // Booked vendors float to the top (user likes the green outline up front),
-    // then everything else keeps a stable order by id.
-    const rank = v => (v.status === 'booked' ? 0 : 1)
-    return [...list].sort((a, b) => rank(a) - rank(b) || a.id - b.id)
-  }, [vendors, filter])
+  const allTypes = useMemo(
+    () => [...new Set(vendors.map(v => v.vendor_type))].filter(Boolean).sort(),
+    [vendors],
+  )
+
+  // Single source of truth for "what counts toward the budget" — the same
+  // function the Budget page uses, so the two pages can never disagree.
+  const commitMap = useMemo(() => {
+    const m = {}
+    for (const r of computeVendorCommitments(vendors).rows) m[r.vendor_type] = r
+    return m
+  }, [vendors])
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return vendors.filter(v => {
+      if (cats.length && !cats.includes(v.vendor_type)) return false
+      if (statusSel.length && !statusSel.includes(v.status)) return false
+      if (priority !== 'all' && v.priority !== priority) return false
+      if (!q) return true
+      const hay = [
+        v.vendor_name, v.vendor_type, v.contact_name,
+        v.contact_email, v.notes, v.next_action,
+      ].join(' ').toLowerCase()
+      return hay.includes(q)
+    })
+  }, [vendors, query, cats, statusSel, priority])
+
+  const groups = useMemo(() => {
+    const by = {}
+    for (const v of matches) (by[v.vendor_type] ||= []).push(v)
+
+    const list = Object.entries(by).map(([type, rows]) => {
+      // Inside a category: booked first, then priciest (the real contenders),
+      // passed options sink to the bottom.
+      const rank = v => (v.status === 'booked' ? 0 : v.status === 'passed' ? 2 : 1)
+      const sorted = [...rows].sort((a, b) =>
+        rank(a) - rank(b) || (rowCost(b) ?? -1) - (rowCost(a) ?? -1) || a.id - b.id)
+
+      return {
+        type,
+        rows: sorted,
+        status: groupStatus(rows),
+        count: rows.length,
+        range: priceRange(rows),
+        committed: commitMap[type]?.cost ?? 0,
+        mustHave: rows.some(r => r.priority === 'must_have'),
+        nextDate: rows.map(r => r.next_action_date).filter(Boolean).sort()[0] || null,
+      }
+    })
+
+    const sorters = {
+      cost_desc: (a, b) => b.committed - a.committed,
+      cost_asc: (a, b) => a.committed - b.committed,
+      status: (a, b) => STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status) || a.type.localeCompare(b.type),
+      next_action: (a, b) => (a.nextDate || '9999').localeCompare(b.nextDate || '9999'),
+      // Default: locked-in work first, then what still needs attention.
+      category: (a, b) =>
+        (a.status === 'booked' ? 0 : 1) - (b.status === 'booked' ? 0 : 1) ||
+        (a.mustHave ? 0 : 1) - (b.mustHave ? 0 : 1) ||
+        a.type.localeCompare(b.type),
+    }
+    return list.sort(sorters[sort] || sorters.category)
+  }, [matches, commitMap, sort])
+
+  // Narrowing the list implies you want to see inside it.
+  const narrowed = query.trim() !== '' || cats.length > 0
+  const isOpen = (type) => narrowed || expanded.has(type)
+
+  function toggleGroup(type) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+  }
+
+  const preset =
+    statusSel.length === 0 ? 'all'
+      : sameSet(statusSel, OPEN_STATUSES) ? 'open'
+        : sameSet(statusSel, ['booked']) ? 'booked'
+          : null
+
+  function applyPreset(k) {
+    if (k === 'all') setStatusSel([])
+    else if (k === 'open') setStatusSel(OPEN_STATUSES)
+    else setStatusSel(['booked'])
+  }
+
+  const filtersActive =
+    query.trim() !== '' || cats.length > 0 || statusSel.length > 0 || priority !== 'all'
+
+  function clearFilters() {
+    setQuery(''); setCats([]); setStatusSel([]); setPriority('all')
+  }
 
   async function update(id, patch) {
     setVendors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
@@ -434,38 +754,122 @@ export default function Vendors() {
           <div className="deco-divider" style={{ maxWidth: 220, marginTop: 6 }}>◆</div>
         </div>
 
-        {/* Stats + filter strip */}
+        {/* Derived header numbers */}
         <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 16,
+          display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 12,
+          fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-muted)',
         }}>
-          <div style={{ display: 'flex', gap: 16, fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-muted)' }}>
-            <span><b style={{ color: 'var(--green)' }}>{stats.booked}</b> booked</span>
-            <span><b style={{ color: 'var(--gold)' }}>{stats.open}</b> open</span>
-            <span><b style={{ color: 'var(--text)' }}>{stats.total}</b> total</span>
-            <span>Vendor cost so far: <b style={{ color: 'var(--text)' }}>{formatUsd(stats.estTotal)}</b></span>
-          </div>
+          <span><b style={{ color: 'var(--green)' }}>{stats.booked}</b> booked</span>
+          <span><b style={{ color: 'var(--gold)' }}>{stats.open}</b> open</span>
+          <span><b style={{ color: 'var(--text)' }}>{stats.categories}</b> categories · {stats.total} options</span>
+          <span>
+            Must-haves unbooked:{' '}
+            <b style={{ color: stats.mustHavesOpen ? 'var(--red)' : 'var(--green)' }}>
+              {stats.mustHavesOpen}
+            </b>
+          </span>
+          <span>Next action: <b style={{ color: 'var(--text)' }}>{fmtDate(stats.nextDue)}</b></span>
+          <span>Vendor cost so far: <b style={{ color: 'var(--text)' }}>{formatUsd(stats.estTotal)}</b></span>
+        </div>
 
-          <div style={{ flex: 1 }} />
+        {/* Filter bar */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14,
+        }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, contact, notes…"
+            style={{
+              background: 'var(--card)', border: '1px solid var(--gold-border)',
+              borderRadius: 8, padding: '7px 11px', fontFamily: 'DM Sans',
+              fontSize: 12, color: 'var(--text)', minWidth: 220,
+            }}
+          />
+
+          <MultiSelect
+            label="Category" options={allTypes} selected={cats}
+            onChange={setCats} format={prettyType}
+          />
+          <MultiSelect
+            label="Status" options={STATUSES} selected={statusSel}
+            onChange={setStatusSel} format={(s) => STATUS_LABEL[s] || s}
+          />
 
           <div style={{
-            display: 'inline-flex', border: '1px solid var(--gold-border)', borderRadius: 8, overflow: 'hidden',
+            display: 'inline-flex', border: '1px solid var(--gold-border)',
+            borderRadius: 8, overflow: 'hidden',
           }}>
             {['all', 'open', 'booked'].map(k => (
               <button
                 key={k}
-                onClick={() => setFilter(k)}
+                onClick={() => applyPreset(k)}
                 style={{
-                  background: filter === k ? 'var(--gold)' : 'transparent',
-                  color: filter === k ? 'var(--card)' : 'var(--text-muted)',
-                  border: 'none', cursor: 'pointer', padding: '6px 12px',
+                  background: preset === k ? 'var(--gold)' : 'transparent',
+                  color: preset === k ? 'var(--card)' : 'var(--text-muted)',
+                  border: 'none', cursor: 'pointer', padding: '7px 12px',
                   fontFamily: 'DM Sans', fontSize: 12, textTransform: 'capitalize',
-                  fontWeight: filter === k ? 600 : 400,
+                  fontWeight: preset === k ? 600 : 400,
                 }}
               >
                 {k}
               </button>
             ))}
           </div>
+
+          {PRIORITIES.map(p => (
+            <Chip
+              key={p}
+              active={priority === p}
+              onClick={() => setPriority(priority === p ? 'all' : p)}
+            >
+              {p === 'must_have' ? 'Must-have' : 'Nice-to-have'}
+            </Chip>
+          ))}
+
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            style={{
+              background: 'var(--card)', border: '1px solid var(--gold-border)',
+              borderRadius: 8, padding: '7px 10px', fontFamily: 'DM Sans',
+              fontSize: 12, color: 'var(--text)', cursor: 'pointer',
+            }}
+          >
+            <option value="category">Sort: Category</option>
+            <option value="cost_desc">Sort: Cost (high→low)</option>
+            <option value="cost_asc">Sort: Cost (low→high)</option>
+            <option value="status">Sort: Status</option>
+            <option value="next_action">Sort: Next action</option>
+          </select>
+
+          {filtersActive && (
+            <button
+              onClick={clearFilters}
+              style={{
+                background: 'transparent', border: '1px solid var(--gold-border)',
+                color: 'var(--text-muted)', borderRadius: 8, padding: '7px 11px',
+                fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer',
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          <button
+            onClick={() => setExpanded(
+              expanded.size === groups.length ? new Set() : new Set(groups.map(g => g.type)),
+            )}
+            style={{
+              background: 'transparent', border: '1px solid var(--gold-border)',
+              color: 'var(--gold)', borderRadius: 8, padding: '7px 11px',
+              fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer',
+            }}
+          >
+            {expanded.size === groups.length ? 'Collapse all' : 'Expand all'}
+          </button>
 
           {adding ? (
             <div style={{ display: 'inline-flex', gap: 6 }}>
@@ -522,23 +926,25 @@ export default function Vendors() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
-          {filtered.map(v => (
-            <VendorCard
-              key={v.id}
-              vendor={v}
+        <div style={{ display: 'grid', gap: 10 }}>
+          {groups.map(g => (
+            <CategoryGroup
+              key={g.type}
+              group={g}
+              open={isOpen(g.type)}
+              onToggle={() => toggleGroup(g.type)}
               onUpdate={update}
               onDelete={removeVendor}
             />
           ))}
         </div>
 
-        {filtered.length === 0 && (
+        {groups.length === 0 && (
           <div style={{
             padding: 32, textAlign: 'center', color: 'var(--text-dim)',
             fontFamily: 'DM Sans', fontSize: 13,
           }}>
-            No vendors match this filter.
+            No vendors match these filters.
           </div>
         )}
       </div>

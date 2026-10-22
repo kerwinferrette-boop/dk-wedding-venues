@@ -77,8 +77,11 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 10,
-      letterSpacing: '0.10em', textTransform: 'uppercase', background: `${color}1F`,
-      color, border: `1px solid ${color}66`, fontFamily: 'DM Sans', fontWeight: 600,
+      letterSpacing: '0.10em', textTransform: 'uppercase',
+      // color-mix, not concatenation: `var(--green)1F` parses as two tokens.
+      background: `color-mix(in srgb, ${color} 14%, transparent)`,
+      color, border: `1px solid color-mix(in srgb, ${color} 45%, transparent)`,
+      fontFamily: 'DM Sans', fontWeight: 600,
     }}>
       {STATUS_LABEL[status] || status}
     </span>

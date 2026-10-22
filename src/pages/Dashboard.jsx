@@ -19,6 +19,9 @@ import {
   fetchWeekendItinerary,
   computeWeekendSpend,
   computeBudgetByCategory,
+  computeHeadcount,
+  guestTargets,
+  headcountStatus,
   budgetStatus,
   formatUsd,
   formatUsdPrecise,
@@ -30,6 +33,41 @@ const PAGE_BG = 'var(--dark)'
 const TODAY = new Date()
 const WEDDING_DATE = new Date('2027-03-27')
 const MILESTONE_LIMIT = 20
+
+// Guest-count slider range. Deliberately wider than the cap so you can model
+// going over it.
+const SLIDER_MIN = 100
+const SLIDER_MAX = 210
+const sliderPct = (n) =>
+  Math.max(0, Math.min(100, ((n - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100))
+
+const CAP_COLORS = {
+  under: 'var(--green)',
+  'over-target': 'var(--yellow)',
+  'over-cap': 'var(--red)',
+}
+
+/** A labelled tick under the guest slider at a given percentage of the track. */
+function Marker({ pct, color, label, dotted }) {
+  return (
+    <div style={{
+      position: 'absolute', left: `${pct}%`, top: 0,
+      transform: 'translateX(-50%)', display: 'flex',
+      flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
+    }}>
+      <div style={{
+        width: 0, height: 6,
+        borderLeft: `${dotted ? '1px dashed' : '2px solid'} ${color}`,
+      }} />
+      <div style={{
+        fontSize: 9, color, fontFamily: 'DM Sans',
+        letterSpacing: '0.04em', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </div>
+    </div>
+  )
+}
 
 async function fetchPendingMilestones() {
   const { data } = await supabase
@@ -66,8 +104,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Guest count slider state - initialized to current_guest_list_count once meta loads.
-  const [projectedGuests, setProjectedGuests] = useState(170)
+  // Guest count slider state - synced to the live projected headcount once guests load.
+  const [projectedGuests, setProjectedGuests] = useState(150)
 
   useEffect(() => {
     let cancelled = false
@@ -116,7 +154,9 @@ export default function Dashboard() {
         async () => setMilestones(await fetchPendingMilestones()))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' },
         async () => {
-          const { data } = await supabase.from('guests').select('id, rsvp')
+          // Must select the same columns as the initial load - computeHeadcount
+          // needs plus_one and cut_candidate, not just rsvp.
+          const { data } = await supabase.from('guests').select('id, rsvp, plus_one, cut_candidate')
           setGuests(data || [])
         })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'extras_budget' },
@@ -129,9 +169,9 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(ch) }
   }, [])
 
-  const towardCap = useMemo(() =>
-    guests.filter(g => !g.cut_candidate).reduce((s, g) => s + 1 + (g.plus_one ? 1 : 0), 0),
-  [guests])
+  const headcount = useMemo(() => computeHeadcount(guests), [guests])
+  const targets = useMemo(() => guestTargets(meta), [meta])
+  const towardCap = headcount.projected
 
   // Keep slider in sync with the actual guest list whenever it changes
   useEffect(() => {
@@ -229,8 +269,10 @@ export default function Dashboard() {
   }
 
   const daysOut = daysBetween(TODAY, WEDDING_DATE)
-  const venueCap = meta?.budget_breakdown?.venue_cap ?? 170
+  const venueCap = targets.hardCap
   const overCap = Math.max(0, projectedGuests - venueCap)
+  const overTarget = Math.max(0, projectedGuests - targets.target)
+  const capStatus = headcountStatus(projectedGuests, targets)
 
   if (loading) {
     return (
@@ -331,36 +373,65 @@ export default function Dashboard() {
               Guest count
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-              <div style={{ fontFamily: 'Playfair Display', fontSize: 36, color: 'var(--text)' }}>
+              <div style={{
+                fontFamily: 'Playfair Display', fontSize: 36,
+                color: CAP_COLORS[capStatus],
+              }}>
                 {projectedGuests}
               </div>
               <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-muted)' }}>
-                of {venueCap} cap
+                target {targets.target} · cap {venueCap}
               </div>
             </div>
 
-            <input
-              type="range"
-              min={100}
-              max={210}
-              value={projectedGuests}
-              onChange={(e) => setProjectedGuests(parseInt(e.target.value, 10))}
-              style={{ width: '100%', marginTop: 12, accentColor: 'var(--gold)' }}
-            />
+            {/* Slider track with a solid target marker and a dotted hard-cap
+                marker, both positioned from the live goalposts. */}
+            <div style={{ position: 'relative', marginTop: 12 }}>
+              <input
+                type="range"
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                value={projectedGuests}
+                onChange={(e) => setProjectedGuests(parseInt(e.target.value, 10))}
+                style={{ width: '100%', accentColor: 'var(--gold)', display: 'block' }}
+              />
+              <div style={{ position: 'relative', height: 14, marginTop: 2 }}>
+                <Marker pct={sliderPct(targets.target)} color="var(--green)" label={`${targets.target} target`} />
+                <Marker pct={sliderPct(venueCap)} color="var(--red)" label={`${venueCap} cap`} dotted />
+              </div>
+            </div>
             <div style={{
               display: 'flex', justifyContent: 'space-between',
-              fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans',
+              fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans', marginTop: 12,
             }}>
-              <span>100</span><span>170 cap</span><span>210</span>
+              <span>{SLIDER_MIN}</span><span>{SLIDER_MAX}</span>
             </div>
 
-            {overCap > 0 && (
+            {overCap > 0 ? (
               <div style={{
                 marginTop: 12, padding: 8, borderRadius: 6,
                 background: 'rgba(224, 112, 112, 0.10)',
                 color: 'var(--red)', fontFamily: 'DM Sans', fontSize: 12,
               }}>
-                {overCap} over La Valencia cap · need to cut or get exception
+                {overCap} over the La Valencia cap of {venueCap} · need to cut or get an exception
+              </div>
+            ) : overTarget > 0 ? (
+              <div style={{
+                marginTop: 12, padding: 8, borderRadius: 6,
+                background: 'rgba(201, 168, 76, 0.10)',
+                color: 'var(--yellow)', fontFamily: 'DM Sans', fontSize: 12,
+              }}>
+                {overTarget} over the {targets.target} target · {venueCap - projectedGuests === 0
+                  ? `at the ${venueCap} cap exactly`
+                  : `${venueCap - projectedGuests} left under the ${venueCap} cap`}
+              </div>
+            ) : (
+              <div style={{
+                marginTop: 12, padding: 8, borderRadius: 6,
+                background: 'rgba(122, 184, 147, 0.10)',
+                color: 'var(--green)', fontFamily: 'DM Sans', fontSize: 12,
+              }}>
+                {targets.target - projectedGuests} under the {targets.target} target
               </div>
             )}
           </div>

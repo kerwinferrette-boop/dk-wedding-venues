@@ -38,6 +38,59 @@ export async function fetchProjectMetadata() {
 }
 
 /**
+ * Single source of truth for headcount. Every guest row counts as 1 head, plus
+ * 1 more if `plus_one` is set.
+ *
+ * `projected` is the number that matters for capacity planning: everyone still
+ * on the list who hasn't declined. It therefore moves when you tick "Cut?" AND
+ * when you set an RSVP to 'no' — previously only the cut checkbox counted,
+ * which is why flipping an RSVP looked like it did nothing.
+ *
+ * Note 'maybe' and 'pending' are counted in `projected` on purpose: until
+ * someone declines you still have to be able to seat them.
+ *
+ * @param {Array} guests - rows from the `guests` table
+ * @returns {{invited:number, cut:number, declined:number, confirmed:number,
+ *            maybe:number, pending:number, projected:number}}
+ */
+export function computeHeadcount(guests = []) {
+  const heads = (list) => list.reduce((sum, g) => sum + 1 + (g.plus_one ? 1 : 0), 0)
+  const onList = guests.filter((g) => !g.cut_candidate)
+  return {
+    invited: heads(guests),
+    cut: heads(guests.filter((g) => g.cut_candidate)),
+    declined: heads(onList.filter((g) => g.rsvp === 'no')),
+    confirmed: heads(onList.filter((g) => g.rsvp === 'yes')),
+    maybe: heads(onList.filter((g) => g.rsvp === 'maybe')),
+    pending: heads(onList.filter((g) => !g.rsvp || g.rsvp === 'pending')),
+    projected: heads(onList.filter((g) => g.rsvp !== 'no')),
+  }
+}
+
+/**
+ * Headcount goalposts, read from the database rather than hardcoded.
+ *  - target  : what we're actually aiming for (150).
+ *  - hardCap : the contractual ceiling at La Valencia (170). Cannot be exceeded.
+ * @param {object} meta - a row from `project_metadata`
+ */
+export function guestTargets(meta) {
+  return {
+    target: meta?.target_headcount ?? 150,
+    hardCap: meta?.budget_breakdown?.venue_cap ?? 170,
+  }
+}
+
+/**
+ * Traffic-light status for a headcount against its goalposts.
+ * @returns {'under'|'over-target'|'over-cap'}
+ */
+export function headcountStatus(count, { target, hardCap }) {
+  if (count > hardCap) return 'over-cap'
+  if (count > target) return 'over-target'
+  return 'under'
+}
+
+/**
  * Extras / second budget: purchases that sit OUTSIDE the core $58k La Valencia
  * budget (DJ, violinist, MUA, florist, painter, Reel Love film, 2nd shooter).
  * Each row carries a total cost plus an optional parents' contribution, so the

@@ -11,11 +11,13 @@ import {
   fetchQuote,
   fetchProjectMetadata,
   computeBudget,
+  computeHeadcount,
   computeMarginalCostPerGuest,
   computeVendorCommitments,
   fetchExtras,
   computeExtras,
   budgetStatus,
+  guestTargets,
   formatUsd,
   formatUsdPrecise,
 } from '../lib/budget'
@@ -50,7 +52,7 @@ export default function Budget() {
   const [vendors, setVendors] = useState([])
   const [guests, setGuests] = useState([])
   const [extras, setExtras] = useState([])
-  const [guestCount, setGuestCount] = useState(170)
+  const [guestCount, setGuestCount] = useState(150)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -101,9 +103,8 @@ export default function Budget() {
     return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
 
-  const towardCap = useMemo(() =>
-    guests.filter(g => !g.cut_candidate).reduce((s, g) => s + 1 + (g.plus_one ? 1 : 0), 0),
-  [guests])
+  const headcount = useMemo(() => computeHeadcount(guests), [guests])
+  const towardCap = headcount.projected
 
   useEffect(() => {
     if (towardCap > 0) setGuestCount(towardCap)
@@ -133,12 +134,20 @@ export default function Budget() {
   const venueTotal = budget?.total || 0
   const grandTotal = venueTotal + vendorTotal
   const status = budgetStatus(grandTotal, target)
-  const venueCap = meta?.budget_breakdown?.venue_cap ?? 170
+  // Target (150) and hard contractual ceiling (170) both live in
+  // project_metadata - see guestTargets().
+  const targets = useMemo(() => guestTargets(meta), [meta])
+  const venueCap = targets.hardCap
   const overCap = Math.max(0, guestCount - venueCap)
 
-  // Compare current vs 170 and vs 200 for the cutdown impact view.
-  const at170 = useMemo(() => quote.length ? computeBudget(quote, 170, { vendorCount: 6 }).total : 0, [quote])
-  const at200 = useMemo(() => quote.length ? computeBudget(quote, 200, { vendorCount: 6 }).total : 0, [quote])
+  // Cutdown impact: what the full invite list costs vs trimming to target.
+  const atTarget = useMemo(() =>
+    quote.length ? computeBudget(quote, targets.target, { vendorCount: 6 }).total : 0,
+  [quote, targets.target])
+  const atInvited = useMemo(() =>
+    quote.length && headcount.invited ? computeBudget(quote, headcount.invited, { vendorCount: 6 }).total : 0,
+  [quote, headcount.invited])
+  const cutdownHeads = Math.max(0, headcount.invited - targets.target)
 
   // --- Extras editing (writes straight to Supabase extras_budget) -----------
   // Two helpers so typing doesn't thrash the database: setLocalExtra updates
@@ -253,7 +262,9 @@ export default function Budget() {
               Guest count
             </div>
             <div style={{ fontFamily: 'Playfair Display', fontSize: 32, color: 'var(--text)', marginTop: 4 }}>
-              {guestCount} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>of {venueCap} cap</span>
+              {guestCount} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                target {targets.target} · cap {venueCap}
+              </span>
             </div>
             <input
               type="range"
@@ -267,7 +278,7 @@ export default function Budget() {
               display: 'flex', justifyContent: 'space-between',
               fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Sans',
             }}>
-              <span>100</span><span>170 cap</span><span>210</span>
+              <span>100</span><span>{targets.target} target · {venueCap} cap</span><span>210</span>
             </div>
             {overCap > 0 && (
               <div style={{
@@ -281,7 +292,7 @@ export default function Budget() {
           </div>
         </div>
 
-        {/* 200 vs 170 cutdown impact */}
+        {/* Full invite list vs trimmed-to-target impact */}
         <div className="card-gatsby" style={{ padding: 18, marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Cutdown impact
@@ -289,9 +300,14 @@ export default function Budget() {
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 10,
           }}>
-            <Stat label="At 200 (today)" value={formatUsd(at200)} color="var(--red)" />
-            <Stat label="At 170 (cap)" value={formatUsd(at170)} color="var(--green)" />
-            <Stat label="Savings" value={formatUsd(at200 - at170)} color="var(--gold)" sub="30 guests removed" />
+            <Stat label={`At ${headcount.invited} (full list)`} value={formatUsd(atInvited)} color="var(--red)" />
+            <Stat label={`At ${targets.target} (target)`} value={formatUsd(atTarget)} color="var(--green)" />
+            <Stat
+              label="Savings"
+              value={formatUsd(Math.max(0, atInvited - atTarget))}
+              color="var(--gold)"
+              sub={`${cutdownHeads} guests removed`}
+            />
           </div>
         </div>
 

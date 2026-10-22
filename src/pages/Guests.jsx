@@ -1,6 +1,8 @@
 // Guest list - execution-phase cutdown manager.
 //
-// Goal: 200 -> 170 (La Valencia cap). This page lets us:
+// Target is 150 with a hard contractual ceiling of 170 at La Valencia. Both
+// numbers come from `project_metadata` via guestTargets() - never hardcode them.
+// This page lets us:
 //   - See the full list with the columns from our Google Sheet
 //     (side, know_from, has_met_dani, plans_to_meet, rsvp, notes)
 //   - Mark guests as "cut candidate" -> live count adjusts
@@ -14,10 +16,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import { computeHeadcount, fetchProjectMetadata, guestTargets, headcountStatus } from '../lib/budget'
 
 const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1JUtOiOq7kjNoVB8JEGysWZ7lm-TpVVlzEvnPNb6Q4z8/edit?gid=0#gid=0'
 const GOOGLE_SHEET_EMBED_URL = 'https://docs.google.com/spreadsheets/d/1JUtOiOq7kjNoVB8JEGysWZ7lm-TpVVlzEvnPNb6Q4z8/htmlview?gid=0'
-const TARGET_CAP = 170
 
 const SIDES = ['kerwin', 'dani', 'both', 'other']
 const RSVPS = ['yes', 'no', 'maybe', 'pending']
@@ -228,6 +230,7 @@ export default function Guests() {
   const [importing, setImporting] = useState(false)
   const [syncing, setSyncing] = useState(null) // sheet name being synced, or null
   const [error, setError] = useState(null)
+  const [meta, setMeta] = useState(null)
 
   const [filterRsvp, setFilterRsvp] = useState('')
   const [filterCut, setFilterCut] = useState('')   // '', 'cut', 'keep'
@@ -264,19 +267,17 @@ export default function Guests() {
     return () => { cancelled = true; supabase.removeChannel(ch) }
   }, [])
 
-  const stats = useMemo(() => {
-    function headcount(list) {
-      return list.reduce((sum, g) => sum + 1 + (g.plus_one ? 1 : 0), 0)
-    }
-    const total = headcount(guests)
-    const cut = headcount(guests.filter(g => g.cut_candidate))
-    const kept = total - cut
-    const rsvpYes = headcount(guests.filter(g => g.rsvp === 'yes'))
-    const rsvpNo = headcount(guests.filter(g => g.rsvp === 'no'))
-    const rsvpMaybe = headcount(guests.filter(g => g.rsvp === 'maybe'))
-    const rsvpPending = total - rsvpYes - rsvpNo - rsvpMaybe
-    return { total, cut, kept, rsvpYes, rsvpNo, rsvpMaybe, rsvpPending }
-  }, [guests])
+  // Headcount goalposts (target 150 / hard cap 170) live in project_metadata.
+  useEffect(() => {
+    let cancelled = false
+    fetchProjectMetadata()
+      .then((m) => { if (!cancelled) setMeta(m) })
+      .catch(() => { /* guestTargets() falls back to 150/170 */ })
+    return () => { cancelled = true }
+  }, [])
+
+  const stats = useMemo(() => computeHeadcount(guests), [guests])
+  const targets = useMemo(() => guestTargets(meta), [meta])
 
   const grouped = useMemo(() => {
     function applyFilters(list) {
@@ -421,7 +422,15 @@ export default function Guests() {
     }
   }
 
-  const overTarget = stats.kept - TARGET_CAP
+  // Projected = still on the list and hasn't declined. Moves on both the "Cut?"
+  // checkbox and the RSVP dropdown.
+  const overTarget = stats.projected - targets.target
+  const capStatus = headcountStatus(stats.projected, targets)
+  const CAP_COLOR = {
+    under: 'var(--green)',
+    'over-target': 'var(--yellow)',
+    'over-cap': 'var(--red)',
+  }[capStatus]
 
   if (loading) {
     return (
@@ -440,7 +449,7 @@ export default function Guests() {
             fontSize: 11, letterSpacing: '0.18em', color: 'var(--gold)',
             textTransform: 'uppercase', fontFamily: 'DM Sans', marginBottom: 4,
           }}>
-            200 → 170 cutdown
+            {stats.invited} invited → {targets.target} target
           </div>
           <h1 style={{ margin: 0, fontSize: 26 }}>Guest list</h1>
           <div className="deco-divider" style={{ maxWidth: 220, marginTop: 6 }}>◆</div>
@@ -449,22 +458,22 @@ export default function Guests() {
         {/* Stats strip */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <Pill
-            label="On list"
-            value={stats.total}
-            sub={`${stats.kept} keep · ${stats.cut} cut`}
+            label="Invited"
+            value={stats.invited}
+            sub={`${stats.cut} cut · ${stats.declined} declined`}
           />
           <Pill
-            label="Toward cap"
-            value={stats.kept}
-            color={overTarget > 0 ? 'var(--red)' : 'var(--green)'}
+            label="Projected"
+            value={stats.projected}
+            color={CAP_COLOR}
             sub={overTarget > 0
-              ? `${overTarget} over ${TARGET_CAP}`
-              : `${Math.abs(overTarget)} under ${TARGET_CAP}`}
+              ? `${overTarget} over ${targets.target} · cap ${targets.hardCap}`
+              : `${Math.abs(overTarget)} under ${targets.target} · cap ${targets.hardCap}`}
           />
-          <Pill label="Yes" value={stats.rsvpYes} color="var(--green)" />
-          <Pill label="Maybe" value={stats.rsvpMaybe} color="var(--yellow)" />
-          <Pill label="No" value={stats.rsvpNo} color="var(--red)" />
-          <Pill label="Pending" value={stats.rsvpPending} />
+          <Pill label="Yes" value={stats.confirmed} color="var(--green)" />
+          <Pill label="Maybe" value={stats.maybe} color="var(--yellow)" />
+          <Pill label="No" value={stats.declined} color="var(--red)" />
+          <Pill label="Pending" value={stats.pending} />
         </div>
 
         {/* Actions row */}
