@@ -179,3 +179,103 @@ A couple of quick questions:
 We're ready to move quickly once we find the right fit. Looking forward to connecting.
 
 Kerwin (+ Dani)
+
+---
+
+## LIVE WEDDING PAINTER - Joshua Spieker (Local San Diego - Classical Realism)
+**Send to:** joshuaspiekerart@gmail.com
+**Best time to send:** Tuesday-Thursday
+
+---
+
+**Subject:** Live Wedding Painting Inquiry - March 27, 2027 | La Valencia, La Jolla
+
+Hi Joshua,
+
+My fiancee Dani and I are getting married at La Valencia Hotel in La Jolla on March 27, 2027, and we're looking for a live painter - someone who works in a classical realism tradition, not impressionism or watercolor. A piece we're hanging in our home for decades.
+
+Your background in European painting technique is exactly what caught our attention. Our wedding aesthetic is Old Hollywood/Gatsby, and what excites us about your approach is that we're not limited to painting just the room - we've heard you can work from a concept we bring, which opens up some interesting possibilities.
+
+Two questions:
+
+1. Is March 27, 2027 still open on your calendar?
+2. Do you have portfolio work from La Jolla venues or formal, vintage-style events we could look at?
+
+Happy to jump on a quick call if that's easier.
+
+Kerwin (+ Dani)
+
+---
+
+## LIVE WEDDING PAINTER - Taylor Gallegos / Live Wedding Art (North SD - Realism Specialist)
+**Send to:** via liveweddingart.com/process
+**Best time to send:** Tuesday-Thursday
+
+---
+
+**Subject:** Live Wedding Painting Inquiry - March 27, 2027 | La Valencia Hotel, La Jolla
+
+Hi Taylor,
+
+I came across your work while researching live wedding painters in San Diego and one review stopped me cold: "researched many wedding artists and none offered the beauty and realism that he did." That's exactly what we're after.
+
+My fiancee Dani and I are getting married at La Valencia Hotel in La Jolla on March 27, 2027. Our aesthetic is Old Hollywood/Gatsby - formal, elegant, the kind of painting that looks commissioned when it's done. 170 guests.
+
+Two quick questions:
+
+1. Is March 27, 2027 available?
+2. Can you point me to portfolio work that best shows your realism - especially from a formal indoor venue?
+
+Ready to move quickly if the fit is there.
+
+Kerwin (+ Dani)
+
+---
+
+## CONTENT CREATOR - Bridal Content Besties (Ro) - Top Pick
+**Send to:** via bridalcontentbesties.com
+**Best time to send:** Tuesday-Thursday
+
+---
+
+**Subject:** Wedding Content Creator - March 27, 2027 | La Valencia Hotel, La Jolla
+
+Hi Ro,
+
+My fiancee Dani and I are getting married at La Valencia Hotel in La Jolla on March 27, 2027 and we want a dedicated content creator on the day - someone separate from our photographer and videographer whose only job is to capture the behind-the-scenes and get us content we can actually post.
+
+Your documentary approach is what sold us. The fact that one of your clients didn't even know you were filming half the time - that's exactly what we want. No posing, no interrupting, just real moments.
+
+Three quick questions:
+
+1. Is March 27, 2027 available?
+2. Can you share a sample reel from a recent wedding - a full day deliverable so we can see your editing style?
+3. Which package would you recommend for a 170-person wedding at La Valencia?
+
+Looking forward to hearing from you.
+
+Kerwin (+ Dani)
+
+---
+
+## CONTENT CREATOR - Happily Ever Creator (Nancy) - Local San Diego Option
+**Send to:** via happilyevercreator.com
+**Best time to send:** Tuesday-Thursday
+
+---
+
+**Subject:** Wedding Content Creator Inquiry - March 27, 2027 | La Valencia, La Jolla
+
+Hi Nancy,
+
+Dani and I are getting married at La Valencia Hotel in La Jolla on March 27, 2027 and we're looking for a wedding content creator. Your hospitality industry background caught our attention - you understand event pacing and how to move through a room without disrupting it.
+
+Our wedding is Old Hollywood/Gatsby: 170 guests, La Valencia. We want the real stuff captured - getting ready, ceremony, cocktail hour, first dance, reception energy. Social-ready reels we can share the next morning.
+
+Three questions:
+
+1. Is March 27, 2027 available?
+2. What does your typical package look like for a full wedding day?
+3. Can you share a recent sample reel so we can see your editing style?
+
+Kerwin (+ Dani)

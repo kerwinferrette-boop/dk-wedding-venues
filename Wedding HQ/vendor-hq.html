@@ -1,764 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Wedding Vendor HQ - Ferrette &amp; Gaumer 3.27.27</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --gold: #C9A84C;
-      --gold-light: #e8d49a;
-      --parchment: #F7F0E3;
-      --parchment-dark: #ede4d0;
-      --teal: #2A6B7C;
-      --teal-light: #3d8fa3;
-      --ink: #1a1a1a;
-      --smoke: #6b6b6b;
-      --green: #2d6a4f;
-      --green-bg: #d8f3dc;
-      --yellow: #856404;
-      --yellow-bg: #fff3cd;
-      --red: #842029;
-      --red-bg: #f8d7da;
-      --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--parchment);
-      color: var(--ink);
-      min-height: 100vh;
-    }
-
-    /* ── Header ── */
-    .page-header {
-      background: var(--teal);
-      color: white;
-      padding: 32px 40px 24px;
-      border-bottom: 4px solid var(--gold);
-    }
-    .page-header .eyebrow {
-      font-family: 'Cinzel', serif;
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--gold-light);
-      margin-bottom: 6px;
-    }
-    .page-header h1 {
-      font-family: 'Cinzel', serif;
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-    .page-header .subtitle {
-      font-family: 'Playfair Display', serif;
-      font-style: italic;
-      font-size: 16px;
-      color: rgba(255,255,255,0.7);
-      margin-top: 4px;
-    }
-    .header-meta {
-      display: flex;
-      gap: 24px;
-      margin-top: 20px;
-      flex-wrap: wrap;
-    }
-    .meta-pill {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 20px;
-      padding: 6px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: white;
-    }
-    .meta-pill span {
-      color: var(--gold-light);
-      font-weight: 600;
-    }
-
-    /* ── Alert Banner ── */
-    .alert-banner {
-      background: var(--red-bg);
-      border-left: 4px solid #dc3545;
-      border-bottom: 1px solid #f5c2c7;
-      padding: 14px 40px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 14px;
-      color: var(--red);
-      font-weight: 500;
-    }
-    .alert-banner .alert-icon { font-size: 18px; }
-
-    /* ── Main layout ── */
-    .main { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
-
-    /* ── Summary Cards ── */
-    .summary-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-    .summary-card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px 22px;
-      box-shadow: var(--card-shadow);
-      border-top: 3px solid var(--gold);
-    }
-    .summary-card .label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--smoke);
-      margin-bottom: 6px;
-    }
-    .summary-card .value {
-      font-family: 'Cinzel', serif;
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--teal);
-    }
-    .summary-card .sub {
-      font-size: 12px;
-      color: var(--smoke);
-      margin-top: 4px;
-    }
-    .summary-card.danger { border-top-color: #dc3545; }
-    .summary-card.danger .value { color: var(--red); }
-
-    /* ── Section titles ── */
-    .section-title {
-      font-family: 'Cinzel', serif;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--teal);
-      margin-bottom: 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--parchment-dark);
-    }
-
-    /* ── Vendor Table ── */
-    .table-wrapper {
-      background: white;
-      border-radius: 12px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-      margin-bottom: 36px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13.5px;
-    }
-    thead tr {
-      background: var(--teal);
-      color: white;
-    }
-    thead th {
-      padding: 14px 16px;
-      text-align: left;
-      font-family: 'Cinzel', serif;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    tbody tr {
-      border-bottom: 1px solid var(--parchment-dark);
-      transition: background 0.15s;
-    }
-    tbody tr:hover { background: #fafaf7; }
-    tbody tr:last-child { border-bottom: none; }
-    td {
-      padding: 14px 16px;
-      vertical-align: top;
-    }
-
-    /* Row status colors */
-    tr.status-red td:first-child { border-left: 4px solid #dc3545; }
-    tr.status-yellow td:first-child { border-left: 4px solid #ffc107; }
-    tr.status-green td:first-child { border-left: 4px solid #28a745; }
-
-    .vendor-name {
-      font-weight: 600;
-      color: var(--ink);
-      font-size: 14px;
-      display: block;
-    }
-    .vendor-category {
-      font-size: 11px;
-      color: var(--smoke);
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 2px;
-    }
-
-    /* Status badges */
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      white-space: nowrap;
-    }
-    .badge-signed    { background: var(--green-bg);  color: var(--green); }
-    .badge-pending   { background: var(--yellow-bg); color: var(--yellow); }
-    .badge-notsent   { background: #f0f0f0; color: #555; }
-    .badge-paid      { background: var(--green-bg);  color: var(--green); }
-    .badge-overdue   { background: var(--red-bg);    color: var(--red); }
-    .badge-quote     { background: #e8f4fd; color: #0c5a8a; }
-
-    .amount { font-weight: 600; color: var(--ink); }
-    .amount-red { color: var(--red); font-weight: 700; }
-    .amount-muted { color: var(--smoke); font-style: italic; }
-
-    .reply-me   { color: var(--yellow); font-weight: 600; }
-    .reply-them { color: var(--green); font-weight: 500; }
-    .reply-none { color: var(--smoke); font-style: italic; }
-
-    .redflag {
-      display: flex;
-      align-items: flex-start;
-      gap: 5px;
-      color: var(--red);
-      font-size: 12px;
-      font-weight: 500;
-      line-height: 1.4;
-    }
-    .redflag-none { color: var(--smoke); font-size: 12px; }
-
-    /* ── Action List ── */
-    .action-list {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      margin-bottom: 36px;
-    }
-    .action-card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: var(--card-shadow);
-      overflow: hidden;
-    }
-    .action-card-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 16px 22px;
-    }
-    .action-card.red .action-card-header { background: #fff5f5; border-left: 5px solid #dc3545; }
-    .action-card.yellow .action-card-header { background: #fffdf0; border-left: 5px solid #ffc107; }
-    .action-card-header .priority-badge {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
-    }
-    .action-card.red .priority-badge { background: var(--red-bg); color: var(--red); }
-    .action-card.yellow .priority-badge { background: var(--yellow-bg); color: var(--yellow); }
-    .action-card-header .action-title {
-      font-weight: 600;
-      font-size: 15px;
-      color: var(--ink);
-    }
-    .action-card-header .action-what {
-      font-size: 13px;
-      color: var(--smoke);
-      margin-top: 2px;
-    }
-    .action-body { padding: 0 22px 22px; }
-    .email-draft {
-      margin-top: 16px;
-      background: var(--parchment);
-      border: 1px solid var(--parchment-dark);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .email-draft-label {
-      background: var(--parchment-dark);
-      padding: 8px 16px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--smoke);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .email-draft-body {
-      padding: 14px 16px;
-      font-size: 13.5px;
-      line-height: 1.65;
-      color: var(--ink);
-      font-family: 'DM Sans', sans-serif;
-      white-space: pre-wrap;
-    }
-    .email-meta {
-      padding: 10px 16px;
-      border-top: 1px solid var(--parchment-dark);
-      font-size: 12px;
-      color: var(--smoke);
-      display: flex;
-      gap: 16px;
-    }
-    .email-meta span { font-weight: 600; color: var(--ink); }
-
-    /* ── At-Risk Section ── */
-    .risk-cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 36px;
-    }
-    .risk-card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: var(--card-shadow);
-      border-top: 3px solid #dc3545;
-    }
-    .risk-card .risk-rank {
-      font-family: 'Cinzel', serif;
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--red);
-      margin-bottom: 6px;
-    }
-    .risk-card .risk-vendor {
-      font-weight: 700;
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-    .risk-card .risk-category {
-      font-size: 11px;
-      color: var(--smoke);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-    }
-    .risk-card .risk-reason {
-      font-size: 13.5px;
-      color: #555;
-      line-height: 1.5;
-      border-top: 1px solid var(--parchment-dark);
-      padding-top: 12px;
-    }
-
-    /* ── Footer ── */
-    .page-footer {
-      text-align: center;
-      padding: 24px;
-      font-size: 12px;
-      color: var(--smoke);
-      border-top: 1px solid var(--parchment-dark);
-    }
-    .page-footer strong { color: var(--teal); }
-
-    /* ── Responsive ── */
-    @media (max-width: 900px) {
-      .main { padding: 20px; }
-      .page-header { padding: 24px 20px 20px; }
-      .summary-row { grid-template-columns: repeat(2, 1fr); }
-      .risk-cards { grid-template-columns: 1fr; }
-      table { font-size: 12px; }
-      thead th, td { padding: 10px 12px; }
-    }
-    @media (max-width: 640px) {
-      .summary-row { grid-template-columns: 1fr 1fr; }
-      .alert-banner { padding: 12px 20px; }
-    }
-
-    /* ── Print / embed helpers ── */
-    .last-refresh {
-      font-size: 11px;
-      color: rgba(255,255,255,0.55);
-      margin-top: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wedding Vendor HQ - Kerwin &amp; Dani</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#C9A84C; --gold-soft:#e3cf8f; --parch:#F7F0E3; --parch-2:#efe5cf;
+    --teal:#2A6B7C; --ink:#2b2620; --muted:#6f6656; --line:#dfd2b0;
+    --green:#3f7d52; --amber:#b8862b; --red:#a8412f; --grey:#8a8172;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--parch);color:var(--ink);font-family:'DM Sans',sans-serif;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 22px 64px;}
+  header.masthead{text-align:center;border-bottom:2px solid var(--gold);padding-bottom:20px;margin-bottom:8px;}
+  .eyebrow{font-family:'Cinzel',serif;letter-spacing:.32em;font-size:12px;color:var(--teal);text-transform:uppercase;}
+  h1{font-family:'Cinzel',serif;font-weight:700;font-size:34px;margin:8px 0 4px;letter-spacing:.04em;}
+  .sub{font-family:'Playfair Display',serif;font-style:italic;color:var(--muted);font-size:17px;}
+  .refreshed{margin-top:12px;font-size:13px;color:var(--muted);}
+  .refreshed b{color:var(--ink);}
+  .deco{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:22px 0;}
+  .alert{background:#f6ead0;border:1px solid var(--gold);border-left:5px solid var(--amber);border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .alert.ok{border-left-color:var(--green);}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0 6px;}
+  .card{background:#fffdf8;border:1px solid var(--line);border-radius:12px;padding:16px 14px;text-align:center;box-shadow:0 1px 0 rgba(201,168,76,.15);}
+  .card .n{font-family:'Cinzel',serif;font-size:30px;font-weight:700;color:var(--teal);line-height:1;}
+  .card .l{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px;}
+  .card .foot{font-size:11px;color:var(--grey);margin-top:6px;}
+  h2{font-family:'Cinzel',serif;font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:30px 0 12px;}
+  table{width:100%;border-collapse:collapse;background:#fffdf8;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13.5px;}
+  th{background:var(--parch-2);font-family:'Cinzel',serif;font-weight:600;text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink);padding:11px 12px;}
+  td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:top;}
+  tr:hover td{background:#fbf6ea;}
+  .vend{font-weight:700;}
+  .role{color:var(--muted);font-size:12px;}
+  .pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;text-transform:uppercase;}
+  .p-locked{background:#e2efe4;color:var(--green);}
+  .p-progress{background:#fbeecb;color:var(--amber);}
+  .p-open{background:#f0e7d3;color:var(--grey);}
+  .p-closed{background:#efe0dc;color:var(--red);}
+  ul.actions{list-style:none;padding:0;margin:0;}
+  ul.actions li{background:#fffdf8;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:8px;padding:11px 14px;margin-bottom:9px;font-size:14px;}
+  ul.actions li b{color:var(--teal);}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--red);}
+  .money{white-space:nowrap;font-variant-numeric:tabular-nums;}
+  footer{margin-top:34px;text-align:center;font-size:12px;color:var(--grey);font-family:'Playfair Display',serif;font-style:italic;}
+  @media(max-width:720px){.cards{grid-template-columns:repeat(2,1fr);}h1{font-size:27px;}table{font-size:12.5px;}}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Wedding Vendor HQ</div>
+    <h1>Kerwin &amp; Dani</h1>
+    <div class="sub">La Valencia Hotel &middot; La Jolla &middot; March 27, 2027</div>
+    <div class="refreshed">Last refreshed: <b>Monday, October 19, 2026</b> &nbsp;&middot;&nbsp; Budget target: <b>$58,000</b></div>
+  </header>
 
-<!-- ── PAGE HEADER ── -->
-<header class="page-header">
-  <div class="eyebrow">Ferrette &amp; Gaumer · La Valencia Hotel · La Jolla, CA</div>
-  <h1>Wedding Vendor HQ</h1>
-  <div class="subtitle">Your inbox, decoded. Every vendor. Every status. One place.</div>
-  <div class="header-meta">
-    <div class="meta-pill">Wedding Date: <span>March 27, 2027</span></div>
-    <div class="meta-pill">Budget: <span>$58,000</span></div>
-    <div class="meta-pill">Vendors Locked: <span>4</span></div>
-    <div class="meta-pill">Deposits Paid: <span>$501 (Reel Love Films)</span></div>
-    <div class="meta-pill">✅ Payments Current: <span>Reel Love Films (3 of 16)</span></div>
+  <div class="alert"><b>Busy week - new activity from Reel Love, Bay Custom Embroidery, Presley, and The Spot.</b> Searched Gmail with several passes (vendor names, contract/deposit/invoice/balance keywords, Dani/La Valencia/La Jolla) covering the past 7-8 days. <b>Reel Love's auto-payment (8 of 16, $606.86) failed on 10/16, then was resubmitted and confirmed paid the same day</b> - nothing is currently overdue. <b>Presley (painter) sent firm pricing today, 10/19 (unread):</b> $5,750 total for the 36&quot;x48&quot; package plus travel fee, 25% deposit ($1,437.50) with the $4,312.50 balance due 3/20/27 - she's offering to lock the date in today, making this the single biggest decision this week. <b>Bay Custom Embroidery quoted $30/bag</b> for the 10 groomsmen totes (about $300 total) - no due date given, pay whenever the bags are dropped off. <b>The Spot:</b> Dani answered their full intake questionnaire on 10/16 and The Spot auto-created a calendar hold for the after party (3/27/27, 10-11pm) - still no confirmation on file that the signed credit-card authorization form was actually returned. Checked the calendar this run: the MUA due-date (3/24/27) and 7-day heads-up (3/17/27) reminders are both still intact; no new due dates with firm, written dates surfaced, so no new reminders were created. <b>Heads up:</b> the florist shortlist reply was due 10/12 and nothing on file shows it went back to Alex - that's now a week overdue. Standing state otherwise unchanged: no new activity from La Valencia, Lace &amp; Champagne, the violinist, MUA, Rito Suave/DJ, Karra, or Clarisse Rae.</div>
+
+  <div class="cards">
+    <div class="card"><div class="n">6</div><div class="l">Vendors Locked</div><div class="foot">venue, film, coordinator, violinist, florist, MUA</div></div>
+    <div class="card"><div class="n">$7,855</div><div class="l">Payments Made (verified)</div><div class="foot">Violinist $3,000 + 8 Reel Love installments @ $606.86 = $4,854.88*</div></div>
+    <!-- Reel Love at payment 8 of 16 (invoice #000365-008, confirmed 10/16 after an auto-draft failure/resubmit same day); payment 6 of 16 still has no individual confirmation thread on file -->
+    <div class="card"><div class="n">$0</div><div class="l">Overdue</div><div class="foot">nothing past due</div></div>
+    <div class="card"><div class="n">3</div><div class="l">Open Slots</div><div class="foot">painter (Presley vs. Karra), cake, content</div></div>
   </div>
-  <div class="last-refresh">Last refreshed: May 28, 2026 (manual update) · Refreshes automatically every Monday at 8am</div>
-</header>
 
-<!-- ── ALERT BANNER ── -->
-<div class="alert-banner" style="background:#d8f3dc;border-left-color:#28a745;color:#2d6a4f;">
-  <span class="alert-icon">✅</span>
-  <strong>Reel Love Films · Payment 3 of 16 confirmed:</strong>&nbsp;
-  $606.86 received May 28, 2026. Invoice #000365-003. You're current. Follow-up call with Javar rescheduled to next week.
+  <div class="deco"></div>
+
+  <h2>Vendor Status</h2>
+  <table>
+    <thead>
+      <tr><th style="width:23%">Vendor</th><th style="width:15%">Status</th><th style="width:16%">Money</th><th>This Week / Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="vend">La Valencia Hotel</div><div class="role">Venue &middot; Catering &middot; Bar</div><div class="role">Bobby Fader / Dani Hendricks</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">On file &middot; plan active</td>
+        <td>No new activity this week. Anchor of the $58k budget ($180/pp Saturday Winter Special). Guest count still being trimmed toward the 170 cap.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Reel Love Films</div><div class="role">Photography &amp; Film</div><div class="role">Javar Garrett</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">16-pay plan<br>$606.86/payment<br>8 of 16 paid</td>
+        <td><b>New 10/16:</b> Payment <b>8 of 16</b> auto-drafted today but initially <b>failed</b> ($606.86, HoneyBook notice at 11:04am); resubmitted manually and <b>confirmed paid</b> that evening (invoice #000365-008, 11:41pm) - nothing is currently overdue. Running total is now approximately <b>$4,854.88</b> toward the ~$9,710 plan (8 x $606.86), though payment 6 of 16 still has no individual confirmation thread on file, so that figure still carries the same caveat as before. <b>Also new:</b> a "Follow Up Call" with Javar was calendared for Tue 10/13, 2-2:45pm - no email on file either way about how it went, so the 2nd-shooter, shot-list, and day-of-timeline questions from the original 9/10 call are still unresolved.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Lace &amp; Champagne</div><div class="role">Day-of Coordinator</div><div class="role">Janine Sofianos</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">Contracted</td>
+        <td>No new activity this week.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Virtuous Violinist</div><div class="role">Live Musician (ceremony/cocktail)</div><div class="role">Ron Kao</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">$6,000 total<br>$3,000 paid &middot; $3,000 due (TBD)</td>
+        <td><b>New 7/9:</b> Official "You're Officially Booked!" confirmation received &mdash; contract signed and retainer confirmed received; locked in for 3.27.2027. Kerwin replied same day. <b>Still open:</b> get the remaining $3,000 balance due date in writing.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Florist</div><div class="role">Florals (Dani's cousin, Alex Barbaria)</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">Hard cap $3,000<br><span class="tag">separate from $58k</span></td>
+        <td><b>New 10/5:</b> Alex sent a curated florist shortlist (Florists List.pdf, same Inspo Board thread) &mdash; she researched all week and is proposing an outside à la carte vendor for the <b>bouquet and boutonni&egrave;re</b> (possibly more), rather than booking a full-event florist. All candidates are in or near La Jolla/San Diego. She's asking for your <b>top picks within the next week (by ~10/12)</b> so she can check availability, fit, and pricing. <span class="tag">Unverified</span> &mdash; the shortlist names/links/pricing are in the PDF, which could not be opened here (no attachment-download access on this connector), same as the 9/23 budget file. <b>Carried over, still open:</b> the 9/23 budget spreadsheet (~$190 over, per her email text only) is still unopened/unconfirmed, and scope &amp; deposit for her own DIY portion are still not in writing.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Makeup by Linda Joy</div><div class="role">Bridal hair &amp; makeup (Dani's MUA)</div><div class="role">Linda</div></td>
+        <td><span class="pill p-locked">Locked</span></td>
+        <td class="money">$3,250 total<br><span class="tag">separate from $58k</span></td>
+        <td><b>Signed 8/22 (contract on file):</b> Classic Bridal Package $2,000 + 5 additional services @ $250 ($1,250) = <b>$3,250 grand total</b> for <b>10 services (TBD)</b> at La Valencia; an assistant is required since it's over 5 services. Balance due in full <b>72 hrs before the wedding (by ~3/24/27)</b>, paid via Cash/Venmo/Zelle. <b>Separate charge, not in the $58k.</b> <b>Still open:</b> the non-refundable retainer amount (due at signing and does NOT apply toward the $3,250 &mdash; not stated in the contract), the travel fee (quoted separately at booking), ready-by time, and final headcount for the 10 services. No trial is included in this agreement.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Rito Suave</div><div class="role">DJ (aka Dr_Fresh on IG)</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">~$1,500</td>
+        <td><b>Chosen as the DJ (per Kerwin 8/24).</b> Rito Suave is the pick; a contract is on the way. No email trail yet, so this stays "In Progress" until the signed agreement and deposit terms are in hand. <b>Next step:</b> get the contract, price, and deposit in writing and log the payment schedule.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">The Spot (La Jolla)</div><div class="role">After-party venue</div><div class="role">Kat Varga</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">No room fee / no F&amp;B min<br>$200 no-show fee only<br>Add-ons: Martini Tower $280 &middot; Beer Pong $100 &middot; Popcorn $60 &middot; Sliders $7 &middot; Tacos $5<br>+3% card surcharge, 20% gratuity on large parties<br><span class="tag">separate from $58k</span></td>
+        <td><b>New 10/16-10/17:</b> Dani answered Kat's full intake questionnaire - venue La Valencia Hotel, arrival ~10:15pm, about 100 guests, sign reads "The Ferrette's After Party," separate tabs (guests pay their own), emergency contact Christina Cienfuegos (510-432-9133) - and asked what's still needed to confirm the reservation. The Spot then auto-added a calendar hold, "Dani &amp; Kerwin Ferrette | After Dark," Sat 3/27/27 10-11pm at The Spot La Jolla, which suggests they're treating the date as booked. <b>Still open:</b> no email on file confirms the signed credit-card authorization form was actually sent back - worth a quick note to Kat to make sure it's really locked and not just assumed.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Bay Custom Embroidery</div><div class="role">Groomsmen gifts (embroidery)</div><div class="role">Kenzo</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">$30/bag &middot; ~$300 total<br><span class="tag">separate from $58k</span></td>
+        <td><b>New 10/16:</b> Kenzo quoted <b>$30 per bag</b> for the updated ~2&quot;x2&quot; logo plus two initials on each of the 10 bags/totes - about <b>$300 total</b> for the order - and said to bring the items in anytime during business hours. No formal due date was given. Separate charge, not in the $58k. <b>Next step:</b> confirm you want to move forward at $30/bag, then drop off the bags and pay in person.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Dancing DJ Productions</div><div class="role">DJ (+ live sax add-on)</div><div class="role">Darius Jay</div></td>
+        <td><span class="pill p-closed">Passed</span></td>
+        <td class="money">&mdash;</td>
+        <td><b>Passed (per Kerwin 8/24):</b> not moving forward &mdash; going with Rito Suave instead. Their 8/21 "last of the automated emails" re-ping was quoted at $1,675 all-in (w/ live sax) but was never signed, so it just lapses. No decline reply required.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Karra Live Wedding Painter</div><div class="role">Live wedding painting (lead)</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">Pricing TBD</td>
+        <td><b>7/21 (now ~3 weeks unread):</b> Karra wrote back offering to set up a call and it's still sitting <b>unread</b>. Says only one March spot left, so the hold won't last forever. <b>Next step: reply and book the call</b> to get pricing, or formally pass if you're going with Presley.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Presley (PRESLEYMADEIT)</div><div class="role">Live wedding painting (lead)</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money"><b>$5,750 total</b><br>25% deposit $1,437.50<br>Balance $4,312.50 due 3/20/27</td>
+        <td><b>New 10/16 &amp; 10/19 (latest unread):</b> Kerwin checked back in 10/16 to confirm availability and lock in; Presley replied 10/19 that she's moving forward with the <b>36&quot;x48&quot; package</b> plus the $750 out-of-state travel fee, for a <b>$5,750 total investment</b> - $1,437.50 deposit (25%) at signing, remaining $4,312.50 due by <b>3/20/27</b> (one week out, matching what she said back in July). She confirmed <b>the date is still available</b> and offered to lock it in today. <b>Decision-ready and time-sensitive:</b> reply, choose Presley vs. Karra now that pricing is firm, and sign if going with her - this is the single biggest to-do this week.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Lumina Art Collective</div><div class="role">Live guest portrait / canvas (lead)</div></td>
+        <td><span class="pill p-closed">Closed</span></td>
+        <td class="money">&mdash;</td>
+        <td><b>Closed 8/10:</b> Lumina sent a final follow-up and <b>released your date</b> ("we'll go ahead and release availability") since they never heard back. Door left open to reconnect if you change your mind, but this lead is effectively off the board. Painter race is now Presley vs. Karra.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Events Life Ash</div><div class="role">Planning / event support (lead)</div><div class="role">Ashley Valenzuela</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">Scope TBD</td>
+        <td><b>New 7/10:</b> Intro Zoom call held with Kerwin &amp; Dani. Personal contact of Kerwin's who runs an events business. No role or pricing defined yet &mdash; clarify what she'd cover (they already have Lace &amp; Champagne for day-of) before it moves forward.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">NapoSax (Napoleon Holliday)</div><div class="role">Live saxophonist</div></td>
+        <td><span class="pill p-closed">Declined</span></td>
+        <td class="money">&mdash;</td>
+        <td><b>Closed 7/7:</b> Final gracious decline sent; Napoleon acknowledged ("Ok, thanks for the update"). Slot filled by the violinist.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Anusha Bhaskarla</div><div class="role">Photographer (lead, 2nd shooter / content)</div><div class="role">@photosbyanusha</div></td>
+        <td><span class="pill p-closed">Declined</span></td>
+        <td class="money">&mdash;</td>
+        <td><b>Closed 9/18-9/20:</b> Anusha declined (9/18-19) &mdash; not available on 3/27/27. Kerwin sent a gracious reply 9/20. No 2nd-photographer/content-creator lead currently active; that slot is a "maybe," not one of the three counted open slots.</td>
+      </tr>
+      <tr>
+        <td><div class="vend">Clarisse Rae Photo &amp; Video</div><div class="role">Photographer (lead, 2nd shooter / content)</div><div class="role">Clarisse Meyer</div></td>
+        <td><span class="pill p-progress">In Progress</span></td>
+        <td class="money">Self-reported $6,000-$8,000<br>for 6-8 hrs coverage</td>
+        <td><b>New 9/21:</b> New inbound lead via her site's lead-capture form (submitted 9/19, she replied 9/21). Enthusiastic about shooting at La Valencia, asked for a call this week to build a custom package. Her own Dubsado intake form lists a <b>$6,000-$8,000</b> budget for 6-8 hours of coverage &mdash; that's her form field, not a quote from her yet. <b>Next step:</b> reply and set up the call if you want to explore a 2nd photographer, same "maybe" status Anusha held &mdash; doesn't count as one of the three open slots.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>This Week's Actions</h2>
+  <ul class="actions">
+    <li><b>Reply to Presley and lock in the painter - time-sensitive.</b> She confirmed 10/19 she still has 3/27/27 available and can lock you in today: $5,750 total (36&quot;x48&quot; package + $750 travel fee), $1,437.50 deposit now, $4,312.50 balance due 3/20/27. Decide Presley vs. Karra and reply today if you want to take her up on the offer. Nice-to-have, not in the core $58k.</li>
+    <li><b>Send the room-block code GAUFER to guests.</b> The Grande Colonial "Little Hotel" block (March 23-28, 2027) is confirmed and live as of 9/11 - there's a dedicated call-in number, a booking link, and promo code <b>GAUFER</b> for online reservations. Deposit was already signed and paid by Dani's mom in July, so nothing due on your side. Get the code + link onto save-the-dates / the wedding website so guests can book.</li>
+    <li><b>Confirm The Spot's CC auth form actually went back.</b> Dani answered their full intake questionnaire 10/16 and The Spot auto-added an after-party calendar hold for 3/27/27 (10-11pm), but nothing on file shows the signed credit-card authorization form was returned. Send Kat a quick confirmation so the no-room-fee reservation is actually locked, not just assumed. Separate charge, not in the $58k.</li>
+    <li><b>Decide on Bay Custom Embroidery's quote and drop off the bags.</b> Kenzo quoted $30/bag (10 bags, about $300 total) for the ~2&quot;x2&quot; logo plus two initials - no due date, pay when you bring the items in. Separate charge, not in the $58k.</li>
+    <li><b>Florist shortlist reply is now a week overdue (was due 10/12).</b> Alex's Florists List.pdf from 10/5 still hasn't gone back to her as far as this inbox shows. Open it with Dani and send your top picks so she can check availability and pricing before it drags further.</li>
+    <li><b>Still open the florist's 9/23 budget spreadsheet.</b> Wedding Floral Budget_9.22.26.xlsm (her email says ~$190 over, excluding ribbon/draping extras) is still unopened on this end and the real numbers are unconfirmed. Open it yourself and reply, and get scope + deposit for her DIY portion in writing even though she's family. Separate charge, not part of the $58k.</li>
+    <li><b>Consider Clarisse Rae for a 2nd photographer/content role.</b> Inbound lead from 9/21, self-reported budget $6,000-$8,000 for 6-8 hrs. If interested, reply and book the call she offered; if not, a graceful pass keeps the board clean like Anusha's close. Doesn't affect the three counted open slots either way.</li>
+    <li><b>Reel Love: payment 8 cleared, but check in on two loose ends.</b> The 10/16 auto-draft ($606.86, 8 of 16) failed and then was resubmitted and confirmed paid the same day, so nothing's overdue - worth confirming with Javar it was a one-time card hiccup and not a sign the card on file needs updating. Separately, a Follow Up Call was calendared for 10/13 and there's no note on file about how it went, so the shot list, day-of timeline, and 2nd-shooter question from the original 9/10 call are still open.</li>
+    <li><b>Get Rito Suave's contract in hand.</b> DJ is decided (Rito Suave, ~$1,500) and Dancing DJ is passed. To move Rito from "In Progress" to Locked, get the signed contract, final price, and deposit/payment terms in writing, then log the schedule here. No reply owed to Dancing DJ's automated pings.</li>
+    <li><b>MUA logged - a few blanks to fill.</b> Makeup by Linda Joy signed 8/22, $3,250 total, separate from the $58k, balance due 72 hrs before the wedding. Get in writing: the non-refundable retainer amount (due at signing, does NOT count toward the $3,250), the travel fee (quoted at booking), the ready-by time, and the final headcount for the 10 services. Note: the $3,250 is before retainer + travel, so the real all-in will run higher.</li>
+    <li><b>Pin the violinist balance date.</b> Booking is confirmed; ask Ron Kao for the written due date on the remaining $3,000 so it stops floating.</li>
+    <li><b>Define the Events Life Ash role.</b> After the 7/10 intro call, pin down what Ashley would actually do (and cost) given Lace &amp; Champagne already covers day-of, so it doesn't drift as an undefined extra.</li>
+    <li><b>Confirm the Reel Love installment amounts.</b> Payment 6 of 16 still has no thread on file; confirm with Javar it matched the flat $606.86 rate (payments 5, 7, and 8 all did) so the running total is verified, not assumed.</li>
+    <li><b>Keep trimming to 170.</b> Guest list is the biggest lever on the La Valencia total; every head over 170 is ~$314.</li>
+  </ul>
+
+  <footer>Auto-refreshed every Monday, 8am. Figures reflect vendor emails on file; unverified amounts are labeled.</footer>
 </div>
-
-<!-- ── MAIN ── -->
-<main class="main">
-
-  <!-- SUMMARY CARDS -->
-  <div class="summary-row">
-    <div class="summary-card">
-      <div class="label">Vendors Locked</div>
-      <div class="value">3</div>
-      <div class="sub">La Valencia · Reel Love Films · Lace &amp; Champ. · Janine (Day-of)</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Vendors Responding</div>
-      <div class="value">3</div>
-      <div class="sub">DJ Productions · John Violinist · Corey Staggers (awaiting your reply)</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Deposits Paid (Total)</div>
-      <div class="value">$1,108</div>
-      <div class="sub">Reel Love Films · payments 1, 2 &amp; 3 of 16 · all current</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">Open Vendor Slots</div>
-      <div class="value">4+</div>
-      <div class="sub">DJ · Live Musician · Florist · Cake · Content Creator</div>
-    </div>
-  </div>
-
-  <!-- VENDOR TABLE -->
-  <div class="section-title">Vendor Status Dashboard</div>
-  <div class="table-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>Vendor</th>
-          <th>Contract</th>
-          <th>Deposit</th>
-          <th>Balance / Due</th>
-          <th>Last Contact</th>
-          <th>Next Reply</th>
-          <th>Action This Week</th>
-          <th>Red Flag</th>
-        </tr>
-      </thead>
-      <tbody>
-
-        <!-- 1. Reel Love Films — GREEN -->
-        <tr class="status-green">
-          <td>
-            <span class="vendor-name">Reel Love Films (Javar)</span>
-            <span class="vendor-category">Photography &amp; Videography · +2nd Photographer TBD</span>
-          </td>
-          <td><span class="badge badge-signed">Signed</span></td>
-          <td>
-            <span class="badge badge-paid">Paid</span><br>
-            <span class="amount" style="font-size:12px">3 of 16 pmts · $1,108 total</span>
-          </td>
-          <td>
-            <span class="amount" style="font-size:12px">Remaining balance TBD</span><br>
-            <span style="font-size:11px;color:var(--smoke)">Per 16-payment HoneyBook schedule</span>
-          </td>
-          <td style="font-size:12px">May 28, 2026<br><span style="color:var(--smoke)">Payment 3 confirmed · call rescheduled to next week</span></td>
-          <td><span class="reply-none">Monitoring</span></td>
-          <td style="font-size:12px">Reschedule follow-up call · begin search for 2nd photographer</td>
-          <td><span class="redflag-none">None · all current</span></td>
-        </tr>
-
-        <!-- 2. La Valencia Hotel — GREEN -->
-        <tr class="status-green">
-          <td>
-            <span class="vendor-name">La Valencia Hotel</span>
-            <span class="vendor-category">Venue · Catering · Bar</span>
-          </td>
-          <td><span class="badge badge-signed">Signed</span></td>
-          <td>
-            <span class="badge badge-paid">Per Contract</span><br>
-            <span class="amount-muted" style="font-size:12px">TBD per schedule</span>
-          </td>
-          <td>
-            <span class="amount" style="font-size:12px">~$57K at 170 guests</span><br>
-            <span style="font-size:11px;color:var(--smoke)">Due: per BEO schedule</span>
-          </td>
-          <td style="font-size:12px">May 15, 2026<br><span style="color:var(--smoke)">Dani H. confirmed Janine</span></td>
-          <td><span class="reply-none">Monitoring</span></td>
-          <td style="font-size:12px">Follow up on room block for guests</td>
-          <td><span class="redflag-none">None</span></td>
-        </tr>
-
-        <!-- 3. Lace & Champagne — GREEN -->
-        <tr class="status-green">
-          <td>
-            <span class="vendor-name">Lace &amp; Champagne (Janine)</span>
-            <span class="vendor-category">Day-of Coordinator</span>
-          </td>
-          <td><span class="badge badge-signed">Signed</span></td>
-          <td>
-            <span class="badge badge-pending">TBD</span><br>
-            <span class="amount-muted" style="font-size:12px">Confirm deposit terms</span>
-          </td>
-          <td>
-            <span class="amount-muted">TBD per contract</span>
-          </td>
-          <td style="font-size:12px">May 16, 2026<br><span style="color:var(--smoke)">Janine confirmed · La Valencia looped in</span></td>
-          <td><span class="reply-none">Monitoring</span></td>
-          <td style="font-size:12px">Get copy of signed contract on file · confirm deposit schedule</td>
-          <td><span class="redflag-none">Locked in · contract signed</span></td>
-        </tr>
-
-        <!-- 4. Dancing DJ Productions — YELLOW -->
-        <tr class="status-yellow">
-          <td>
-            <span class="vendor-name">Dancing DJ Productions</span>
-            <span class="vendor-category">DJ (Darius Jay)</span>
-          </td>
-          <td><span class="badge badge-notsent">Not Sent</span></td>
-          <td>
-            <span class="badge badge-notsent">Not Yet Due</span><br>
-            <span class="amount-muted" style="font-size:12px">$475 on booking</span>
-          </td>
-          <td>
-            <span class="amount">$1,675 total</span><br>
-            <span style="font-size:11px;color:var(--smoke)">6 hrs all-inclusive · incl. live sax</span>
-          </td>
-          <td style="font-size:12px">May 19, 2026<br><span style="color:var(--smoke)">Nicole sent full quote (UNREAD)</span></td>
-          <td><span class="reply-me">YOU (unread)</span></td>
-          <td style="font-size:12px">Read quote, discuss with Dani, confirm or decline</td>
-          <td>
-            <div class="redflag" style="color:var(--yellow)">⚠ Full quote sent May 19, not yet read or responded to.</div>
-          </td>
-        </tr>
-
-        <!-- 5. John Violinist — YELLOW -->
-        <tr class="status-yellow">
-          <td>
-            <span class="vendor-name">John Violinist</span>
-            <span class="vendor-category">Live Music · Violin</span>
-          </td>
-          <td><span class="badge badge-notsent">Not Sent</span></td>
-          <td>
-            <span class="badge badge-notsent">Not Yet Due</span><br>
-            <span class="amount-muted" style="font-size:12px">50% on booking</span>
-          </td>
-          <td>
-            <span class="amount-muted">Pending rate review</span><br>
-            <span style="font-size:11px;color:var(--smoke)">PDF rates attached (Dani can't open)</span>
-          </td>
-          <td style="font-size:12px">May 19, 2026<br><span style="color:var(--smoke)">"Hope to hear soon" (UNREAD)</span></td>
-          <td><span class="reply-me">YOU</span></td>
-          <td style="font-size:12px">Resend PDF to Dani · review rates together · decide</td>
-          <td>
-            <div class="redflag" style="color:var(--yellow)">⚠ Dani can't see the rate PDF. Needs to be resent so you two can decide together.</div>
-          </td>
-        </tr>
-
-        <!-- 6. Corey Staggers (Sax) — YELLOW -->
-        <tr class="status-yellow">
-          <td>
-            <span class="vendor-name">Corey Staggers</span>
-            <span class="vendor-category">Live Music · Saxophone</span>
-          </td>
-          <td><span class="badge badge-notsent">Not Sent</span></td>
-          <td>
-            <span class="badge badge-notsent">Not Yet Due</span>
-          </td>
-          <td>
-            <span class="amount">$5,500 for 3.5hrs</span><br>
-            <span style="font-size:11px;color:var(--smoke)">Includes travel &amp; stay · "negotiable"</span>
-          </td>
-          <td style="font-size:12px">May 21, 2026<br><span style="color:var(--smoke)">Corey sent quote · awaiting response</span></td>
-          <td><span class="reply-me">YOU</span></td>
-          <td style="font-size:12px">Respond — negotiate price or compare vs. Darius Jay (DJ w/ live sax at $1,675)</td>
-          <td>
-            <div class="redflag" style="color:var(--yellow)">⚠ $5,500 for 3.5 hrs is steep — Darius Jay at $1,675 already includes live sax during dancing.</div>
-          </td>
-        </tr>
-
-        <!-- 7. Florist — open slot -->
-        <tr class="status-yellow">
-          <td>
-            <span class="vendor-name">Florist</span>
-            <span class="vendor-category">Floral Design</span>
-          </td>
-          <td><span class="badge badge-notsent">Not Started</span></td>
-          <td><span class="badge badge-notsent">N/A</span></td>
-          <td><span class="amount-muted">Not contacted</span></td>
-          <td style="font-size:12px;color:var(--smoke)">No emails found</td>
-          <td><span class="reply-me">YOU</span></td>
-          <td style="font-size:12px">Begin outreach — La Jolla florists book 12-18 months out</td>
-          <td>
-            <div class="redflag" style="color:var(--yellow)">⚠ No florist outreach found. With 10 months until the wedding, this should move this week.</div>
-          </td>
-        </tr>
-
-      </tbody>
-    </table>
-  </div>
-
-  <!-- THIS WEEK'S ACTION LIST -->
-  <div class="section-title">This Week's Action List</div>
-  <div class="action-list">
-
-    <!-- ACTION 2: Dancing DJ Productions — YELLOW -->
-    <div class="action-card yellow">
-      <div class="action-card-header">
-        <span class="priority-badge">🟡 This Week</span>
-        <div>
-          <div class="action-title">Respond to Dancing DJ Productions — Quote Sitting Unread</div>
-          <div class="action-what">DJ Darius Jay quoted $1,675 for 6 hrs including live sax. That's exceptional value. Read the full quote, loop in Dani, and respond. They're in demand.</div>
-        </div>
-      </div>
-      <div class="action-body">
-        <div class="email-draft">
-          <div class="email-draft-label">✉ Suggested reply to Dancing DJ Productions</div>
-          <div class="email-meta">
-            <div>To: <span>nicole@dancingdjproductions.com</span></div>
-            <div>Subject: <span>Re: Dancing DJ Productions Quote</span></div>
-          </div>
-          <div class="email-draft-body">Hi Nicole,
-
-Thank you for all of this — really comprehensive package. We've reviewed everything and are very interested in Darius Jay. Before we move forward, could you send over the contract and walk us through the booking process? We want to lock this in sooner than later.
-
-All the Best,
-Kerwin &amp; Dani</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ACTION 4: John Violinist Rates — YELLOW -->
-    <div class="action-card yellow">
-      <div class="action-card-header">
-        <span class="priority-badge">🟡 This Week</span>
-        <div>
-          <div class="action-title">Resend John Violinist Rates to Dani — Then Decide</div>
-          <div class="action-what">Dani couldn't open the rates PDF. Forward the email directly to her, or ask Tasha to resend in a different format. Don't leave this hanging.</div>
-        </div>
-      </div>
-      <div class="action-body">
-        <div class="email-draft">
-          <div class="email-draft-label">✉ Suggested reply to Tasha (John Violinist)</div>
-          <div class="email-meta">
-            <div>To: <span>johnviolinist@gmail.com</span></div>
-            <div>Subject: <span>Re: John Violinist: Website Message</span></div>
-          </div>
-          <div class="email-draft-body">Hi Tasha,
-
-Thanks for your patience. My fiancée wasn't able to open the rates PDF from your previous email — would you be able to resend it as a different file format, or paste the rates directly in the email body?
-
-Once we have a chance to review together, we'll be back in touch quickly.
-
-All the Best,
-Kerwin</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ACTION 5: Corey Staggers — YELLOW -->
-    <div class="action-card yellow">
-      <div class="action-card-header">
-        <span class="priority-badge">🟡 This Week</span>
-        <div>
-          <div class="action-title">Respond to Corey Staggers — $5,500 Needs a Decision</div>
-          <div class="action-what">His quote is $5,500 for 3.5 hrs. That's negotiable per his email, but it's also nearly 3x what Dancing DJ (with live sax) costs. Decide if he's worth the premium or pass.</div>
-        </div>
-      </div>
-      <div class="action-body">
-        <div class="email-draft">
-          <div class="email-draft-label">✉ Suggested response (if negotiating / deciding to pass)</div>
-          <div class="email-meta">
-            <div>To: <span>coreystaggzsax@gmail.com</span></div>
-            <div>Subject: <span>Re: Wedding Request</span></div>
-          </div>
-          <div class="email-draft-body">Hello,
-
-Thank you for getting back to us with the rates — we appreciate it. We're reviewing a few options right now and will be in touch by end of week with a decision.
-
-Could you share any flexibility on the rate for 3.5 hours, or offer a package without overnight travel included?
-
-All the Best,
-Kerwin &amp; Dani</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ACTION 6: Florist — YELLOW -->
-    <div class="action-card yellow">
-      <div class="action-card-header">
-        <span class="priority-badge">🟡 Start Now</span>
-        <div>
-          <div class="action-title">Begin Florist Outreach — No Emails Found</div>
-          <div class="action-what">Nothing in your inbox. La Jolla florists who work at La Valencia book up 12-18 months out. This needs to move this week — not next month.</div>
-        </div>
-      </div>
-      <div class="action-body">
-        <div class="email-draft">
-          <div class="email-draft-label">✉ Template outreach email for florists</div>
-          <div class="email-meta">
-            <div>To: <span>[La Jolla Florist]</span></div>
-            <div>Subject: <span>Wedding Floral Inquiry — March 27, 2027 · La Valencia Hotel</span></div>
-          </div>
-          <div class="email-draft-body">Hi [Name],
-
-My fiancée and I are getting married at La Valencia Hotel in La Jolla on March 27, 2027 and are looking for a talented florist to bring our vision to life. We're going for an Old Hollywood feel — timeless, romantic, a little drama.
-
-Are you available that date? If so, I'd love to set up a quick call to discuss our vision and get a sense of what you can put together.
-
-All the Best,
-Kerwin Ferrette
-kerwinferrette@gmail.com</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- AT-RISK SECTION -->
-  <div class="section-title">⚠ 3 Vendor Relationships Most At Risk</div>
-  <div class="risk-cards">
-
-    <div class="risk-card" style="border-top-color:#ffc107;">
-      <div class="risk-rank" style="color:var(--yellow);">Risk #1 · Quotes Expiring</div>
-      <div class="risk-vendor">DJ + Live Musician (Open)</div>
-      <div class="risk-category">Entertainment</div>
-      <div class="risk-reason">Dancing DJ Productions, John Violinist, and Corey Staggers are all awaiting your response — GigSalad quotes have already expired and spring Saturdays in La Jolla go fast. This needs a decision this week.</div>
-    </div>
-
-    <div class="risk-card" style="border-top-color:#ffc107;">
-      <div class="risk-rank" style="color:var(--yellow);">Risk #3 · No Florist</div>
-      <div class="risk-vendor">Florist (Open Slot)</div>
-      <div class="risk-category">Floral Design</div>
-      <div class="risk-reason">There's no florist in your inbox at all — and La Jolla floral vendors who work at La Valencia typically book 12-18 months out, meaning the clock is already ticking and premium vendors may already be unavailable for March 27, 2027.</div>
-    </div>
-
-  </div>
-
-</main>
-
-<!-- ── FOOTER ── -->
-<footer class="page-footer">
-  <strong>Wedding Vendor HQ</strong> · Ferrette &amp; Gaumer · March 27, 2027 · La Valencia Hotel, La Jolla · Refreshes every Monday at 8am
-</footer>
-
 </body>
 </html>

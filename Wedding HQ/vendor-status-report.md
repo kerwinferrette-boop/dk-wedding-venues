@@ -202,7 +202,11 @@ Three GigSalad musician quotes received on May 18 are set to **expire TODAY (May
 
 ### LIVE WEDDING PAINTERS
 
-**15. Jess Perna Fine Art** - TOP PICK
+**PAINTER SCORING GUIDE** | Style Match (realism/Gatsby) | Budget Fit | Review Strength | La Jolla Access | **Total /40**
+
+---
+
+**15. Jess Perna Fine Art** - TOP PICK FOR REALISM
 - Status: NOT YET CONTACTED
 - Location: Temecula, CA (serves all of Southern California + San Diego, no travel fee)
 - Website: [jesspernafineart.com](https://jesspernafineart.com)
@@ -270,14 +274,150 @@ Three GigSalad musician quotes received on May 18 are set to **expire TODAY (May
 
 ---
 
+**19. Joshua Spieker**
+- Status: NOT YET CONTACTED
+- Location: Ramona/San Diego, CA (local - serves San Diego + Los Angeles)
+- Website: [joshuaspieker.com](https://joshuaspieker.com)
+- Live wedding painting page: [joshuaspieker.com/live-wedding-painting](https://joshuaspieker.com/live-wedding-painting/)
+- About: [joshuaspieker.com/live-wedding-painter-the-artist](https://joshuaspieker.com/live-wedding-painter-the-artist/)
+- Instagram: [@joshuaspieker_](https://www.instagram.com/joshuaspieker_/)
+- Facebook: facebook.com/joshuaspiekerart
+- Contact: joshuaspiekerart@gmail.com
+
+**Why they're worth considering:** San Diego-local, based in Ramona. Works using classical European painting technique - that's the realism foundation you want. Unusually flexible on subject matter: couples have had him paint them in Hawaii, Yosemite, or at the venue itself - giving you the option to incorporate a Gatsby-era fantasy backdrop rather than just a straight venue scene. Featured in SDVoyager. No travel fee to La Jolla.
+
+**Pricing:** Not publicly listed. Likely $1,500-$3,000 range based on market comps.
+
+**Red flags:** Limited public reviews compared to Jess Perna. Request a client reference list before committing.
+
+---
+
+**20. Nicolette Martin Art**
+- Status: NOT YET CONTACTED - BOOKING 2027
+- Location: Southern California
+- Website: Search "Nicolette Martin live wedding painter" - primary presence is Instagram
+- Instagram: [@nicmartin_event](https://www.instagram.com/nicmartin_event/) - 46K followers, 1,600+ posts
+- Fine art Instagram: [@nicm_art_in](https://www.instagram.com/nicm_art_in/)
+
+**Why they're worth considering:** 46K Instagram following for a niche wedding vendor is meaningful - she's very active and her portfolio of reels shows strong real-time painting at events. Her bio says "The gal who lets the guests paint!" which means she makes the experience interactive - guests can add a stroke. Explicitly booking 2027 events.
+
+**Pricing:** Not publicly listed. Contact via Instagram DM or profile link.
+
+**Red flags:** No dedicated website found - operates primarily through Instagram. Get a formal contract before any deposit. Strong social presence doesn't always mean strong operational infrastructure.
+
+---
+
+**21. Taylor Gallegos / Live Wedding Art**
+- Status: NOT YET CONTACTED
+- Location: Fallbrook/Carlsbad, CA (North San Diego County - local)
+- Website: [liveweddingart.com](https://www.liveweddingart.com)
+- Pricing/process page: [liveweddingart.com/process](https://www.liveweddingart.com/process)
+- The Knot: [theknot.com/marketplace/live-wedding-art-fallbrook-ca-1053217](https://www.theknot.com/marketplace/live-wedding-art-fallbrook-ca-1053217)
+- GigSalad: [gigsalad.com/live_wedding_art_carlsbad](https://www.gigsalad.com/live_wedding_art_carlsbad)
+
+**Why they're worth considering:** BFA from Colorado State, studied painting in Tuscany - the classical training shows. Reviews specifically praise the realism: "researched many wedding artists prior to selecting Taylor and none offered the beauty and realism that he did." That's the sentence you want to see. Fallbrook/Carlsbad means local to San Diego, no major travel costs. In business since 2015.
+
+**Pricing:** Has a process/pricing page on the site - check liveweddingart.com/process directly.
+
+**Red flags:** None identified. Relatively low national profile compared to Jess Perna but reviews are excellent. Worth a direct inquiry.
+
+---
+
+**22. Patti Paulsen / Live Wedding Artist in San Diego**
+- Status: NOT YET CONTACTED
+- Location: San Diego / Coronado, CA
+- The Knot: [theknot.com/marketplace/patti-s-paulsen-live-wedding-artist-in-san-diego-san-diego-ca-2016568](https://www.theknot.com/marketplace/patti-s-paulsen-live-wedding-artist-in-san-diego-san-diego-ca-2016568)
+
+**Why they're worth considering:** Listed specifically as a San Diego live wedding artist. Local to the market means venue familiarity.
+
+**Pricing:** Not publicly listed. Contact via The Knot profile.
+
+**Red flags:** Least-researched of the group. Review the Knot profile carefully for photos and client reviews before reaching out.
+
+---
+
+**23. Heather Millenaar**
+- Status: NOT YET CONTACTED
+- Location: Paso Robles, CA (serves LA, Santa Barbara, SF, and beyond - confirm San Diego travel)
+- The Knot: [theknot.com/marketplace/live-wedding-painting-by-artist-heather-millenaar-paso-robles-ca-2013767](https://www.theknot.com/marketplace/live-wedding-painting-by-artist-heather-millenaar-paso-robles-ca-2013767)
+
+**Why they're worth considering:** Delivers final varnished oil paintings shipped or hand-delivered. Oil is her medium - that's the quality you want for a Gatsby-formal setting.
+
+**Pricing:** Not publicly listed. Paso Robles to San Diego likely includes a travel fee - ask upfront.
+
+**Red flags:** Central CA-based means travel cost and logistics. Not the first call to make given stronger local options, but worth keeping on the list if others fall through.
+
+---
+
+### CONTENT CREATORS
+
+**24. Happily Ever Creator (Nancy)**
+- Status: NOT YET CONTACTED
+- Location: San Diego, CA (local)
+- Website: [happilyevercreator.com](https://www.happilyevercreator.com)
+- Services: [happilyevercreator.com/services](https://www.happilyevercreator.com/services)
+- The Knot: [theknot.com/marketplace/san-diego-content-creator-san-diego-ca-2083024](https://www.theknot.com/marketplace/san-diego-content-creator-san-diego-ca-2083024)
+- Instagram: [@happilyevercreator](https://www.instagram.com/happilyevercreator/) (~600 followers, featured on Style Me Pretty)
+- Contact: via happilyevercreator.com
+
+**What they do:** iPhone-based behind-the-scenes content capture across the full wedding day. Delivers social media-ready reels in 24-48 hours. Nancy has a background in social media management in the hospitality industry - she's not just someone with a good iPhone, she thinks in content. Reviews call her "great addition to the team" and praise her eye for story through short-form video.
+
+**Pricing:** Not publicly listed. Industry average is $500-$999/day based on Zola's 2026 survey. Contact for package details.
+
+**Red flags:** Small social following for a content creator (600). But being featured on Style Me Pretty is a real credential. Ask for deliverable examples before booking.
+
+---
+
+**25. Bridal Content Besties (Ro)**
+- Status: NOT YET CONTACTED
+- Location: El Cajon / San Diego, CA (local)
+- Website: [bridalcontentbesties.com](https://bridalcontentbesties.com)
+- Pricing/packages: [bridalcontentbesties.com/investment](https://bridalcontentbesties.com/investment)
+- Yelp: [yelp.com/biz/bridal-content-besties-el-cajon](https://www.yelp.com/biz/bridal-content-besties-el-cajon)
+- Facebook: facebook.com/61576633993985
+
+**What they do:** Documentary-style content capture with a photography background. Offers 6, 8, and 10-hour collections with behind-the-scenes video, reels, and same-day delivery. Reviews are exceptional - a wedding planner called her services "worth their weight in GOLD." One client said they didn't realize Ro was filming half the time (that's the goal). Transparent pricing on her website.
+
+**Pricing:** Check bridalcontentbesties.com/investment directly - tiered packages by hours. Likely $600-$1,200 range.
+
+**Red flags:** Newer business (Facebook page created recently). Strong reviews, but less tenure than a more established creator. Ask for a sample reel from a recent wedding before booking.
+
+---
+
+**26. SoCal Socials (Ashley)**
+- Status: NOT YET CONTACTED
+- Location: Los Angeles / Orange County / San Diego (covers all three markets)
+- Website: [socal-socials.com](https://www.socal-socials.com)
+- Instagram: [@contentbykailee](https://www.instagram.com/contentbykailee/)
+
+**What they do:** Authentic, candid-first wedding content - tears, laughter, dance floor chaos, quiet moments. Covers LA, OC, San Diego, Temecula, Riverside, Palm Springs, Santa Barbara, and available for destination events. Captures the full story of the day, not just the highlight reel.
+
+**Pricing:** Not publicly listed. Industry range $500-$999/day.
+
+**Red flags:** No Knot or WeddingWire profile found - harder to verify track record independently. Ask for client references and a sample portfolio before committing.
+
+---
+
+**27. Dancing DJ Productions Content Creator (add-on)**
+- Status: Option available via Dancing DJ Productions - already in conversation
+- Website: [dancingdjproductions.com/san-diego-wedding-content-creator](https://dancingdjproductions.com/san-diego-wedding-content-creator/)
+
+**What they do:** Dancing DJ mentioned in their quote email that they have a content creator partner available as a package add-on. Easiest path if you're already booking Darius Jay - one vendor relationship, bundled pricing. Confirm scope and turnaround time with Nicole.
+
+**Pricing:** Not disclosed. Ask Nicole when you respond to the DJ quote.
+
+**Red flags:** Bundled add-ons are convenient but vet the content creator's portfolio independently. Don't let the convenience of a bundle override quality.
+
+---
+
 ## WHAT'S STILL COMPLETELY OPEN
 
 | Category | Status |
 |----------|--------|
 | Florist | No outreach sent at all |
 | Wedding Cake | No outreach sent at all |
-| Live Wedding Painter | No outreach sent at all - 4 options researched |
-| Content Creator | Dancing DJ mentioned a content creator partner - ask them for pricing |
+| Live Wedding Painter | No outreach sent at all - 10 options researched |
+| Content Creator | No outreach sent - 3 local options researched + Dancing DJ add-on available |
 | Live Musician (ceremony/cocktail) | Multiple quotes and conversations - decision pending |
 | DJ (reception) | Quote in hand from Dancing DJ, call with Ajani done - decision pending |
 
